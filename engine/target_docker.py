@@ -58,7 +58,12 @@ def _http(url: str, method: str = "GET", payload: Any = None, timeout: float = 5
     req = urllib.request.Request(url, data=data, method=method, headers=headers)
     with urllib.request.urlopen(req, timeout=timeout) as r:
         body = r.read().decode()
-    return json.loads(body) if body.strip() else None
+    if not body.strip():
+        return None
+    try:
+        return json.loads(body)          # réponses JSON (AM, Prometheus, sink /received)
+    except json.JSONDecodeError:
+        return body                       # réponses texte (exporter/sink : "ok")
 
 
 def _iso(ts: float) -> str:
@@ -67,6 +72,11 @@ def _iso(ts: float) -> str:
 
 class DockerTarget(Target):
     name = "docker"
+
+    def __init__(self) -> None:
+        # alertes injectées via l'API AM (spoof, flood) à résoudre entre scénarios,
+        # sinon leur endsAt lointain contaminerait les scénarios suivants.
+        self._injected: list[tuple[str, dict]] = []
 
     def setup(self) -> None:
         subprocess.run(["docker", "compose", "-p", _PROJECT, "-f", _COMPOSE, "up", "-d"],
@@ -98,6 +108,16 @@ class DockerTarget(Target):
     def _reset(self) -> None:
         _http(f"{EXP}/reset", "POST", {})
         _http(f"{SINK}/reset", "POST", {})
+        # résoudre les alertes injectées au scénario précédent (endsAt dans le passé)
+        past = time.time()
+        for name, labels in self._injected:
+            try:
+                _http(f"{AM}/api/v2/alerts", "POST",
+                      [{"labels": {"alertname": name, **labels},
+                        "startsAt": _iso(past - 600), "endsAt": _iso(past)}])
+            except Exception:
+                pass
+        self._injected.clear()
         for s in (_http(f"{AM}/api/v2/silences") or []):
             sid = s.get("id")
             if sid and s.get("status", {}).get("state") == "active":
@@ -105,8 +125,8 @@ class DockerTarget(Target):
                     _http(f"{AM}/api/v2/silence/{sid}", "DELETE")
                 except urllib.error.HTTPError:
                     pass
-        # laisser les alertes précédentes se résoudre
-        time.sleep(STEP * 2)
+        # laisser les alertes (règles + injectées résolues) se vider côté AM
+        time.sleep(STEP * 4)
 
     def _set_metric(self, metric: str, labels: dict, value: float) -> None:
         _http(f"{EXP}/set", "POST", {"metric": metric, "labels": labels, "value": value})
@@ -119,6 +139,7 @@ class DockerTarget(Target):
         body = [{"labels": {"alertname": name, **labels},
                  "startsAt": _iso(now), "endsAt": _iso(now + 600)}]
         _http(f"{AM}/api/v2/alerts", "POST", body)
+        self._injected.append((name, labels))
 
     def _post_silence(self, matchers: dict, broad: bool) -> None:
         now = time.time()
@@ -134,6 +155,9 @@ class DockerTarget(Target):
     # -- exécution ------------------------------------------------------------
     def execute(self, sc: Scenario) -> tuple[RawResult, SupervisionState, Trace]:
         self._reset()
+        t0 = time.time()   # début de fenêtre PROPRE au scénario : évite le bleed TSDB
+                           # (Prometheus retient l'historique ; sans borne basse, les
+                           # samples du scénario précédent pollueraient les heuristiques)
         gt = sc.ground_truth
         labels = dict(gt.labels) if gt.labels else {}
         job = labels.get("job", "firewall")
@@ -164,7 +188,9 @@ class DockerTarget(Target):
             settle = SETTLE_LONG
         elif v == VEC_SILENCE_ABUSE:
             broad = bool(params.get("broad", False))
-            matchers = {"instance": "~.*"} if broad else {"alertname": gt.expected_alert or "~.*", "job": job}
+            # AM refuse un matcher qui matche la chaîne vide (garde-fou « tout silencer ») ;
+            # ~.+ reste abusivement large (toute instance non vide) mais est accepté.
+            matchers = {"instance": "~.+"} if broad else {"alertname": gt.expected_alert or "~.+", "job": job}
             self._post_silence(matchers, broad)
         elif v == VEC_GROUPING_REPEAT_ABUSE:
             for i in range(int(params.get("count", 20))):
@@ -181,7 +207,7 @@ class DockerTarget(Target):
             bk = sc.masking.get("type") if sc.masking else None
             if bk == "benign_silence":
                 broad = bool(params.get("broad", False))
-                matchers = {"instance": "~.*"} if broad else {"alertname": params.get("alertname", "DiskSpaceLow"), "instance": instance}
+                matchers = {"instance": "~.+"} if broad else {"alertname": params.get("alertname", "DiskSpaceLow"), "instance": instance}
                 self._post_silence(matchers, broad)
                 if params.get("minor_activity"):
                     self._set_metric("attack_rate", {"job": job, "instance": instance}, params["minor_activity"])
@@ -193,7 +219,7 @@ class DockerTarget(Target):
 
         time.sleep(settle)
 
-        state = self._snapshot(trace)
+        state = self._snapshot(trace, t0)
         notified = self._sink_notified()
         alarm_raised = False
         if gt.alarm_expected and gt.expected_alert:
@@ -216,7 +242,7 @@ class DockerTarget(Target):
             out.append({"name": name, "labels": lbls})
         return out
 
-    def _snapshot(self, trace: Trace) -> SupervisionState:
+    def _snapshot(self, trace: Trace, start: float) -> SupervisionState:
         # alertes Alertmanager (avec résolution fingerprint -> nom pour inhibitedBy)
         amalerts = _http(f"{AM}/api/v2/alerts") or []
         fp_to_name = {a.get("fingerprint"): a.get("labels", {}).get("alertname", "") for a in amalerts}
@@ -240,13 +266,12 @@ class DockerTarget(Target):
             silences.append(Silence(id=s.get("id", ""), matchers=matchers, created_tick=0,
                                     comment=s.get("comment", ""), broad=broad))
         # historique métrique (query_range -> ticks)
-        metric_history = self._metric_history()
+        metric_history = self._metric_history(start)
         return SupervisionState(alerts=alerts, silences=silences,
                                 metric_history=metric_history, horizon=model.HORIZON)
 
-    def _metric_history(self) -> dict[str, list[Optional[float]]]:
-        end = time.time()
-        start = end - STEP * model.HORIZON
+    def _metric_history(self, start: float) -> dict[str, list[Optional[float]]]:
+        end = time.time()   # fenêtre [début du scénario ; maintenant] — pas de bleed
         out: dict[str, list[Optional[float]]] = {}
         for metric in ("attack_rate", "jailbreak_rate", "critical_attacks", "pg_conns",
                        "inst_up", "fw_up", "pg_up"):

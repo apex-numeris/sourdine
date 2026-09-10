@@ -142,6 +142,16 @@ git-ignoré) et un résumé lisible s'affiche. Un exemple d'exécution est versi
 > les vecteurs à fenêtre longue (low-and-slow, `repeat_interval`) demandent de la
 > décantation et sont moins déterministes. Le **détecteur est identique** dans les
 > deux cas.
+>
+> **Constats de fidélité (run docker v0.1.0)** — surfacés en exécutant la vraie
+> cible : (1) le vrai Alertmanager **refuse** un silence dont un matcher matche la
+> chaîne vide (`instance=~.*`, garde-fou « tout silencer ») — le vecteur utilise
+> donc `~.+` ; (2) contre un `group_wait` court, la **noyade par groupement** ne
+> masque pas dans la fenêtre (le premier lot part avec la vraie alerte) : docker la
+> cote « non masquée » là où la sim, qui modélise une config à fenêtre longue, la
+> cote masquée. Résultat docker : **87,5 / 85,7 / 33,3 / 12,5 / 100 %**
+> (suppression / rattrapage / FP / résiduel / cohérence) vs sim
+> **100 / 75 / 33 / 25 / 100 %**. Exemple : `samples/example-0.1.0-docker.json`.
 
 ## Format de sortie
 
@@ -219,5 +229,5 @@ sourdine/
 │   └── sink/sink.py             # sink webhook d'observation (stdlib)
 ├── scripts/{target_up.sh,target_down.sh}
 ├── reports/                     # sorties JSON de campagne (runtime, git-ignoré)
-└── samples/example-0.1.0.json   # exemple d'exécution versionné (citable)
+└── samples/                     # exemples versionnés : example-0.1.0.json (sim) + example-0.1.0-docker.json
 ```

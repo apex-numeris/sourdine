@@ -137,9 +137,9 @@ class SimTarget(Target):
         elif v == VEC_SILENCE_ABUSE:
             broad = bool(params.get("broad", False))
             if broad:
-                matchers = {"instance": "~.*"}            # périmètre anormalement large
+                matchers = {"instance": "~.+"}            # large (toute instance non vide) ; ~.* serait refusé par le vrai AM
             else:
-                matchers = {"alertname": gt.expected_alert or "~.*", "job": job}
+                matchers = {"alertname": gt.expected_alert or "~.+", "job": job}
             sil = Silence(id="sil-atk", matchers=matchers, created_tick=params.get("at", 5),
                           comment=params.get("comment", "ops"), broad=broad)
             silences.append(sil)
@@ -174,7 +174,7 @@ class SimTarget(Target):
             bk = sc.masking.get("type") if sc.masking else None
             if bk == "benign_silence":
                 broad = bool(params.get("broad", False))
-                matchers = ({"instance": "~.*"} if broad
+                matchers = ({"instance": "~.+"} if broad
                             else {"alertname": params.get("alertname", "DiskSpaceLow"), "instance": instance})
                 silences.append(Silence(id="sil-ops", matchers=matchers,
                                         created_tick=params.get("at", 5),

@@ -1,0 +1,12 @@
+{
+  "id": "ATT-EXPORTER-CUTOFF-08",
+  "kind": "attack",
+  "vector": "exporter_cutoff",
+  "title": "Coupure de l'exporter / du scrape pendant l'attaque",
+  "description": "Après une montée d'activité d'attaque, l'attaquant coupe l'exporter (accès hôte) ou bloque le scrape (accès réseau). La métrique devient absente : l'alerte à taux ne part jamais faute de données, et l'instance bascule InstanceDown (qui inhibe le reste). Le signal est étouffé par le trou de collecte.",
+  "access_level": "exporter_host_or_network",
+  "ground_truth": {"alarm_expected": true, "expected_alert": "HighAttackRate", "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": false, "severity": "warning"},
+  "masking": {"type": "exporter_cutoff", "params": {"pre_ticks": 4}},
+  "tags": ["exporter", "trou-de-collecte", "chien-qui-n-aboie-pas"]
+}

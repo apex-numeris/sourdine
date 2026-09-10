@@ -1,0 +1,12 @@
+{
+  "id": "ATT-LOW-SLOW-CATCHABLE-04",
+  "kind": "attack",
+  "vector": "low_and_slow",
+  "title": "Low-and-slow sous le seuil instantané (rattrapable)",
+  "description": "L'attaquant maintient son taux d'attaque juste sous le seuil instantané de HighAttackRate : la règle à taux ne se déclenche jamais. Ici l'intensité cumulée sur la fenêtre longue dépasse le seuil intégré — un détecteur qui intègre dans le temps peut rattraper.",
+  "access_level": "threshold_knowledge",
+  "ground_truth": {"alarm_expected": true, "expected_alert": "HighAttackRate", "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": false, "severity": "warning"},
+  "masking": {"type": "low_and_slow", "params": {"rate": 30.0}},
+  "tags": ["low-and-slow", "seuil"]
+}

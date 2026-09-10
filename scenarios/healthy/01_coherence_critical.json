@@ -1,0 +1,13 @@
+{
+  "id": "HLT-COHERENCE-CRITICAL-01",
+  "kind": "healthy",
+  "vector": "none",
+  "title": "Contrôle de cohérence — événement critique, aucune attaque",
+  "description": "Un événement grave survient et AUCUN masquage n'est appliqué : l'alarme critique DOIT sortir. Sert de contrôle de cohérence (l'environnement cible n'est pas cassé) et de dénominateur au taux de faux positifs.",
+  "access_level": "n/a",
+  "coherence_control": true,
+  "ground_truth": {"alarm_expected": true, "expected_alert": "CriticalAttacksDetected", "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": true, "severity": "critical"},
+  "masking": {"type": "none", "params": {}},
+  "tags": ["coherence", "sain"]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "ATT-FW-DOWN-SPOOF-01",
+  "kind": "attack",
+  "vector": "firewall_down_spoof",
+  "title": "Spoof FirewallDown pour inhiber les alertes d'attaque",
+  "description": "L'attaquant fait apparaître une alerte FirewallDown (injection de métrique ou création via l'API Alertmanager) alors que le firewall est en réalité up et sous attaque. La règle d'inhibition FirewallDown -> {HighAttackRate, CriticalAttacksDetected, JailbreakSurge} masque alors l'alarme réelle pour le même job.",
+  "access_level": "metric_or_am_api",
+  "ground_truth": {"alarm_expected": true, "expected_alert": "HighAttackRate", "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": true, "severity": "warning"},
+  "masking": {"type": "spoof_inhibitor", "params": {}},
+  "tags": ["inhibition", "spoof"]
+}

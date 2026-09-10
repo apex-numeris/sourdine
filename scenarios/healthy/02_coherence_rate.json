@@ -1,0 +1,13 @@
+{
+  "id": "HLT-COHERENCE-RATE-02",
+  "kind": "healthy",
+  "vector": "none",
+  "title": "Contrôle de cohérence — pic d'attaque franc, aucune manœuvre",
+  "description": "Un pic de trafic d'attaque franchit nettement le seuil de HighAttackRate, sans aucun masquage. L'alarme à taux DOIT être levée et notifiée. Second contrôle de cohérence.",
+  "access_level": "n/a",
+  "coherence_control": true,
+  "ground_truth": {"alarm_expected": true, "expected_alert": "HighAttackRate", "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": true, "severity": "warning"},
+  "masking": {"type": "none", "params": {}},
+  "tags": ["coherence", "sain"]
+}

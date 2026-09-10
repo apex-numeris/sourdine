@@ -1,0 +1,12 @@
+{
+  "id": "ATT-SILENCE-BROAD-06",
+  "kind": "attack",
+  "vector": "silence_abuse",
+  "title": "Abus de silence à périmètre large",
+  "description": "L'attaquant pose, via l'API des silences, un silence au périmètre anormalement large (matcher instance=~.*) juste avant/pendant l'attaque. L'alarme critique réelle (CriticalAttacksDetected) est mise en sourdine et ne part jamais.",
+  "access_level": "silence_or_routing_api",
+  "ground_truth": {"alarm_expected": true, "expected_alert": "CriticalAttacksDetected", "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": true, "severity": "critical"},
+  "masking": {"type": "silence_abuse", "params": {"broad": true, "at": 5}},
+  "tags": ["silence", "sourdine"]
+}

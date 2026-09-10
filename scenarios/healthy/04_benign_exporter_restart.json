@@ -1,0 +1,12 @@
+{
+  "id": "HLT-BENIGN-RESTART-04",
+  "kind": "healthy",
+  "vector": "none",
+  "title": "Redémarrage d'exporter planifié, sans activité concomitante",
+  "description": "Un exporter redémarre pour une maintenance planifiée : trou de collecte bref, mais AUCUNE activité d'attaque autour. La baseline ne doit pas crier au masquage (le trou ne coïncide avec aucune montée d'activité). Vrai négatif attendu.",
+  "access_level": "n/a",
+  "ground_truth": {"alarm_expected": false, "expected_alert": null, "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": false},
+  "masking": {"type": "benign_exporter_restart", "params": {"pre_ticks": 12, "gap": 4}},
+  "tags": ["sain", "maintenance", "vrai-negatif"]
+}

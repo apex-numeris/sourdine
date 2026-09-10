@@ -1,0 +1,32 @@
+# Sourdine — Alertmanager de la CIBLE ÉPHÉMÈRE (jetable, isolée).
+# Règles d'inhibition représentatives, RECRÉÉES (jamais copiées de la prod) :
+#   InstanceDown   masque toutes les alertes de la même instance
+#   FirewallDown   masque {HighAttackRate, CriticalAttacksDetected, JailbreakSurge} (même job)
+#   PostgreSQLDown masque PostgreSQL.* (même job)
+# Toute notification part vers le sink webhook du banc (jamais Slack/PagerDuty réels).
+global:
+  resolve_timeout: 2m
+
+route:
+  group_by: ['alertname', 'service', 'severity']
+  group_wait: 3s
+  group_interval: 5s
+  repeat_interval: 1h
+  receiver: sourdine-sink
+
+receivers:
+  - name: sourdine-sink
+    webhook_configs:
+      - url: http://sourdine-sink:9099/
+        send_resolved: false
+
+inhibit_rules:
+  - source_matchers: ['alertname="InstanceDown"']
+    target_matchers: ['alertname=~".+"']
+    equal: ['instance']
+  - source_matchers: ['alertname="FirewallDown"']
+    target_matchers: ['alertname=~"HighAttackRate|CriticalAttacksDetected|JailbreakSurge"']
+    equal: ['job']
+  - source_matchers: ['alertname="PostgreSQLDown"']
+    target_matchers: ['alertname=~"PostgreSQL.*"']
+    equal: ['job']

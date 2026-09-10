@@ -1,0 +1,12 @@
+{
+  "id": "HLT-BENIGN-SPIKE-05",
+  "kind": "healthy",
+  "vector": "none",
+  "title": "Pic de trafic licite sous le seuil (piège à faux positif)",
+  "description": "Une campagne marketing génère un trafic licite soutenu mais sous le seuil instantané : aucune alerte ne doit se déclencher. Sa somme intégrée ressemble à du low-and-slow ; la baseline, qui ne regarde pas le contenu, va probablement faux-positiver — coût opérationnel honnête.",
+  "access_level": "n/a",
+  "ground_truth": {"alarm_expected": false, "expected_alert": null, "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": false},
+  "masking": {"type": "benign_spike", "params": {"rate": 30.0}},
+  "tags": ["sain", "faux-positif", "trafic-licite"]
+}

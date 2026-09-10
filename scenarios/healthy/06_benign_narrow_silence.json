@@ -1,0 +1,12 @@
+{
+  "id": "HLT-BENIGN-SILENCE-NARROW-06",
+  "kind": "healthy",
+  "vector": "none",
+  "title": "Silence étroit et justifié, hors de toute activité",
+  "description": "Un silence étroit et correctement ciblé est posé hors de toute montée d'activité (maintenance d'un disque non critique). La baseline ne doit pas le confondre avec un masquage. Vrai négatif attendu, pour équilibrer les pièges à faux positif.",
+  "access_level": "n/a",
+  "ground_truth": {"alarm_expected": false, "expected_alert": null, "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": false},
+  "masking": {"type": "benign_silence", "params": {"broad": false, "alertname": "DiskSpaceLow", "at": 5}},
+  "tags": ["sain", "vrai-negatif"]
+}

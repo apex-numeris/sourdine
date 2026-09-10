@@ -1,0 +1,47 @@
+# Sourdine — règles d'alerte de la CIBLE ÉPHÉMÈRE (représentatives, recréées).
+# Les seuils/durées correspondent à engine/model.py pour que sim et docker
+# partagent les mêmes conventions.
+groups:
+  - name: sourdine-cible
+    rules:
+      - alert: HighAttackRate
+        expr: attack_rate > 50
+        for: 6s
+        labels: {severity: warning, service: firewall}
+        annotations: {summary: "Taux d'attaque élevé"}
+
+      - alert: CriticalAttacksDetected
+        expr: critical_attacks > 0
+        for: 4s
+        labels: {severity: critical, service: firewall}
+        annotations: {summary: "Attaques critiques détectées"}
+
+      - alert: JailbreakSurge
+        expr: jailbreak_rate > 10
+        for: 4s
+        labels: {severity: high, service: firewall}
+        annotations: {summary: "Pic de jailbreak"}
+
+      - alert: InstanceDown
+        expr: inst_up == 0
+        for: 6s
+        labels: {severity: critical, service: infrastructure}
+        annotations: {summary: "Instance injoignable"}
+
+      - alert: FirewallDown
+        expr: fw_up == 0
+        for: 6s
+        labels: {severity: critical, service: firewall}
+        annotations: {summary: "Firewall injoignable"}
+
+      - alert: PostgreSQLDown
+        expr: pg_up == 0
+        for: 6s
+        labels: {severity: critical, service: postgresql}
+        annotations: {summary: "PostgreSQL injoignable"}
+
+      - alert: PostgreSQLHighConnections
+        expr: pg_conns > 180
+        for: 6s
+        labels: {severity: warning, service: postgresql}
+        annotations: {summary: "Connexions PostgreSQL élevées"}

@@ -1,0 +1,12 @@
+{
+  "id": "HLT-BENIGN-SILENCE-03",
+  "kind": "healthy",
+  "vector": "none",
+  "title": "Silence de maintenance légitime (piège à faux positif)",
+  "description": "Un opérateur pose un silence étroit et annoté pour une maintenance planifiée, pendant une activité licite mineure. Ce n'est PAS une attaque. La baseline, qui se méfie de tout silence posé pendant une activité, va probablement crier au masquage — faux positif honnête qui illustre le coût opérationnel.",
+  "access_level": "n/a",
+  "ground_truth": {"alarm_expected": false, "expected_alert": null, "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": false},
+  "masking": {"type": "benign_silence", "params": {"broad": false, "alertname": "DiskSpaceLow", "at": 5, "minor_activity": 15.0}},
+  "tags": ["sain", "faux-positif", "maintenance"]
+}

@@ -1,0 +1,9 @@
+# Sourdine — aucune dépendance tierce.
+#
+# Le moteur (scénarios, cible sim, détecteur baseline, runner, métriques, rapport)
+# et la cible docker (pilotée via urllib) n'utilisent que la bibliothèque standard
+# de Python >= 3.10. C'est délibéré : la campagne doit tourner à blanc sans
+# installation réseau, et le jeu de scénarios reste un artefact ouvert et citable.
+#
+# Le backend docker nécessite, côté système (pas pip) :
+#   - docker + docker compose v2

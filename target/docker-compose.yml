@@ -1,0 +1,59 @@
+# Sourdine — CIBLE ÉPHÉMÈRE ET JETABLE (projet compose `sourdine`).
+#
+# SÉCURITÉ : cette cible n'est JAMAIS l'Alertmanager/Prometheus de production.
+# Le banc la monte et la détruit lui-même (`down -v`). Ports liés à 127.0.0.1 sur
+# des numéros hauts (39xxx) pour ne jamais entrer en collision avec un stack réel.
+# Exporter et sink tournent sur l'image python officielle avec script bind-monté
+# (aucun build, aucune image à publier).
+
+services:
+  sourdine-prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: sourdine-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=1h
+      - --web.enable-lifecycle
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+    ports:
+      - "127.0.0.1:39090:9090"
+    networks: [sourdine-net]
+
+  sourdine-alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: sourdine-alertmanager
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "127.0.0.1:39093:9093"
+    networks: [sourdine-net]
+
+  sourdine-exporter:
+    image: python:3.12-slim
+    container_name: sourdine-exporter
+    working_dir: /app
+    command: ["python", "/app/exporter.py"]
+    volumes:
+      - ./exporter/exporter.py:/app/exporter.py:ro
+    ports:
+      - "127.0.0.1:39080:8000"
+    networks: [sourdine-net]
+
+  sourdine-sink:
+    image: python:3.12-slim
+    container_name: sourdine-sink
+    working_dir: /app
+    command: ["python", "/app/sink.py"]
+    volumes:
+      - ./sink/sink.py:/app/sink.py:ro
+    ports:
+      - "127.0.0.1:39099:9099"
+    networks: [sourdine-net]
+
+networks:
+  sourdine-net:
+    name: sourdine-net

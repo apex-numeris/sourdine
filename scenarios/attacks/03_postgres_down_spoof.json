@@ -1,0 +1,12 @@
+{
+  "id": "ATT-PG-DOWN-SPOOF-03",
+  "kind": "attack",
+  "vector": "postgres_down_spoof",
+  "title": "Spoof PostgreSQLDown pour inhiber les alertes PostgreSQL",
+  "description": "L'attaquant fait apparaître une alerte PostgreSQLDown alors que la base est en réalité up. La règle d'inhibition PostgreSQLDown -> PostgreSQL.* (même job) masque l'alarme PostgreSQLHighConnections qui aurait dû signaler une anomalie de connexions.",
+  "access_level": "metric_or_am_api",
+  "ground_truth": {"alarm_expected": true, "expected_alert": "PostgreSQLHighConnections", "labels": {"job": "postgresql", "instance": "pg-1"}},
+  "event": {"make_fire": true, "severity": "warning"},
+  "masking": {"type": "spoof_inhibitor", "params": {}},
+  "tags": ["inhibition", "spoof", "postgresql"]
+}

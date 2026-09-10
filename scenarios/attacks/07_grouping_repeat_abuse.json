@@ -1,0 +1,12 @@
+{
+  "id": "ATT-GROUP-FLOOD-07",
+  "kind": "attack",
+  "vector": "grouping_repeat_abuse",
+  "title": "Noyade par groupement (group_by + repeat_interval)",
+  "description": "L'attaquant inonde le groupe de routage de l'alarme réelle (même alertname/service/severity) avec un flot d'alertes frères. Avec un repeat_interval long, la vraie alerte est noyée dans un groupe surchargé et n'est pas notifiée dans la fenêtre utile. Point aveugle connu de la baseline (pas d'heuristique dédiée) -> suppression résiduelle.",
+  "access_level": "silence_or_routing_api",
+  "ground_truth": {"alarm_expected": true, "expected_alert": "HighAttackRate", "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": true, "severity": "warning"},
+  "masking": {"type": "grouping_repeat_abuse", "params": {"count": 20}},
+  "tags": ["groupement", "repeat_interval", "residuel"]
+}

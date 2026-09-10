@@ -1,0 +1,10 @@
+# Sorties de campagne (runtime). Le dépôt parent ignore déjà `reports/` ;
+# on le redit ici pour que le dossier sourdine/ soit autonome.
+# L'exemple d'exécution citable est versionné sous samples/ (non ignoré).
+reports/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/

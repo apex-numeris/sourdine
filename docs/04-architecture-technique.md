@@ -1,0 +1,154 @@
+# 04 — Architecture technique
+
+## 1. Stack
+
+| Élément | Choix | Raison |
+|---|---|---|
+| Langage | Python ≥ 3.10, **bibliothèque standard uniquement** | campagne à blanc sans install réseau ; artefact citable |
+| HTTP (backend docker) | `urllib.request` (stdlib) | zéro dépendance |
+| Cible docker | `prom/prometheus:v2.48.0`, `prom/alertmanager:v0.26.0` | versions représentatives de la prod |
+| Exporter / sink | image `python:3.12-slim` + script bind-monté | aucun build d'image |
+| Orchestration | `docker compose` v2 (projet `sourdine`) | montée/destruction jetable |
+| Diagrammes | mermaid dans Markdown | versionnable, rendu GitHub |
+
+## 2. Cartographie des modules (`sourdine/engine/`)
+
+| Module | Responsabilité |
+|---|---|
+| `types.py` | Dataclasses partagées : `Scenario`, `GroundTruth`, `Alert`, `Silence`, `SupervisionState`, `Trace`, `RawResult`, `Verdict`, `ScenarioResult` (+ lectures normatives `masked`/`flagged`) |
+| `model.py` | **Sémantique recréée** : règles d'alerte, seuils, `inhibit_rules`, groupement ; fonctions `apply_inhibitions`, `apply_silences`, `silence_matches`, `group_key` |
+| `target_base.py` | Interface `Target` (setup / execute / teardown) |
+| `target_sim.py` | Cible **sim** : interprète l'intention du scénario → état final déterministe |
+| `target_docker.py` | Cible **docker** : pilote de vrais Prometheus/Alertmanager via leurs API |
+| `detector.py` | Interface `MaskingDetector` + `BaselineDetector` (4 heuristiques) |
+| `runner.py` | Moteur deux passes (`run_campaign`) |
+| `metrics.py` | Calcul des 4 taux + cohérence + ventilation par accès |
+| `report.py` | Rapport JSON versionné + résumé lisible |
+| `scenarios.py` | Chargeur du jeu de scénarios (JSON → `Scenario`) |
+
+Point d'entrée : `run_campaign.py` (CLI). Le jeu de scénarios vit sous
+`scenarios/` (données), la cible docker sous `target/`.
+
+## 3. Abstraction de cible (patron Strategy)
+
+```mermaid
+classDiagram
+    class Target {
+      <<interface>>
+      +setup()
+      +execute(scenario)
+      +teardown()
+    }
+    class SimTarget
+    class DockerTarget
+    class MaskingDetector {
+      <<interface>>
+      +detect(state, trace)
+    }
+    class BaselineDetector
+    Target <|.. SimTarget
+    Target <|.. DockerTarget
+    MaskingDetector <|.. BaselineDetector
+    Runner --> Target
+    Runner --> MaskingDetector
+```
+
+Le runner, le détecteur et les métriques ignorent le backend : `SimTarget` et
+`DockerTarget` produisent les **mêmes types** (`RawResult` / `SupervisionState` /
+`Trace`).
+
+## 4. Backend sim (référence déterministe)
+
+`target_sim.py` traduit l'intention haut-niveau du scénario (`event`, `masking`)
+en séries métriques et en ensemble d'alertes actives, puis applique la sémantique
+Alertmanager de `model.py` :
+
+- **Firing** : `threshold` (valeur > seuil pendant `FOR_TICKS`) et `absence`
+  (signal à 0/absent pendant `FOR_TICKS`).
+- **Inhibition / silence / groupement** : `apply_inhibitions`, `apply_silences`,
+  et marquage « noyé » si la taille du groupe ≥ `FLOOD_MIN`.
+- **Notification** : une alerte est notifiée si elle n'est ni inhibée, ni silencée,
+  ni noyée. `alarm_raised` = l'alerte attendue est notifiée.
+
+Horizon = 30 « ticks », `FOR_TICKS` = 3, fenêtre d'intégration = 20 ticks. Aucun
+temps réel : les taux sont reproductibles.
+
+## 5. Backend docker (fidélité)
+
+### 5.1 Topologie de la cible éphémère
+
+```mermaid
+flowchart TB
+    subgraph HOST["Hôte — démon Docker utilisateur"]
+      subgraph NET["réseau sourdine-net (isolé)"]
+        PR["sourdine-prometheus<br/>v2.48.0"]
+        AM["sourdine-alertmanager<br/>v0.26.0"]
+        EX["sourdine-exporter<br/>(python stdlib)"]
+        SK["sourdine-sink<br/>(python stdlib)"]
+        PR -->|scrape| EX
+        PR -->|alertes| AM
+        AM -->|webhook| SK
+      end
+    end
+    RUN["Runner (hôte)"] -.127.0.0.1:39090.-> PR
+    RUN -.127.0.0.1:39093.-> AM
+    RUN -.127.0.0.1:39080.-> EX
+    RUN -.127.0.0.1:39099.-> SK
+```
+
+| Conteneur | Port interne | Publication | Rôle |
+|---|---|---|---|
+| `sourdine-prometheus` | 9090 | `127.0.0.1:39090` | scrape + évaluation des règles |
+| `sourdine-alertmanager` | 9093 | `127.0.0.1:39093` | routage + inhibition + silences |
+| `sourdine-exporter` | 8000 | `127.0.0.1:39080` | métriques synthétiques pilotables (`/set`, `/del`, `/reset`) |
+| `sourdine-sink` | 9099 | `127.0.0.1:39099` | reçoit les notifications (organe d'observation) |
+
+**Tous les ports sont liés à `127.0.0.1`** et sur des numéros hauts (39xxx) : aucune
+exposition réseau, aucune collision possible avec un stack de production.
+
+### 5.2 Pilotage et observation
+
+- **Injection d'événement** : `POST /set` sur l'exporter (ex. `attack_rate=120`).
+- **Vecteurs** : `POST /api/v2/alerts` (spoof, flood), `POST /api/v2/silences`
+  (silence), `/set`+`/del` (low-and-slow, coupure).
+- **Observation (passe 1)** : `GET /received` sur le sink → l'alarme attendue
+  a-t-elle été **notifiée** (donc non inhibée, non silencée, routée) ?
+- **État (passe 2)** : `GET /api/v2/alerts` (statut + `inhibitedBy`, résolu en noms
+  via les empreintes), `GET /api/v2/silences`, et `query_range` sur Prometheus pour
+  l'historique métrique.
+
+### 5.3 Isolement inter-scénarios
+
+Deux mécanismes garantissent qu'un scénario ne contamine pas le suivant :
+
+1. `_reset()` : remet l'exporter à l'état par défaut, vide le sink, **résout les
+   alertes injectées** via l'API AM, supprime les silences.
+2. **Fenêtre métrique propre** : `query_range` part de `t0` (début du scénario),
+   pas d'un `now-60s` fixe — sinon l'historique TSDB de Prometheus bave d'un
+   scénario sur l'autre (bug corrigé en `59c26c61`).
+
+## 6. Sémantique recréée (représentative, jamais copiée de la prod)
+
+Règles d'inhibition modélisées :
+
+| Source | Cible masquée | Labels `equal` |
+|---|---|---|
+| `InstanceDown` | `.*` (toutes) | `instance` |
+| `FirewallDown` | `HighAttackRate`, `CriticalAttacksDetected`, `JailbreakSurge` | `job` |
+| `PostgreSQLDown` | `PostgreSQL.*` | `job` |
+
+Seuils : `attack_rate > 50`, `jailbreak_rate > 10`, `pg_conns > 180`,
+`critical_attacks > 0` ; intégré `> 540` sur 20 ticks (low-and-slow). Détails et
+liste complète des alertes en [doc 05](05-specifications.md).
+
+## 7. Constats de fidélité (sim ≠ docker, attendus et documentés)
+
+1. **Silence `~.*` refusé** par le vrai Alertmanager (« at least one matcher must
+   not match the empty string ») — garde-fou anti « tout silencer ». Le vecteur
+   utilise donc `~.+` (toute instance non vide, toujours abusivement large).
+2. **Noyade par groupement inefficace** contre un `group_wait` court : AM envoie le
+   premier lot (avec la vraie alerte) sous quelques secondes. Docker cote ce vecteur
+   « non masqué » ; la sim, qui modélise une config à fenêtre longue, le cote masqué.
+
+Ces écarts sont **réels** et précieux : ils ne sont visibles qu'en exécutant la
+vraie cible, et justifient l'existence du backend docker à côté de la sim.

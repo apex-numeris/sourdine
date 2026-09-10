@@ -16,6 +16,12 @@ existante.
 
 ---
 
+## Documentation détaillée
+
+Sous [`docs/`](docs/README.md) : expression des besoins, architecture fonctionnelle
+et technique, diagrammes de séquence, spécifications, manuels utilisateur et
+administrateur, et procédure de déploiement VPS pour un site de résultats public.
+
 ## Pourquoi ce n'est pas un simple « taux de réussite d'attaque »
 
 Pour une injection ou une exfiltration, on attaque une cible et on mesure si

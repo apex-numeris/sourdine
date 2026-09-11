@@ -1,0 +1,12 @@
+{
+  "id": "ATT-SILENCE-SHARED-11",
+  "kind": "attack",
+  "vector": "silence_shared_label",
+  "title": "Silence par label partagé (maintenance de service usurpée)",
+  "description": "L'attaquant pose, via l'API des silences, un silence dont l'unique matcher est un label partagé (job=firewall), sans matcher alertname : il balaie ainsi TOUTES les alertes du service — dont l'alarme critique réelle — sous couvert d'une maintenance de service. Plus discret qu'un matcher instance large, mais tout aussi masquant.",
+  "access_level": "silence_or_routing_api",
+  "ground_truth": {"alarm_expected": true, "expected_alert": "CriticalAttacksDetected", "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": true, "severity": "critical"},
+  "masking": {"type": "silence_shared_label", "params": {"label": "job", "value": "firewall", "at": 5}},
+  "tags": ["silence", "label-partage", "sourdine"]
+}

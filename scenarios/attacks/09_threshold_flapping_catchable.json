@@ -1,0 +1,12 @@
+{
+  "id": "ATT-FLAP-CATCHABLE-09",
+  "kind": "attack",
+  "vector": "threshold_flapping",
+  "title": "Flapping autour du seuil (rattrapable)",
+  "description": "L'attaquant fait osciller le taux d'attaque au-dessus puis en dessous du seuil instantané de HighAttackRate à chaque intervalle : la durée `for:` de la règle ne se complète jamais, donc l'alerte ne se déclenche pas. Les franchissements sont nombreux — un détecteur qui compte les allers-retours du seuil peut rattraper.",
+  "access_level": "threshold_knowledge",
+  "ground_truth": {"alarm_expected": true, "expected_alert": "HighAttackRate", "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": false, "severity": "warning"},
+  "masking": {"type": "threshold_flapping", "params": {"high": 70.0, "low": 10.0, "cycles": 7}},
+  "tags": ["flapping", "for-reset", "seuil"]
+}

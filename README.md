@@ -97,7 +97,9 @@ les taux par niveau d'accès — c'est ce qui rend le banc défendable).
 | Spoof `InstanceDown` | toutes les alertes de l'instance | idem |
 | Spoof `PostgreSQLDown` | toutes les alertes PostgreSQL | idem |
 | Low-and-slow sous le seuil | les alertes à taux | aucun accès superviseur, connaissance des seuils |
+| Flapping de seuil (`for:` réinitialisé) | les alertes à taux | connaissance des seuils |
 | Abus de silence / groupement | une vraie alerte tue ou noyée | API des silences / config de routage |
+| Silence par label partagé (job/service) | toute une classe d'alertes | API des silences |
 | Coupure d'exporter / scrape | l'alerte qui ne part jamais | hôte de l'exporter / réseau |
 | **Sains** (obligatoires) | — | mesurent faux positifs + cohérence |
 
@@ -115,7 +117,8 @@ l'absence anormale de signal est elle-même le signal.* Une heuristique par fami
 - **Source inhibitrice isolée** : une `FirewallDown`/`InstanceDown`/`PostgreSQLDown`
   qui surgit **non corroborée** (sa cible reste vivante/élevée) et masque une alerte réelle.
 - **Low-and-slow** : somme intégrée sur fenêtre longue au-delà d'un seuil, sans alerte à taux.
-- **Abus de silence** : silence posé pendant une montée d'activité, ou périmètre anormalement large.
+- **Flapping de seuil** : franchissements répétés du seuil sans qu'aucune alerte à taux ne soit active (le `for:` est réinitialisé en boucle).
+- **Abus de silence** : silence sur-périmétré (matcher instance large **ou sans matcher alertname**, balayant toute une classe d'alertes), ou silence étroit posé pendant une montée d'activité.
 - **Coupure d'exporter** : trou de collecte coïncidant avec une activité élevée juste avant.
 
 Ces heuristiques sont **volontairement imparfaites** pour que les faux positifs
@@ -149,15 +152,17 @@ git-ignoré) et un résumé lisible s'affiche. Un exemple d'exécution est versi
 > décantation et sont moins déterministes. Le **détecteur est identique** dans les
 > deux cas.
 >
-> **Constats de fidélité (run docker v0.1.0)** — surfacés en exécutant la vraie
+> **Constats de fidélité (run docker v0.2.0)** — surfacés en exécutant la vraie
 > cible : (1) le vrai Alertmanager **refuse** un silence dont un matcher matche la
 > chaîne vide (`instance=~.*`, garde-fou « tout silencer ») — le vecteur utilise
 > donc `~.+` ; (2) contre un `group_wait` court, la **noyade par groupement** ne
 > masque pas dans la fenêtre (le premier lot part avec la vraie alerte) : docker la
 > cote « non masquée » là où la sim, qui modélise une config à fenêtre longue, la
-> cote masquée. Résultat docker : **87,5 / 85,7 / 33,3 / 12,5 / 100 %**
+> cote masquée. Résultat docker : **90,9 / 80,0 / 25,0 / 18,2 / 100 %**
 > (suppression / rattrapage / FP / résiduel / cohérence) vs sim
-> **100 / 75 / 33 / 25 / 100 %**. Exemple : `samples/example-0.1.0-docker.json`.
+> **100 / 72,7 / 25,0 / 27,3 / 100 %**. Exemple : `samples/example-0.2.0-docker.json`.
+> Le **flapping de seuil** et le **silence par label partagé** se comportent comme en
+> sim sur la vraie cible (flapping rattrapable détecté, furtif résiduel).
 
 ## Tests / non-régression
 
@@ -257,7 +262,7 @@ sourdine/
 │   ├── runner.py  metrics.py  report.py  scenarios.py
 ├── scenarios/                   # artefact ouvert, étiqueté
 │   ├── SCHEMA.md
-│   ├── attacks/*.json           # 6 vecteurs
+│   ├── attacks/*.json           # 9 vecteurs (11 scénarios d'attaque)
 │   └── healthy/*.json           # cohérence + pièges à faux positif
 ├── target/                      # cible éphémère conteneurisée
 │   ├── docker-compose.yml

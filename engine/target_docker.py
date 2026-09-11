@@ -30,7 +30,8 @@ from engine.target_base import Target
 from engine.types import (
     Alert, RawResult, Scenario, Silence, SupervisionState, Trace,
     VEC_FIREWALL_DOWN_SPOOF, VEC_INSTANCE_DOWN_SPOOF, VEC_POSTGRES_DOWN_SPOOF,
-    VEC_LOW_AND_SLOW, VEC_SILENCE_ABUSE, VEC_GROUPING_REPEAT_ABUSE, VEC_EXPORTER_CUTOFF,
+    VEC_LOW_AND_SLOW, VEC_SILENCE_ABUSE, VEC_SILENCE_SHARED_LABEL,
+    VEC_GROUPING_REPEAT_ABUSE, VEC_EXPORTER_CUTOFF, VEC_THRESHOLD_FLAPPING,
 )
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -186,12 +187,42 @@ class DockerTarget(Target):
         elif v == VEC_LOW_AND_SLOW:
             self._set_metric("attack_rate", {"job": job, "instance": instance}, params.get("rate", 30.0))
             settle = SETTLE_LONG
+        elif v == VEC_THRESHOLD_FLAPPING:
+            # oscillation autour du seuil : chaque phase haute dure moins que le `for:`
+            # (6 s), l'alerte reste pending puis retombe -> ne fire jamais. On produit
+            # assez de franchissements pour que la baseline puisse rattraper (catchable).
+            sig = expected_signal or "attack_rate"
+            lset = labels or {"job": job, "instance": instance}
+            high = float(params.get("high", expected_thr + 20.0))
+            low = float(params.get("low", 10.0))
+            n_spikes = params.get("spikes")
+            if n_spikes:  # variante FURTIVE : peu de franchissements -> résiduel
+                self._set_metric(sig, lset, low)
+                for _ in range(int(n_spikes)):
+                    time.sleep(STEP * 2)
+                    self._set_metric(sig, lset, high)
+                    time.sleep(STEP)          # bref (< for:)
+                    self._set_metric(sig, lset, low)
+            else:        # rattrapable : oscillation soutenue
+                for _ in range(int(params.get("cycles", 7))):
+                    self._set_metric(sig, lset, high)
+                    time.sleep(STEP + 1)      # < for: (6 s)
+                    self._set_metric(sig, lset, low)
+                    time.sleep(STEP + 1)
+            settle = STEP * 2
+            trace.add(1, "threshold_flapping", high=high, low=low, spikes=n_spikes)
         elif v == VEC_SILENCE_ABUSE:
             broad = bool(params.get("broad", False))
             # AM refuse un matcher qui matche la chaîne vide (garde-fou « tout silencer ») ;
             # ~.+ reste abusivement large (toute instance non vide) mais est accepté.
             matchers = {"instance": "~.+"} if broad else {"alertname": gt.expected_alert or "~.+", "job": job}
             self._post_silence(matchers, broad)
+        elif v == VEC_SILENCE_SHARED_LABEL:
+            # silence par label PARTAGÉ (job) sans matcher alertname : balaie toute la
+            # classe d'alertes du job sous couvert de maintenance de service.
+            label = params.get("label", "job")
+            value = params.get("value", job if label == "job" else instance)
+            self._post_silence({label: value}, broad=False)
         elif v == VEC_GROUPING_REPEAT_ABUSE:
             for i in range(int(params.get("count", 20))):
                 self._post_alert(gt.expected_alert or "HighAttackRate", {"job": job, "instance": f"flood-{i}"})
@@ -216,6 +247,20 @@ class DockerTarget(Target):
             elif bk == "benign_spike":
                 self._set_metric("attack_rate", {"job": job, "instance": instance}, params.get("rate", 30.0))
                 settle = SETTLE_LONG
+            elif bk == "benign_jitter":
+                # trafic licite sous le seuil : aucun franchissement, somme intégrée
+                # basse -> ni flapping ni low-and-slow. Vrai négatif.
+                avg = (float(params.get("high", 35.0)) + float(params.get("low", 5.0))) / 2.0
+                self._set_metric("attack_rate", {"job": job, "instance": instance}, avg)
+            elif bk == "benign_brief_spike":
+                # un unique pic licite trop bref pour firer (< for:) : un seul franchissement.
+                # Retomber à une ligne de base NON nulle (pas 0) pour ne pas simuler un
+                # trou de collecte (qui déclencherait exporter_cutoff -> faux positif).
+                self._set_metric("attack_rate", {"job": job, "instance": instance},
+                                 float(params.get("spike", 65.0)))
+                time.sleep(STEP)
+                self._set_metric("attack_rate", {"job": job, "instance": instance},
+                                 float(params.get("baseline", 5.0)))
 
         time.sleep(settle)
 

@@ -1,0 +1,12 @@
+{
+  "id": "HLT-BENIGN-BRIEF-SPIKE-08",
+  "kind": "healthy",
+  "vector": "none",
+  "title": "Pic licite unique et bref, sous la durée for: (vrai négatif)",
+  "description": "Un unique pic de trafic licite franchit brièvement le seuil, moins longtemps que la durée `for:` de la règle : aucune alerte ne se déclenche, et un seul franchissement se produit. Le détecteur de flapping (qui exige plusieurs franchissements) ne doit pas crier au masquage — vrai négatif, garde-fou du seuil de franchissements.",
+  "access_level": "n/a",
+  "ground_truth": {"alarm_expected": false, "expected_alert": null, "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": false},
+  "masking": {"type": "benign_brief_spike", "params": {"spike": 65.0, "at": 6, "dur": 2, "baseline": 5.0}},
+  "tags": ["sain", "vrai-negatif", "flapping"]
+}

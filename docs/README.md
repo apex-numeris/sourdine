@@ -28,7 +28,7 @@ Sourdine mesure la résistance d'une chaîne d'alerte (Prometheus / Alertmanager
   avec détecteur).
 - **Quoi** : banc autonome et jetable. Il monte sa **propre** cible éphémère
   (Prometheus + Alertmanager isolés, ou un modèle sim en process), joue un
-  catalogue de scénarios étiquetés (6 vecteurs + scénarios sains), et calcule
+  catalogue de scénarios étiquetés (9 vecteurs + scénarios sains), et calcule
   quatre taux + un contrôle de cohérence, ventilés par niveau d'accès attaquant.
 - **Garde-fous** : tout est synthétique et en laboratoire ; la cible n'est jamais
   la supervision de production ; le banc évalue une **baseline** de détection, pas

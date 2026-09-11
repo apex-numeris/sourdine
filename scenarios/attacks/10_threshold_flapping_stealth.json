@@ -1,0 +1,12 @@
+{
+  "id": "ATT-FLAP-STEALTH-10",
+  "kind": "attack",
+  "vector": "threshold_flapping",
+  "title": "Flapping furtif (peu de franchissements)",
+  "description": "Variante furtive : l'attaquant ne fait franchir le seuil que de rares fois, par pics très brefs. La règle ne fire jamais et le nombre de franchissements reste sous le seuil de la baseline : le masquage réussit et n'est pas rattrapé — suppression résiduelle attendue, que le vrai détecteur devra améliorer.",
+  "access_level": "threshold_knowledge",
+  "ground_truth": {"alarm_expected": true, "expected_alert": "HighAttackRate", "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": false, "severity": "warning"},
+  "masking": {"type": "threshold_flapping", "params": {"high": 55.0, "low": 10.0, "spikes": 3}},
+  "tags": ["flapping", "furtif", "residuel"]
+}

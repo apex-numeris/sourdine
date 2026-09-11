@@ -38,6 +38,13 @@ CUMULATIVE_THRESHOLD = 540.0      # somme sur la fenêtre au-delà de laquelle c
 GROUP_BY = ["alertname", "service", "severity"]
 FLOOD_MIN = 12                    # nb d'alertes dans un groupe au-delà duquel la vraie alerte est noyée
 
+# --- Flapping (réinitialisation du `for:`) ------------------------------------
+# Nombre de franchissements montants du seuil instantané (sans qu'aucune alerte à
+# taux ne soit active) au-delà duquel le détecteur soupçonne un flapping volontaire :
+# l'attaquant fait osciller le signal autour du seuil pour que la durée `for:` ne
+# se complète jamais, donc l'alerte ne se déclenche jamais.
+FLAP_MIN_CROSSINGS = 5
+
 # --- Familles d'alertes -------------------------------------------------------
 # Métadonnées par alerte : signal déclencheur, type, sévérité, service.
 ALERT_RULES: dict[str, dict] = {

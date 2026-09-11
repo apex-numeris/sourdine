@@ -27,7 +27,8 @@ les cibles (sim / docker) l'instancient.
 ## Vecteurs (`vector`)
 
 `firewall_down_spoof`, `instance_down_spoof`, `postgres_down_spoof`,
-`low_and_slow`, `silence_abuse`, `grouping_repeat_abuse`, `exporter_cutoff`, `none`.
+`low_and_slow`, `threshold_flapping`, `silence_abuse`, `silence_shared_label`,
+`grouping_repeat_abuse`, `exporter_cutoff`, `none`.
 
 ## Niveaux d'accès (`access_level`)
 
@@ -43,11 +44,14 @@ les cibles (sim / docker) l'instancient.
 
 - `spoof_inhibitor` — injecte une alerte source inhibitrice. `params` : {}.
 - `low_and_slow` — `params.rate` (< seuil instantané).
+- `threshold_flapping` — `params.high`/`low` ; `cycles` (rattrapable) ou `spikes` (furtif).
 - `silence_abuse` — `params.broad` (bool), `params.at` (tick).
+- `silence_shared_label` — `params.label` (ex. `job`), `params.value`, `params.at`.
 - `grouping_repeat_abuse` — `params.count` (taille du flot).
 - `exporter_cutoff` — `params.pre_ticks` (activité avant la coupure).
 - `none` (sains) — `type` bénin : `benign_silence` (`broad`, `alertname`, `at`, `minor_activity`),
-  `benign_exporter_restart` (`pre_ticks`, `gap`), `benign_spike` (`rate`), ou `none`.
+  `benign_exporter_restart` (`pre_ticks`, `gap`), `benign_spike` (`rate`),
+  `benign_jitter` (`high`, `low`), `benign_brief_spike` (`spike`, `at`, `dur`, `baseline`), ou `none`.
 
 ## Règle de cotation (normative)
 

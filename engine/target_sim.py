@@ -19,7 +19,8 @@ from engine.target_base import Target
 from engine.types import (
     Alert, RawResult, Scenario, Silence, SupervisionState, Trace,
     VEC_FIREWALL_DOWN_SPOOF, VEC_INSTANCE_DOWN_SPOOF, VEC_POSTGRES_DOWN_SPOOF,
-    VEC_LOW_AND_SLOW, VEC_SILENCE_ABUSE, VEC_GROUPING_REPEAT_ABUSE, VEC_EXPORTER_CUTOFF,
+    VEC_LOW_AND_SLOW, VEC_SILENCE_ABUSE, VEC_SILENCE_SHARED_LABEL,
+    VEC_GROUPING_REPEAT_ABUSE, VEC_EXPORTER_CUTOFF, VEC_THRESHOLD_FLAPPING,
 )
 
 H = model.HORIZON
@@ -134,6 +135,25 @@ class SimTarget(Target):
             # …mais la somme intégrée est haute (catchable) ou juste sous (stealth/résiduel)
             trace.add(1, "sub_threshold_activity", rate=under, window=model.CUMULATIVE_WINDOW)
 
+        elif v == VEC_THRESHOLD_FLAPPING:
+            # oscillation autour du seuil : jamais FOR_TICKS consécutifs au-dessus,
+            # donc l'alerte ne fire jamais (le `for:` est réinitialisé en boucle).
+            expected_fired = False
+            high = float(params.get("high", expected_thr + 20.0))
+            low = float(params.get("low", 10.0))
+            n_spikes = params.get("spikes")  # présent => variante FURTIVE (peu de franchissements)
+            if n_spikes:
+                series: list[Optional[float]] = [low] * H
+                for k in range(int(n_spikes)):
+                    idx = 2 + k * 4
+                    if idx < H:
+                        series[idx] = high
+            else:
+                series = [high if t % 2 == 0 else low for t in range(H)]
+            if expected_signal:
+                metrics[model.series_key(expected_signal, labels or {"job": job, "instance": instance})] = series
+            trace.add(1, "threshold_flapping", high=high, low=low, spikes=n_spikes)
+
         elif v == VEC_SILENCE_ABUSE:
             broad = bool(params.get("broad", False))
             if broad:
@@ -144,6 +164,17 @@ class SimTarget(Target):
                           comment=params.get("comment", "ops"), broad=broad)
             silences.append(sil)
             trace.add(sil.created_tick, "silence_created", matchers=matchers, broad=broad)
+
+        elif v == VEC_SILENCE_SHARED_LABEL:
+            # silence par label PARTAGÉ (job) sans matcher alertname : balaie toute une
+            # classe d'alertes sous couvert de maintenance de service.
+            label = params.get("label", "job")
+            value = params.get("value", job if label == "job" else instance)
+            matchers = {label: value}
+            sil = Silence(id="sil-shared", matchers=matchers, created_tick=params.get("at", 5),
+                          comment=params.get("comment", "service maintenance"), broad=False)
+            silences.append(sil)
+            trace.add(sil.created_tick, "silence_created", matchers=matchers, shared_label=label)
 
         elif v == VEC_GROUPING_REPEAT_ABUSE:
             # noyer la vraie alerte : flot de frères dans le même groupe
@@ -199,6 +230,27 @@ class SimTarget(Target):
                 rate = params.get("rate", 30.0)  # sous le seuil instantané, volume licite
                 metrics[model.series_key("attack_rate", {"job": job, "instance": instance})] = _const(rate)
                 trace.add(1, "licit_traffic_spike", rate=rate)
+            elif bk == "benign_jitter":
+                # trafic licite en dents de scie, MAIS entièrement sous le seuil : 0
+                # franchissement -> le détecteur de flapping ne doit pas s'y méprendre.
+                high = float(params.get("high", 35.0))
+                low = float(params.get("low", 5.0))
+                metrics[model.series_key("attack_rate", {"job": job, "instance": instance})] = \
+                    [high if t % 2 == 0 else low for t in range(H)]
+                trace.add(1, "licit_jitter", high=high, low=low)
+            elif bk == "benign_brief_spike":
+                # un unique pic licite qui franchit le seuil trop brièvement pour firer
+                # (< FOR_TICKS) : un seul franchissement -> ni alerte, ni flapping.
+                spike = float(params.get("spike", 65.0))
+                at = int(params.get("at", 6))
+                dur = int(params.get("dur", 2))
+                # ligne de base NON nulle : retomber à 0 serait lu comme un trou de
+                # collecte (exporter_cutoff) après activité -> faux positif non voulu.
+                ar: list[Optional[float]] = _const(float(params.get("baseline", 5.0)))
+                for t in range(at, min(H, at + dur)):
+                    ar[t] = spike
+                metrics[model.series_key("attack_rate", {"job": job, "instance": instance})] = ar
+                trace.add(at, "brief_licit_spike", spike=spike, dur=dur)
 
         # --- 3) inhibiteurs qui firent RÉELLEMENT (ex. coupure -> InstanceDown)
         up_key = model.series_key("up", {"instance": instance, "job": job})

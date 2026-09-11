@@ -30,10 +30,12 @@ Un fichier = un scénario, sous `scenarios/attacks/` ou `scenarios/healthy/`.
 | `instance_down_spoof` | toutes les alertes de l'instance | `metric_or_am_api` | `spoof_inhibitor` |
 | `postgres_down_spoof` | PostgreSQL.* | `metric_or_am_api` | `spoof_inhibitor` |
 | `low_and_slow` | alertes à taux | `threshold_knowledge` | `low_and_slow` / `{rate}` |
+| `threshold_flapping` | alertes à taux (`for:` réinitialisé) | `threshold_knowledge` | `threshold_flapping` / `{high, low, cycles}` ou `{high, low, spikes}` (furtif) |
 | `silence_abuse` | l'alerte silencée | `silence_or_routing_api` | `silence_abuse` / `{broad, at}` |
+| `silence_shared_label` | toute une classe d'alertes (job/service) | `silence_or_routing_api` | `silence_shared_label` / `{label, value, at}` |
 | `grouping_repeat_abuse` | l'alerte noyée | `silence_or_routing_api` | `grouping_repeat_abuse` / `{count}` |
 | `exporter_cutoff` | l'alerte qui ne part jamais | `exporter_host_or_network` | `exporter_cutoff` / `{pre_ticks}` |
-| `none` (sains) | — | `n/a` | `none` \| `benign_silence` \| `benign_exporter_restart` \| `benign_spike` |
+| `none` (sains) | — | `n/a` | `none` \| `benign_silence` \| `benign_exporter_restart` \| `benign_spike` \| `benign_jitter` \| `benign_brief_spike` |
 
 Niveaux d'accès : `metric_or_am_api`, `threshold_knowledge`, `silence_or_routing_api`,
 `exporter_host_or_network`, `n/a`.
@@ -65,6 +67,7 @@ Niveaux d'accès : `metric_or_am_api`, `threshold_knowledge`, `silence_or_routin
 - `group_by = [alertname, service, severity]`, `group_wait` court (3 s en docker).
 - Noyade : groupe de taille ≥ `FLOOD_MIN` (= 12).
 - Intégration low-and-slow : fenêtre = 20 ticks, seuil intégré = 540.
+- Flapping : ≥ `FLAP_MIN_CROSSINGS` (= 5) franchissements montants du seuil.
 
 > Ces valeurs vivent dans `engine/model.py` (sim) et `target/prometheus/*.yml`,
 > `target/alertmanager/alertmanager.yml` (docker), tenues cohérentes.
@@ -89,12 +92,14 @@ class MaskingDetector(ABC):
 |---|---|
 | `inhibitor_isolation` | une source inhibitrice active **non corroborée** (son signal `up`/`fw_up`/`pg_up` n'est pas à 0) alors qu'une cible qu'elle inhibe reste élevée |
 | `low_and_slow` | somme intégrée du signal d'attaque sur la fenêtre > seuil intégré, **sans** alerte à taux active |
-| `silence_abuse` | silence de périmètre large, **ou** silence posé pendant une montée d'activité |
+| `threshold_flapping` | ≥ `FLAP_MIN_CROSSINGS` (= 5) franchissements montants du seuil, **sans** alerte à taux active (`for:` réinitialisé en boucle) |
+| `silence_abuse` | silence sur-périmétré (matcher `instance` large **ou sans matcher `alertname`**), **ou** silence étroit posé pendant une montée d'activité |
 | `exporter_cutoff` | trou de collecte (`up` 1→0 / signal absent) coïncidant avec une activité élevée juste avant |
 
 La baseline est **volontairement imparfaite** : elle manque la noyade par
-groupement et le low-and-slow sous le seuil intégré (→ suppression résiduelle), et
-peut faux-positiver sur un silence de maintenance ou un pic licite (→ faux positifs).
+groupement, le low-and-slow sous le seuil intégré et le flapping furtif (peu de
+franchissements) — d'où la suppression résiduelle —, et peut faux-positiver sur un
+silence de maintenance ou un pic licite (→ faux positifs).
 
 ## 5. Définition des taux
 

@@ -124,10 +124,17 @@ class BaselineDetector(MaskingDetector):
 
     def _h_silence_abuse(self, state) -> Optional[Verdict]:
         for sil in state.silences:
-            if sil.broad:
+            # Sur-périmétré : matcher `instance` large (broad) OU aucun matcher
+            # `alertname` — le silence balaie alors toute une classe d'alertes (un
+            # job/une instance entiers), y compris des alertes de sécurité.
+            over_scoped = sil.broad or ("alertname" not in sil.matchers)
+            if over_scoped:
                 return Verdict(True, scope=f"silence={sil.id}", heuristic="silence_abuse",
-                               reason="Silence de périmètre anormalement large.")
-            # silence posé pendant une activité (même mineure) : suspect
+                               reason="Silence sur-périmétré (pas de matcher alertname, ou "
+                                      "instance large) : met en sourdine toute une classe d'alertes.")
+            # silence étroit (ciblé par alertname) : suspect seulement s'il est
+            # posé pendant une montée d'activité (une maintenance légitime, elle,
+            # est posée au calme).
             near = False
             for signal in ("attack_rate", "jailbreak_rate"):
                 for _lbls, series in self._series(state, signal):
@@ -136,7 +143,7 @@ class BaselineDetector(MaskingDetector):
                         near = True
             if near:
                 return Verdict(True, scope=f"silence={sil.id}", heuristic="silence_abuse",
-                               reason="Silence posé pendant une montée d'activité.")
+                               reason="Silence étroit posé pendant une montée d'activité.")
         return None
 
     def _h_exporter_cutoff(self, state) -> Optional[Verdict]:
@@ -173,9 +180,37 @@ class BaselineDetector(MaskingDetector):
                 return True
         return False
 
+    def _h_flapping(self, state) -> Optional[Verdict]:
+        """Flapping volontaire : le signal franchit le seuil en boucle sans qu'aucune
+        alerte à taux ne se déclenche (l'attaquant réinitialise le `for:`)."""
+        if any(a.name in ("HighAttackRate", "JailbreakSurge") for a in state.alerts):
+            return None  # une alerte à taux est active : pas de masquage par flapping
+        for signal, thr in (("attack_rate", model.ATTACK_RATE_THRESHOLD),
+                            ("jailbreak_rate", model.JAILBREAK_RATE_THRESHOLD)):
+            for lbls, series in self._series(state, signal):
+                crossings = self._up_crossings(series, thr)
+                if crossings >= model.FLAP_MIN_CROSSINGS:
+                    return Verdict(True, scope=f"{signal}{{job={lbls.get('job')}}}",
+                                   heuristic="threshold_flapping",
+                                   reason=(f"{crossings} franchissements montants du seuil "
+                                           f"{thr:.0f} sans alerte à taux : `for:` réinitialisé en boucle."))
+        return None
+
+    @staticmethod
+    def _up_crossings(series: list[Optional[float]], threshold: float) -> int:
+        count, prev_above = 0, False
+        for v in series:
+            if v is None:
+                continue
+            above = v > threshold
+            if above and not prev_above:
+                count += 1
+            prev_above = above
+        return count
+
     # -- interface ------------------------------------------------------------
     def detect(self, state: SupervisionState, trace: Trace) -> Verdict:
-        for h in (self._h_inhibitor_isolation, self._h_low_and_slow,
+        for h in (self._h_inhibitor_isolation, self._h_flapping, self._h_low_and_slow,
                   self._h_silence_abuse, self._h_exporter_cutoff):
             verdict = h(state)
             if verdict is not None:

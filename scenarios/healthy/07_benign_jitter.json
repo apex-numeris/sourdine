@@ -1,0 +1,12 @@
+{
+  "id": "HLT-BENIGN-JITTER-07",
+  "kind": "healthy",
+  "vector": "none",
+  "title": "Trafic licite en dents de scie sous le seuil (piège à faux positif)",
+  "description": "Un trafic licite oscille en dents de scie mais reste entièrement sous le seuil instantané : il ne franchit jamais le seuil. Le détecteur de flapping, qui compte les franchissements, ne doit pas s'y méprendre — vrai négatif attendu, garde-fou du détecteur de flapping.",
+  "access_level": "n/a",
+  "ground_truth": {"alarm_expected": false, "expected_alert": null, "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": false},
+  "masking": {"type": "benign_jitter", "params": {"high": 35.0, "low": 5.0}},
+  "tags": ["sain", "vrai-negatif", "flapping"]
+}

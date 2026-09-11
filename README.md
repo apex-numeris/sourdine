@@ -159,6 +159,23 @@ git-ignoré) et un résumé lisible s'affiche. Un exemple d'exécution est versi
 > (suppression / rattrapage / FP / résiduel / cohérence) vs sim
 > **100 / 75 / 33 / 25 / 100 %**. Exemple : `samples/example-0.1.0-docker.json`.
 
+## Tests / non-régression
+
+Le run **sim** est déterministe : il sert de garde-fou de non-régression.
+`tests/test_sim_regression.py` rejoue une campagne sim et la compare à
+l'échantillon gelé `samples/example-0.1.0.json` (agrégat **et** chaque scénario ;
+les horodatages sont ignorés). Stdlib `unittest`, aucune dépendance tierce.
+
+```bash
+make test                       # non-régression du run sim + déterminisme
+```
+
+Un changement de comportement **voulu** se re-gèle d'un geste délibéré, diff à l'appui :
+
+```bash
+make regen-sample && git diff samples/
+```
+
 ## Format de sortie
 
 JSON à **schéma versionné** (`sourdine_report_version`), pour la citabilité et la
@@ -217,6 +234,7 @@ L'emballage citable (Zenodo / HAL, licences du dépôt public derrière
 ```
 sourdine/
 ├── run_campaign.py              # entrée CLI
+├── Makefile                     # make test | run | regen-sample (autonome au dossier)
 ├── VERSION  requirements.txt  .gitignore
 ├── engine/                      # moteur (stdlib)
 │   ├── types.py  model.py       # types + sémantique alertes/inhibition/silence/groupement
@@ -234,6 +252,7 @@ sourdine/
 │   ├── exporter/exporter.py     # exporter synthétique pilotable (stdlib)
 │   └── sink/sink.py             # sink webhook d'observation (stdlib)
 ├── scripts/{target_up.sh,target_down.sh}
+├── tests/                       # non-régression du run sim (stdlib unittest)
 ├── reports/                     # sorties JSON de campagne (runtime, git-ignoré)
 └── samples/                     # exemples versionnés : example-0.1.0.json (sim) + example-0.1.0-docker.json
 ```

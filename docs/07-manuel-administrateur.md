@@ -80,6 +80,20 @@ du rapport deviennent alors ceux du vrai détecteur (le champ `detector` le refl
 
 ## 6. Intégration continue
 
+Le garde-fou de non-régression est **câblé** : `tests/test_sim_regression.py`
+(stdlib `unittest`, aucune dépendance) rejoue le run sim et le compare à
+l'échantillon gelé `samples/example-0.1.0.json` — agrégat **et** chaque scénario,
+horodatages ignorés. Une seule commande :
+
+```bash
+make test            # non-régression du run sim + déterminisme
+```
+
+C'est la comparaison **exacte** à l'échantillon qui fait foi ; les garde-fous par
+seuil ci-dessous la complètent pour juger des évolutions volontaires. Si un
+changement de comportement est voulu, re-geler l'échantillon d'un geste délibéré
+(`make regen-sample`), puis relire `git diff samples/`.
+
 - Faire tourner **`--backend sim`** en CI (hermétique, déterministe, rapide, sans Docker).
 - **Garde-fous** recommandés (échec du job si) :
   - `controle_coherence < 1.0` (cible cassée) ;

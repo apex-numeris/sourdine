@@ -33,9 +33,11 @@ Un fichier = un scénario, sous `scenarios/attacks/` ou `scenarios/healthy/`.
 | `threshold_flapping` | alertes à taux (`for:` réinitialisé) | `threshold_knowledge` | `threshold_flapping` / `{high, low, cycles}` ou `{high, low, spikes}` (furtif) |
 | `silence_abuse` | l'alerte silencée | `silence_or_routing_api` | `silence_abuse` / `{broad, at}` |
 | `silence_shared_label` | toute une classe d'alertes (job/service) | `silence_or_routing_api` | `silence_shared_label` / `{label, value, at}` |
+| `silence_regex_alertname` | toute une classe d'alertes (faux ciblage) | `silence_or_routing_api` | `silence_regex_alertname` / `{at}` |
 | `grouping_repeat_abuse` | l'alerte noyée | `silence_or_routing_api` | `grouping_repeat_abuse` / `{count}` |
-| `exporter_cutoff` | l'alerte qui ne part jamais | `exporter_host_or_network` | `exporter_cutoff` / `{pre_ticks}` |
-| `none` (sains) | — | `n/a` | `none` \| `benign_silence` \| `benign_exporter_restart` \| `benign_spike` \| `benign_jitter` \| `benign_brief_spike` |
+| `exporter_cutoff` | l'alerte qui ne part jamais (instance tombe) | `exporter_host_or_network` | `exporter_cutoff` / `{pre_ticks}` |
+| `selective_metric_drop` | l'alerte qui ne part jamais (instance UP) | `exporter_host_or_network` | `selective_metric_drop` / `{pre_ticks}` |
+| `none` (sains) | — | `n/a` | `none` \| `benign_silence` \| `benign_exporter_restart` \| `benign_spike` \| `benign_jitter` \| `benign_brief_spike` \| `benign_signal_gap` |
 
 Niveaux d'accès : `metric_or_am_api`, `threshold_knowledge`, `silence_or_routing_api`,
 `exporter_host_or_network`, `n/a`.
@@ -93,7 +95,8 @@ class MaskingDetector(ABC):
 | `inhibitor_isolation` | une source inhibitrice active **non corroborée** (son signal `up`/`fw_up`/`pg_up` n'est pas à 0) alors qu'une cible qu'elle inhibe reste élevée |
 | `low_and_slow` | somme intégrée du signal d'attaque sur la fenêtre > seuil intégré, **sans** alerte à taux active |
 | `threshold_flapping` | ≥ `FLAP_MIN_CROSSINGS` (= 5) franchissements montants du seuil, **sans** alerte à taux active (`for:` réinitialisé en boucle) |
-| `silence_abuse` | silence sur-périmétré (matcher `instance` large **ou sans matcher `alertname`**), **ou** silence étroit posé pendant une montée d'activité |
+| `silence_abuse` | silence sur-périmétré (matcher `instance` large, **ou sans matcher `alertname` exact** — absent ou regex), **ou** silence étroit posé pendant une montée d'activité |
+| `signal_blackout` | un signal d'attaque disparaît (trou) après activité alors que l'instance reste **UP** (distinct de `exporter_cutoff` où `up`→0) |
 | `exporter_cutoff` | trou de collecte (`up` 1→0 / signal absent) coïncidant avec une activité élevée juste avant |
 
 La baseline est **volontairement imparfaite** : elle manque la noyade par

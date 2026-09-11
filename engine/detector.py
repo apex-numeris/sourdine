@@ -124,10 +124,13 @@ class BaselineDetector(MaskingDetector):
 
     def _h_silence_abuse(self, state) -> Optional[Verdict]:
         for sil in state.silences:
-            # Sur-périmétré : matcher `instance` large (broad) OU aucun matcher
-            # `alertname` — le silence balaie alors toute une classe d'alertes (un
-            # job/une instance entiers), y compris des alertes de sécurité.
-            over_scoped = sil.broad or ("alertname" not in sil.matchers)
+            # Sur-périmétré : matcher `instance` large (broad), OU pas de matcher
+            # `alertname` EXACT (absent, ou regex type `~.+`) — le silence balaie alors
+            # toute une classe d'alertes, y compris des alertes de sécurité. Une
+            # maintenance légitime, elle, nomme un `alertname` littéral précis.
+            exact_alertname = ("alertname" in sil.matchers
+                               and not sil.matchers["alertname"].startswith("~"))
+            over_scoped = sil.broad or not exact_alertname
             if over_scoped:
                 return Verdict(True, scope=f"silence={sil.id}", heuristic="silence_abuse",
                                reason="Silence sur-périmétré (pas de matcher alertname, ou "
@@ -208,10 +211,33 @@ class BaselineDetector(MaskingDetector):
             prev_above = above
         return count
 
+    def _h_signal_blackout(self, state) -> Optional[Verdict]:
+        """Blackout sélectif : un signal d'attaque disparaît (trou) APRÈS activité,
+        alors que l'instance reste UP (aucun InstanceDown pour trahir la panne).
+        Distinct de exporter_cutoff, qui, lui, fait tomber l'instance (`up` -> 0)."""
+        for signal in ("attack_rate", "jailbreak_rate"):
+            for lbls, series in self._series(state, signal):
+                gstart = self._gap_start(series)
+                if gstart is None:
+                    continue
+                if not self._activity_before(state, gstart, series=series):
+                    continue
+                inst = lbls.get("instance")
+                up_series = self._series(state, "up", {"instance": inst} if inst else None)
+                instance_down = any(
+                    any(v in (None, 0.0) for v in s[gstart:gstart + model.FOR_TICKS])
+                    for _l, s in up_series)
+                if not instance_down:  # l'instance reste UP -> blackout sélectif
+                    return Verdict(True, scope=f"{signal}{{instance={inst}}}",
+                                   heuristic="signal_blackout",
+                                   reason=("Signal d'attaque disparu (trou) après activité, alors "
+                                           "que l'instance reste UP : blackout sélectif du signal."))
+        return None
+
     # -- interface ------------------------------------------------------------
     def detect(self, state: SupervisionState, trace: Trace) -> Verdict:
         for h in (self._h_inhibitor_isolation, self._h_flapping, self._h_low_and_slow,
-                  self._h_silence_abuse, self._h_exporter_cutoff):
+                  self._h_silence_abuse, self._h_signal_blackout, self._h_exporter_cutoff):
             verdict = h(state)
             if verdict is not None:
                 return verdict

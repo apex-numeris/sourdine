@@ -28,7 +28,8 @@ les cibles (sim / docker) l'instancient.
 
 `firewall_down_spoof`, `instance_down_spoof`, `postgres_down_spoof`,
 `low_and_slow`, `threshold_flapping`, `silence_abuse`, `silence_shared_label`,
-`grouping_repeat_abuse`, `exporter_cutoff`, `none`.
+`silence_regex_alertname`, `grouping_repeat_abuse`, `exporter_cutoff`,
+`selective_metric_drop`, `none`.
 
 ## Niveaux d'accès (`access_level`)
 
@@ -47,11 +48,14 @@ les cibles (sim / docker) l'instancient.
 - `threshold_flapping` — `params.high`/`low` ; `cycles` (rattrapable) ou `spikes` (furtif).
 - `silence_abuse` — `params.broad` (bool), `params.at` (tick).
 - `silence_shared_label` — `params.label` (ex. `job`), `params.value`, `params.at`.
+- `silence_regex_alertname` — `params.at` (silence à matcher `alertname=~".+"` sur l'instance).
 - `grouping_repeat_abuse` — `params.count` (taille du flot).
-- `exporter_cutoff` — `params.pre_ticks` (activité avant la coupure).
+- `exporter_cutoff` — `params.pre_ticks` (activité avant la coupure ; l'instance tombe).
+- `selective_metric_drop` — `params.pre_ticks` (activité avant le trou ; l'instance reste UP).
 - `none` (sains) — `type` bénin : `benign_silence` (`broad`, `alertname`, `at`, `minor_activity`),
   `benign_exporter_restart` (`pre_ticks`, `gap`), `benign_spike` (`rate`),
-  `benign_jitter` (`high`, `low`), `benign_brief_spike` (`spike`, `at`, `dur`, `baseline`), ou `none`.
+  `benign_jitter` (`high`, `low`), `benign_brief_spike` (`spike`, `at`, `dur`, `baseline`),
+  `benign_signal_gap` (`low`, `at`), ou `none`.
 
 ## Règle de cotation (normative)
 

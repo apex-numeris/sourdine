@@ -20,7 +20,8 @@ from engine.types import (
     Alert, RawResult, Scenario, Silence, SupervisionState, Trace,
     VEC_FIREWALL_DOWN_SPOOF, VEC_INSTANCE_DOWN_SPOOF, VEC_POSTGRES_DOWN_SPOOF,
     VEC_LOW_AND_SLOW, VEC_SILENCE_ABUSE, VEC_SILENCE_SHARED_LABEL,
-    VEC_GROUPING_REPEAT_ABUSE, VEC_EXPORTER_CUTOFF, VEC_THRESHOLD_FLAPPING,
+    VEC_SILENCE_REGEX_ALERTNAME, VEC_GROUPING_REPEAT_ABUSE, VEC_EXPORTER_CUTOFF,
+    VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING,
 )
 
 H = model.HORIZON
@@ -176,6 +177,16 @@ class SimTarget(Target):
             silences.append(sil)
             trace.add(sil.created_tick, "silence_created", matchers=matchers, shared_label=label)
 
+        elif v == VEC_SILENCE_REGEX_ALERTNAME:
+            # silence dont le matcher `alertname` est un REGEX (~.+) : balaie toutes les
+            # alertes de l'instance en se faisant passer pour ciblé (matcher présent mais
+            # non littéral). Contourne un détecteur qui se contente d'exiger un alertname.
+            matchers = {"alertname": "~.+", "instance": instance}
+            sil = Silence(id="sil-regex", matchers=matchers, created_tick=params.get("at", 5),
+                          comment=params.get("comment", "targeted maintenance"), broad=False)
+            silences.append(sil)
+            trace.add(sil.created_tick, "silence_created", matchers=matchers, regex_alertname=True)
+
         elif v == VEC_GROUPING_REPEAT_ABUSE:
             # noyer la vraie alerte : flot de frères dans le même groupe
             count = int(params.get("count", model.FLOOD_MIN + 8))
@@ -199,6 +210,20 @@ class SimTarget(Target):
                 up_series[t] = DOWN
             metrics[model.series_key("up", {"instance": instance, "job": job})] = up_series
             trace.add(pre, "scrape_gap_start", instance=instance, preceded_by_activity=True)
+
+        elif v == VEC_SELECTIVE_METRIC_DROP:
+            # le signal d'attaque monte brièvement (< FOR_TICKS -> ne fire pas) PUIS
+            # disparaît, mais l'instance reste UP : aucune InstanceDown ne trahit la
+            # panne. Plus furtif que exporter_cutoff (qui, lui, fait tomber up).
+            expected_fired = False
+            pre = int(params.get("pre_ticks", 2))  # < FOR_TICKS (3) -> pas de fire
+            if expected_signal:
+                series = _const(expected_thr + 80.0)
+                for t in range(pre, H):
+                    series[t] = None  # le signal disparaît
+                metrics[model.series_key(expected_signal, labels or {"job": job, "instance": instance})] = series
+            # up laissé à sa valeur par défaut (1) -> instance vivante, pas d'InstanceDown
+            trace.add(pre, "signal_blackout", instance=instance, instance_up=True)
 
         elif v == "none":
             # scénario sain : action bénigne éventuelle (ressemble de loin à un vecteur)
@@ -251,6 +276,17 @@ class SimTarget(Target):
                     ar[t] = spike
                 metrics[model.series_key("attack_rate", {"job": job, "instance": instance})] = ar
                 trace.add(at, "brief_licit_spike", spike=spike, dur=dur)
+            elif bk == "benign_signal_gap":
+                # un signal cesse d'être exporté pendant une période CALME (activité
+                # basse AVANT le trou) : ni signal_blackout ni exporter_cutoff ne doivent
+                # crier au masquage, faute d'activité élevée avant. Vrai négatif.
+                low = float(params.get("low", 8.0))
+                at = int(params.get("at", 4))
+                sg: list[Optional[float]] = _const(low)
+                for t in range(at, H):
+                    sg[t] = None
+                metrics[model.series_key("attack_rate", {"job": job, "instance": instance})] = sg
+                trace.add(at, "licit_signal_gap", low=low)
 
         # --- 3) inhibiteurs qui firent RÉELLEMENT (ex. coupure -> InstanceDown)
         up_key = model.series_key("up", {"instance": instance, "job": job})

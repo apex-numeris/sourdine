@@ -1,0 +1,13 @@
+{
+  "id": "HLT-COHERENCE-JAILBREAK-09",
+  "kind": "healthy",
+  "vector": "none",
+  "title": "Contrôle de cohérence — pic de jailbreak franc, aucune manœuvre",
+  "description": "Un pic de jailbreak franchit nettement le seuil de JailbreakSurge, sans aucun masquage. L'alarme DOIT être levée et notifiée. Contrôle de cohérence pour le signal jailbreak_rate (pendant du contrôle de cohérence sur attack_rate).",
+  "access_level": "n/a",
+  "coherence_control": true,
+  "ground_truth": {"alarm_expected": true, "expected_alert": "JailbreakSurge", "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": true, "severity": "high"},
+  "masking": {"type": "none", "params": {}},
+  "tags": ["coherence", "sain", "jailbreak"]
+}

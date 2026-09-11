@@ -1,0 +1,12 @@
+{
+  "id": "ATT-FLAP-JAILBREAK-14",
+  "kind": "attack",
+  "vector": "threshold_flapping",
+  "title": "Flapping autour du seuil de JailbreakSurge",
+  "description": "Même technique de flapping, appliquée au signal de jailbreak : l'attaquant fait osciller le taux de jailbreak au-dessus puis en dessous du seuil de JailbreakSurge pour que le `for:` ne se complète jamais. Étend la couverture du flapping au signal jailbreak_rate (le détecteur compte les franchissements sur les deux signaux).",
+  "access_level": "threshold_knowledge",
+  "ground_truth": {"alarm_expected": true, "expected_alert": "JailbreakSurge", "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": false, "severity": "high"},
+  "masking": {"type": "threshold_flapping", "params": {"high": 30.0, "low": 2.0, "cycles": 7}},
+  "tags": ["flapping", "jailbreak", "for-reset"]
+}

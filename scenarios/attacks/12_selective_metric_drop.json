@@ -1,0 +1,12 @@
+{
+  "id": "ATT-SIGNAL-BLACKOUT-12",
+  "kind": "attack",
+  "vector": "selective_metric_drop",
+  "title": "Blackout sélectif du signal (instance laissée UP)",
+  "description": "L'attaquant, avec un accès à l'exporter, cesse d'exporter LA SEULE métrique d'attaque après une brève montée, tout en laissant l'instance signaler qu'elle est vivante (inst_up=1). L'alerte à taux ne part jamais faute de données, et AUCUNE InstanceDown ne vient trahir la panne — plus furtif que la coupure d'exporter complète.",
+  "access_level": "exporter_host_or_network",
+  "ground_truth": {"alarm_expected": true, "expected_alert": "HighAttackRate", "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": false, "severity": "warning"},
+  "masking": {"type": "selective_metric_drop", "params": {"pre_ticks": 2}},
+  "tags": ["blackout", "trou-de-collecte", "chien-qui-n-aboie-pas"]
+}

@@ -31,7 +31,8 @@ from engine.types import (
     Alert, RawResult, Scenario, Silence, SupervisionState, Trace,
     VEC_FIREWALL_DOWN_SPOOF, VEC_INSTANCE_DOWN_SPOOF, VEC_POSTGRES_DOWN_SPOOF,
     VEC_LOW_AND_SLOW, VEC_SILENCE_ABUSE, VEC_SILENCE_SHARED_LABEL,
-    VEC_GROUPING_REPEAT_ABUSE, VEC_EXPORTER_CUTOFF, VEC_THRESHOLD_FLAPPING,
+    VEC_SILENCE_REGEX_ALERTNAME, VEC_GROUPING_REPEAT_ABUSE, VEC_EXPORTER_CUTOFF,
+    VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING,
 )
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -223,6 +224,10 @@ class DockerTarget(Target):
             label = params.get("label", "job")
             value = params.get("value", job if label == "job" else instance)
             self._post_silence({label: value}, broad=False)
+        elif v == VEC_SILENCE_REGEX_ALERTNAME:
+            # silence dont le matcher alertname est un regex (~.+) : matcher présent
+            # mais non littéral, il balaie toutes les alertes de l'instance.
+            self._post_silence({"alertname": "~.+", "instance": instance}, broad=False)
         elif v == VEC_GROUPING_REPEAT_ABUSE:
             for i in range(int(params.get("count", 20))):
                 self._post_alert(gt.expected_alert or "HighAttackRate", {"job": job, "instance": f"flood-{i}"})
@@ -234,6 +239,16 @@ class DockerTarget(Target):
             self._set_metric("inst_up", {"job": job, "instance": instance}, 0.0)
             self._del_metric(expected_signal or "attack_rate", labels or {"job": job, "instance": instance})
             trace.add(3, "scrape_gap_start", instance=instance)
+        elif v == VEC_SELECTIVE_METRIC_DROP:
+            # signal d'attaque bref PUIS retiré, mais l'instance reste UP (inst_up=1) :
+            # aucune InstanceDown ne trahit la panne -> plus furtif que exporter_cutoff.
+            sig = expected_signal or "attack_rate"
+            lset = labels or {"job": job, "instance": instance}
+            self._set_metric("inst_up", {"job": job, "instance": instance}, 1.0)
+            self._set_metric(sig, lset, expected_thr + 80.0)
+            time.sleep(STEP * 2)          # activité visible, < for: (6 s) -> ne fire pas
+            self._del_metric(sig, lset)    # le signal disparaît, inst_up reste 1
+            trace.add(2, "signal_blackout", instance=instance)
         elif v == "none":
             bk = sc.masking.get("type") if sc.masking else None
             if bk == "benign_silence":
@@ -261,6 +276,14 @@ class DockerTarget(Target):
                 time.sleep(STEP)
                 self._set_metric("attack_rate", {"job": job, "instance": instance},
                                  float(params.get("baseline", 5.0)))
+            elif bk == "benign_signal_gap":
+                # signal exporté à bas régime PUIS retiré, en période calme (pas
+                # d'activité élevée avant) : vrai négatif du blackout sélectif.
+                self._set_metric("inst_up", {"job": job, "instance": instance}, 1.0)
+                self._set_metric("attack_rate", {"job": job, "instance": instance},
+                                 float(params.get("low", 8.0)))
+                time.sleep(STEP * 2)
+                self._del_metric("attack_rate", {"job": job, "instance": instance})
 
         time.sleep(settle)
 

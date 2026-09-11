@@ -170,6 +170,20 @@ les horodatages sont ignorés). Stdlib `unittest`, aucune dépendance tierce.
 make test                       # non-régression du run sim + déterminisme
 ```
 
+Le backend **docker** est non déterministe (temps réel) : `tests/test_docker_regression.py`
+ne fait donc **pas** d'égalité stricte mais vérifie des **invariants** (cohérence à
+100 %, masqueurs déterministes toujours masqués + rattrapés, contrôles de cohérence
+jamais signalés) et des garde-fous **directionnels à tolérance** autour de
+`samples/example-0.1.0-docker.json`. Il monte une vraie cible éphémère (~6-8 min) et
+n'est donc **pas** dans `make test` :
+
+```bash
+make test-docker                # non-régression LIVE du backend docker (opt-in)
+```
+
+La logique de ces contrôles — et sa **preuve par mutation** — tourne, elle, dans
+`make test` sans docker.
+
 Un changement de comportement **voulu** se re-gèle d'un geste délibéré, diff à l'appui :
 
 ```bash
@@ -252,7 +266,7 @@ sourdine/
 │   ├── exporter/exporter.py     # exporter synthétique pilotable (stdlib)
 │   └── sink/sink.py             # sink webhook d'observation (stdlib)
 ├── scripts/{target_up.sh,target_down.sh}
-├── tests/                       # non-régression du run sim (stdlib unittest)
+├── tests/                       # non-régression sim (strict) + docker (invariants/tolérance)
 ├── reports/                     # sorties JSON de campagne (runtime, git-ignoré)
 └── samples/                     # exemples versionnés : example-0.1.0.json (sim) + example-0.1.0-docker.json
 ```

@@ -111,8 +111,14 @@ print("OK", a["taux_rattrapage"], a["taux_faux_positifs"])
 PY
 ```
 
-- Le backend **docker** convient à une CI nocturne (plus lente, images à tirer),
-  pas à chaque commit.
+- Le backend **docker** est câblé en test **opt-in** : `make test-docker`
+  (`tests/test_docker_regression.py`, variable `SOURDINE_DOCKER_TEST=1`). Non
+  déterministe, il ne fait pas d'égalité stricte mais vérifie des **invariants
+  durs** (cohérence à 100 %, masqueurs déterministes toujours masqués + rattrapés,
+  contrôles de cohérence jamais signalés) et des **garde-fous directionnels à
+  tolérance** autour de `samples/example-0.1.0-docker.json`. Il monte une vraie
+  cible éphémère (~6-8 min) : CI **nocturne**, pas à chaque commit. La logique de
+  ces contrôles (avec preuve par mutation) tourne, sans docker, dans `make test`.
 
 ## 7. Versionnement
 

@@ -1,14 +1,15 @@
 # Sourdine — cibles de commodité. Le banc lui-même est stdlib pur (aucun pip).
 # Ce Makefile est autonome au dossier sourdine/ ; il ne touche pas au Makefile
 # racine du dépôt (plateforme).
-.PHONY: help test test-regression run run-docker regen-sample clean
+.PHONY: help test test-regression test-docker run run-docker regen-sample clean
 
 PY ?= python3
 
 help:
 	@echo "Cibles Sourdine :"
 	@echo "  make test          - non-regression du run sim + determinisme (stdlib unittest)"
-	@echo "  make test-regression - le seul module de non-regression, en mode verbeux"
+	@echo "  make test-regression - le seul module de non-regression sim, en mode verbeux"
+	@echo "  make test-docker   - non-regression LIVE du backend docker (~6-8 min, opt-in)"
 	@echo "  make run           - lance une campagne sim (defaut)"
 	@echo "  make run-docker    - lance une campagne sur vraie cible docker ephemere"
 	@echo "  make regen-sample  - RE-GELE samples/example-0.1.0.json (geste delibere)"
@@ -19,6 +20,11 @@ test:
 
 test-regression:
 	$(PY) -m unittest -v tests.test_sim_regression
+
+# Non-régression LIVE du backend docker : lance une vraie cible éphémère
+# (Prometheus + Alertmanager, ~6-8 min). Opt-in via la variable d'env.
+test-docker:
+	SOURDINE_DOCKER_TEST=1 $(PY) -m unittest -v tests.test_docker_regression
 
 run:
 	$(PY) run_campaign.py

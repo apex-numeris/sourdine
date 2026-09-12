@@ -33,8 +33,12 @@ from engine.types import (
     VEC_LOW_AND_SLOW, VEC_SILENCE_ABUSE, VEC_SILENCE_SHARED_LABEL,
     VEC_SILENCE_REGEX_ALERTNAME, VEC_GROUPING_REPEAT_ABUSE, VEC_EXPORTER_CUTOFF,
     VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING, VEC_FALSE_RESOLVED,
-    VEC_STALE_REPLAY,
+    VEC_STALE_REPLAY, VEC_STATISTICAL_REPLAY,
 )
+
+# Déviations déterministes (bruit réaliste) pour les signaux à distribution préservée
+# (statistical_replay, benign_noise) — posées point par point sur l'exporter.
+_NOISE = [3.0, -4.0, 6.0, -2.0, 5.0, -6.0, 8.0, -1.0, -3.0, 4.0]
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _COMPOSE = os.path.normpath(os.path.join(_HERE, "..", "target", "docker-compose.yml"))
@@ -354,6 +358,17 @@ class DockerTarget(Target):
             self._set_metric(sig, lset, float(params.get("frozen", 20.0)))  # fige au palier
             settle = STEP * 8             # assez de points figes pour la queue constante
             trace.add(2, "stale_replay_injected")
+        elif v == VEC_STATISTICAL_REPLAY:
+            # full/distribution-preserving replay : signal bruite sous le seuil (distribution
+            # normale preservee). Indetectable par la baseline marginale -> residuel.
+            sig = expected_signal or "attack_rate"
+            lset = labels or {"job": job, "instance": instance}
+            mean = float(params.get("mean", 21.0))
+            for dev in _NOISE:
+                self._set_metric(sig, lset, max(0.0, mean + dev))
+                time.sleep(STEP)          # chaque point bruite est scrape
+            settle = STEP * 2
+            trace.add(0, "statistical_replay_injected")
         elif v == "none":
             bk = sc.masking.get("type") if sc.masking else None
             if bk == "benign_silence":
@@ -410,6 +425,15 @@ class DockerTarget(Target):
                 self._set_metric("attack_rate", {"job": job, "instance": instance},
                                  float(params.get("frozen", 20.0)))
                 settle = STEP * 8      # assez de points figes pour eprouver frozen_replay (doit rester muet)
+            elif bk == "benign_noise":
+                # trafic licite bruite sous le seuil (meme allure qu'une attaque diluee) :
+                # la baseline ne doit pas le flaguer. Vrai negatif.
+                mean = float(params.get("mean", 16.0))
+                for dev in _NOISE:
+                    self._set_metric("attack_rate", {"job": job, "instance": instance},
+                                     max(0.0, mean + dev))
+                    time.sleep(STEP)
+                settle = STEP * 2
 
         time.sleep(settle)
 

@@ -29,7 +29,7 @@ les cibles (sim / docker) l'instancient.
 `firewall_down_spoof`, `instance_down_spoof`, `postgres_down_spoof`,
 `low_and_slow`, `threshold_flapping`, `silence_abuse`, `silence_shared_label`,
 `silence_regex_alertname`, `grouping_repeat_abuse`, `exporter_cutoff`,
-`selective_metric_drop`, `false_resolved`, `stale_replay`, `none`.
+`selective_metric_drop`, `false_resolved`, `stale_replay`, `statistical_replay`, `none`.
 
 ## Niveaux d'accès (`access_level`)
 
@@ -54,13 +54,15 @@ les cibles (sim / docker) l'instancient.
 - `selective_metric_drop` — `params.pre_ticks` (activité avant le trou ; l'instance reste UP).
 - `false_resolved` — `params.at` (tick du faux `resolved` posté à l'API Alertmanager) ; le signal à taux reste soutenu au-dessus du seuil. Masque en sim (état figé) ; en docker, la règle Prometheus ré-affirme l'alerte au cycle suivant — écart de fidélité assumé (T1562.011).
 - `stale_replay` — `params.pre_ticks` (franchissement bref du seuil), `spike` (valeur du pic), `frozen` (palier figé, zone grise sous le seuil). Rejeu/gel : la métrique franchit le seuil puis est figée à un palier constant (ACSAC 2022, consistance temporelle).
+- `statistical_replay` — `params.mean` (moyenne sous le seuil). Concealment distribution-preserving : signal bruité tiré de la distribution normale, cumul normal — **résiduel** (indétectable par la baseline marginale ; ACSAC 2022, consistance statistique).
 - `none` (sains) — `type` bénin : `benign_silence` (`broad`, `alertname`, `at`, `minor_activity`),
   `benign_exporter_restart` (`pre_ticks`, `gap`), `benign_spike` (`rate`),
   `benign_jitter` (`high`, `low`), `benign_brief_spike` (`spike`, `at`, `dur`, `baseline`),
   `benign_signal_gap` (`low`, `at`), `benign_resolve` (`high`, `low`, `at` : la métrique
   franchit le seuil puis retombe durablement — all-clear légitime),
   `benign_settle` (`high`, `frozen`, `pre_ticks` : activité sous le seuil puis palier — gel
-  légitime sans franchissement), ou `none`.
+  légitime sans franchissement), `benign_noise` (`mean` : trafic licite bruité sous le seuil,
+  indiscernable d'une attaque à distribution préservée), ou `none`.
 
 ## Règle de cotation (normative)
 

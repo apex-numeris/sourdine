@@ -1,7 +1,7 @@
 # Documentation Sourdine
 
 Documentation complète du **banc d'attaques de masquage d'alarme** (projet Sourdine).
-Version du banc : **0.5.0**. Langue : français. Support : Markdown versionné (diagrammes mermaid).
+Version du banc : **0.6.0**. Langue : français. Support : Markdown versionné (diagrammes mermaid).
 
 Sourdine mesure la résistance d'une chaîne d'alerte (Prometheus / Alertmanager) au
 **masquage d'alarme** : des attaques qui visent *l'observateur* — supprimer ou
@@ -28,19 +28,20 @@ Sourdine mesure la résistance d'une chaîne d'alerte (Prometheus / Alertmanager
   avec détecteur).
 - **Quoi** : banc autonome et jetable. Il monte sa **propre** cible éphémère
   (Prometheus + Alertmanager isolés, ou un modèle sim en process), joue un
-  catalogue de scénarios étiquetés (13 vecteurs + scénarios sains), et calcule
+  catalogue de scénarios étiquetés (14 vecteurs + scénarios sains), et calcule
   quatre taux + un contrôle de cohérence, ventilés par niveau d'accès attaquant.
 - **Garde-fous** : tout est synthétique et en laboratoire ; la cible n'est jamais
   la supervision de production ; le banc évalue une **baseline** de détection, pas
   le produit SentinelleIA (qui se branchera au même protocole).
-- **État** : v0.5.0, deux backends fonctionnels ; 13 vecteurs / 29 scénarios
-  (17 attaques / 12 sains).
-  - Référence **sim** (déterministe) : suppression 100 % / rattrapage 82,4 % / faux
-    positifs 16,7 % / résiduel 17,6 % / cohérence 100 %.
-  - **docker** (vrais conteneurs) : 82,4 / 78,6 / 16,7 / 17,6 / 100 % — divergences de
+- **État** : v0.6.0, deux backends fonctionnels ; 14 vecteurs / 31 scénarios
+  (18 attaques / 13 sains).
+  - Référence **sim** (déterministe) : suppression 100 % / rattrapage 77,8 % / faux
+    positifs 15,4 % / résiduel 22,2 % / cohérence 100 %.
+  - **docker** (vrais conteneurs) : 83,3 / 73,3 / 15,4 / 22,2 / 100 % — divergences de
     fidélité sur la noyade par groupement, le blackout sélectif, le faux all-clear et
-    le rejeu/gel (cf. doc 04 §7). Masquages préventifs (inhibition/silence) durcis :
-    établis et confirmés avant l'événement, avec retry déterministe (cf. doc 04 §5.4).
+    le rejeu/gel (cf. doc 04 §7). Masquages préventifs (inhibition/silence) durcis (cf.
+    doc 04 §5.4). Le **concealment statistique** (`statistical_replay`) est résiduel dans
+    les deux backends — limite assumée de la baseline (consistance spatiale requise).
 
 ## Historique (branche `feature/masquage-alarmes`)
 

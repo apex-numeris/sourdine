@@ -39,7 +39,8 @@ Un fichier = un scénario, sous `scenarios/attacks/` ou `scenarios/healthy/`.
 | `selective_metric_drop` | l'alerte qui ne part jamais (instance UP) | `exporter_host_or_network` | `selective_metric_drop` / `{pre_ticks}` |
 | `false_resolved` | l'alerte de sécurité résolue de force alors que la menace persiste (MITRE T1562.011) | `metric_or_am_api` | `false_resolved` / `{at}` |
 | `stale_replay` | l'attaque figée à un palier après un franchissement (rejeu/gel, ACSAC 2022) | `exporter_host_or_network` | `stale_replay` / `{pre_ticks, spike, frozen}` |
-| `none` (sains) | — | `n/a` | `none` \| `benign_silence` \| `benign_exporter_restart` \| `benign_spike` \| `benign_jitter` \| `benign_brief_spike` \| `benign_signal_gap` \| `benign_resolve` \| `benign_settle` |
+| `statistical_replay` | l'attaque diluée en bruit réaliste sous le seuil (distribution-preserving, ACSAC 2022) — **résiduel** | `exporter_host_or_network` | `statistical_replay` / `{mean}` |
+| `none` (sains) | — | `n/a` | `none` \| `benign_silence` \| `benign_exporter_restart` \| `benign_spike` \| `benign_jitter` \| `benign_brief_spike` \| `benign_signal_gap` \| `benign_resolve` \| `benign_settle` \| `benign_noise` |
 
 Niveaux d'accès : `metric_or_am_api`, `threshold_knowledge`, `silence_or_routing_api`,
 `exporter_host_or_network`, `n/a`.
@@ -106,9 +107,12 @@ class MaskingDetector(ABC):
 | `frozen_replay` | un signal à taux **franchit le seuil** puis est **figé** à un palier intermédiaire constant (variance nulle >= `STALE_FROZEN_MIN`) sans trou — rejeu/gel de données masquant l'attaque (ACSAC 2022, consistance temporelle) |
 
 La baseline est **volontairement imparfaite** : elle manque la noyade par
-groupement, le low-and-slow sous le seuil intégré et le flapping furtif (peu de
-franchissements) — d'où la suppression résiduelle —, et peut faux-positiver sur un
-silence de maintenance ou un pic licite (→ faux positifs).
+groupement, le low-and-slow sous le seuil intégré, le flapping furtif (peu de
+franchissements) et le **concealment statistique** (`statistical_replay` : distribution
+normale préservée → indétectable par toute heuristique marginale, ACSAC 2022 ; seule la
+consistance spatiale ou un détecteur de contenu le rattraperait) — d'où la suppression
+résiduelle —, et peut faux-positiver sur un silence de maintenance ou un pic licite
+(→ faux positifs).
 
 ## 5. Définition des taux
 

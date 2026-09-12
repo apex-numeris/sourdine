@@ -1,0 +1,12 @@
+{
+  "id": "HLT-BENIGN-NOISE-13",
+  "kind": "healthy",
+  "vector": "none",
+  "title": "Trafic licite bruité sous le seuil (indiscernable d'une attaque diluée)",
+  "description": "Un trafic licite évolue à un niveau modéré sous le seuil, avec une variabilité réaliste (bruit). Sa distribution est volontairement IDENTIQUE à celle d'une attaque diluée (statistical_replay) : la baseline marginale ne peut pas les distinguer. Elle ne doit donc PAS flaguer ce trafic licite (sinon tout trafic bruité sous le seuil deviendrait un faux positif). Vrai négatif qui illustre la limite symétrique du concealment statistique : sans analyse de contenu ni consistance spatiale, licite et malveillant à distribution égale sont indiscernables.",
+  "access_level": "n/a",
+  "ground_truth": {"alarm_expected": false, "expected_alert": null, "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": false},
+  "masking": {"type": "benign_noise", "params": {"mean": 16.0}},
+  "tags": ["sain", "vrai-negatif", "bruit-licite", "distribution"]
+}

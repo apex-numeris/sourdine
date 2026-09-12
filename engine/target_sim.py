@@ -22,7 +22,7 @@ from engine.types import (
     VEC_LOW_AND_SLOW, VEC_SILENCE_ABUSE, VEC_SILENCE_SHARED_LABEL,
     VEC_SILENCE_REGEX_ALERTNAME, VEC_GROUPING_REPEAT_ABUSE, VEC_EXPORTER_CUTOFF,
     VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING, VEC_FALSE_RESOLVED,
-    VEC_STALE_REPLAY,
+    VEC_STALE_REPLAY, VEC_STATISTICAL_REPLAY,
 )
 
 H = model.HORIZON
@@ -31,6 +31,10 @@ _RECENT = 10  # ticks « récents » pour les corrélations
 # valeur par défaut d'un signal "up" (1 = en vie)
 UP = 1.0
 DOWN = 0.0
+
+# Déviations déterministes imitant un bruit réaliste (somme ≈ 0) pour les signaux à
+# distribution préservée (statistical_replay, benign_noise). Pas de random -> reproductible.
+_NOISE = [3.0, -4.0, 6.0, -2.0, 5.0, -6.0, 8.0, -1.0, -3.0, 4.0, 0.0, -5.0, 2.0, -7.0, 7.0]
 
 # Corroboration attendue d'une alerte source inhibitrice (signal qui devrait être
 # à 0 si la panne est réelle).
@@ -271,6 +275,23 @@ class SimTarget(Target):
             trace.add(0, "attack_crossed_threshold", signal=expected_signal, spike=spike)
             trace.add(pre, "stale_replay_injected", frozen=frozen)
 
+        elif v == VEC_STATISTICAL_REPLAY:
+            # ACSAC 2022 — full / distribution-preserving replay (consistances STATISTIQUE
+            # ET temporelle préservées). L'attaquant remplace le signal d'attaque par un
+            # échantillon tiré de la distribution du trafic NORMAL : bruité (variance
+            # réaliste, pas figé), sous le seuil, cumul normal. Toutes les consistances
+            # MARGINALES sont préservées -> INDÉTECTABLE par la baseline (ni frozen_replay,
+            # ni low_and_slow, ni phantom_clear). Masquage RÉSIDUEL assumé : seule la
+            # consistance SPATIALE (corrélation inter-signaux, hors baseline) ou le vrai
+            # détecteur le rattraperait — c'est la limite qu'ACSAC 2022 démontre pour le
+            # full replay (il ne brise aucune des trois consistances marginales).
+            expected_fired = False
+            mean = float(params.get("mean", 21.0))   # sous le seuil ; cumul(20) ~ mean*20 < seuil intégré
+            if expected_signal:
+                series = [max(0.0, mean + _NOISE[t % len(_NOISE)]) for t in range(H)]
+                metrics[model.series_key(expected_signal, labels or {"job": job, "instance": instance})] = series
+            trace.add(0, "statistical_replay_injected", mean=mean)
+
         elif v == "none":
             # scénario sain : action bénigne éventuelle (ressemble de loin à un vecteur)
             bk = sc.masking.get("type") if sc.masking else None
@@ -360,6 +381,16 @@ class SimTarget(Target):
                     st[t] = high
                 metrics[model.series_key("attack_rate", {"job": job, "instance": instance})] = st
                 trace.add(pre, "licit_settle", high=high, frozen=frozen)
+            elif bk == "benign_noise":
+                # trafic licite bruité sous le seuil (même allure statistique qu'une attaque
+                # diluée par statistical_replay) : la baseline marginale ne peut PAS le
+                # distinguer d'une attaque à distribution préservée -> elle ne doit pas le
+                # flaguer. Vrai négatif illustrant la limite (seule l'analyse de contenu /
+                # la consistance spatiale distinguerait licite et malveillant à stats égales).
+                mean = float(params.get("mean", 16.0))
+                series = [max(0.0, mean + _NOISE[t % len(_NOISE)]) for t in range(H)]
+                metrics[model.series_key("attack_rate", {"job": job, "instance": instance})] = series
+                trace.add(1, "licit_noise", mean=mean)
 
         # --- 3) inhibiteurs qui firent RÉELLEMENT (ex. coupure -> InstanceDown)
         up_key = model.series_key("up", {"instance": instance, "job": job})

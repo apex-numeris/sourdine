@@ -1,0 +1,12 @@
+{
+  "id": "ATT-STATISTICAL-REPLAY-18",
+  "kind": "attack",
+  "vector": "statistical_replay",
+  "title": "Concealment statistique (distribution-preserving replay, ACSAC 2022)",
+  "description": "L'attaquant remplace le signal d'attaque par un échantillon tiré de la distribution du trafic NORMAL : bruité (variance réaliste, jamais figé), maintenu sous le seuil, à cumul normal. Le concealment préserve ainsi toutes les consistances MARGINALES (temporelle ET statistique) — c'est le full / distribution-preserving replay d'ACSAC 2022, qui ne brise aucune des consistances vérifiables sans corrélation. Résultat : INDÉTECTABLE par les heuristiques marginales de la baseline (ni le gel/frozen_replay, ni le cumul/low_and_slow, ni le franchissement/phantom_clear) → masquage réussi NON rattrapé (suppression RÉSIDUELLE assumée). Seule la consistance SPATIALE (corrélation inter-signaux, hors baseline) ou un détecteur de contenu le rattraperait. Ce vecteur documente honnêtement la limite que le vrai détecteur SentinelleIA doit dépasser.",
+  "access_level": "exporter_host_or_network",
+  "ground_truth": {"alarm_expected": true, "expected_alert": "HighAttackRate", "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": false, "severity": "warning"},
+  "masking": {"type": "statistical_replay", "params": {"mean": 21.0}},
+  "tags": ["concealment", "statistical", "distribution-preserving", "replay", "ACSAC-2022", "residuel"]
+}

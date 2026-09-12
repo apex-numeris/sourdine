@@ -180,6 +180,10 @@ liste complète des alertes en [doc 05](05-specifications.md).
    d'évaluation suivant (`endsAt` futur) : l'alarme ressort (`masked=False`, déterministe).
    Résultat défensif : agir sur l'état d'Alertmanager est vain tant que la règle est active ;
    le masquage n'existe qu'en sim (état non ré-évalué). Vecteur classé TIMING_SENSITIVE.
+5. **Rejeu/gel (`stale_replay`, ACSAC 2022) masque dans les deux backends, rattrapage docker
+   non garanti** : la métrique figée à un palier bas empêche l'alerte de firer partout
+   (masquage déterministe), mais le RATTRAPAGE par `frozen_replay` suppose que le pic de
+   franchissement bref a été scrapé (visibilité timing-dépendante) → classé TIMING_SENSITIVE.
 
 Ces écarts sont **réels** et précieux : ils ne sont visibles qu'en exécutant la
 vraie cible, et justifient l'existence du backend docker à côté de la sim.

@@ -278,11 +278,51 @@ class BaselineDetector(MaskingDetector):
                 run = 0
         return False
 
+    def _h_frozen_replay(self, state) -> Optional[Verdict]:
+        """Rejeu / gel de données (ACSAC 2022 « generic concealment » — violation de
+        consistance TEMPORELLE). Après avoir FRANCHI le seuil (attaque réelle), le signal
+        est FIGÉ à une valeur intermédiaire constante (variance nulle) au lieu de
+        disparaître : la métrique reste présente et plausible — plus furtif qu'un trou
+        (`selective_metric_drop`) — mais sa dynamique gelée trahit le rejeu, là où un vrai
+        signal continuerait de varier. Distinct du low-and-slow (jamais au-dessus du seuil)
+        et du pic bénin bref (qui retombe au repos, pas à un palier intermédiaire)."""
+        for signal, thr in (("attack_rate", model.ATTACK_RATE_THRESHOLD),
+                            ("jailbreak_rate", model.JAILBREAK_RATE_THRESHOLD)):
+            for lbls, series in self._series(state, signal):
+                gstart = self._frozen_start(series)
+                if gstart is None:
+                    continue
+                fval = series[-1]
+                # figé dans la « zone grise » : trafic maintenu MAIS sous le seuil (au
+                # repos -> pas suspect ; au-dessus du seuil -> ce serait phantom_clear).
+                if fval is None or not (thr * 0.3 < fval <= thr):
+                    continue
+                # l'attaque a réellement franchi le seuil AVANT le gel
+                if any(v is not None and v > thr for v in series[:gstart]):
+                    return Verdict(True, scope=f"{signal}{{job={lbls.get('job')}}}",
+                                   heuristic="frozen_replay",
+                                   reason=(f"{signal} a franchi le seuil {thr:.0f} puis est FIGÉ à "
+                                           f"{fval:.0f} (variance nulle >= {model.STALE_FROZEN_MIN} ticks) "
+                                           f"sans trou : rejeu/stale masquant l'attaque."))
+        return None
+
+    @staticmethod
+    def _frozen_start(series: list[Optional[float]]) -> Optional[int]:
+        """Index de début de la plus longue queue EXACTEMENT constante (dernier point
+        non-None, >= STALE_FROZEN_MIN points identiques), sinon None."""
+        last = series[-1] if series else None
+        if last is None:
+            return None
+        i = len(series) - 1
+        while i > 0 and series[i - 1] == last:
+            i -= 1
+        return i if (len(series) - i) >= model.STALE_FROZEN_MIN else None
+
     # -- interface ------------------------------------------------------------
     def detect(self, state: SupervisionState, trace: Trace) -> Verdict:
         for h in (self._h_inhibitor_isolation, self._h_flapping, self._h_phantom_clear,
                   self._h_low_and_slow, self._h_silence_abuse, self._h_signal_blackout,
-                  self._h_exporter_cutoff):
+                  self._h_exporter_cutoff, self._h_frozen_replay):
             verdict = h(state)
             if verdict is not None:
                 return verdict

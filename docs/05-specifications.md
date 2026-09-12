@@ -38,7 +38,8 @@ Un fichier = un scénario, sous `scenarios/attacks/` ou `scenarios/healthy/`.
 | `exporter_cutoff` | l'alerte qui ne part jamais (instance tombe) | `exporter_host_or_network` | `exporter_cutoff` / `{pre_ticks}` |
 | `selective_metric_drop` | l'alerte qui ne part jamais (instance UP) | `exporter_host_or_network` | `selective_metric_drop` / `{pre_ticks}` |
 | `false_resolved` | l'alerte de sécurité résolue de force alors que la menace persiste (MITRE T1562.011) | `metric_or_am_api` | `false_resolved` / `{at}` |
-| `none` (sains) | — | `n/a` | `none` \| `benign_silence` \| `benign_exporter_restart` \| `benign_spike` \| `benign_jitter` \| `benign_brief_spike` \| `benign_signal_gap` \| `benign_resolve` |
+| `stale_replay` | l'attaque figée à un palier après un franchissement (rejeu/gel, ACSAC 2022) | `exporter_host_or_network` | `stale_replay` / `{pre_ticks, spike, frozen}` |
+| `none` (sains) | — | `n/a` | `none` \| `benign_silence` \| `benign_exporter_restart` \| `benign_spike` \| `benign_jitter` \| `benign_brief_spike` \| `benign_signal_gap` \| `benign_resolve` \| `benign_settle` |
 
 Niveaux d'accès : `metric_or_am_api`, `threshold_knowledge`, `silence_or_routing_api`,
 `exporter_host_or_network`, `n/a`.
@@ -71,6 +72,8 @@ Niveaux d'accès : `metric_or_am_api`, `threshold_knowledge`, `silence_or_routin
 - Noyade : groupe de taille ≥ `FLOOD_MIN` (= 12).
 - Intégration low-and-slow : fenêtre = 20 ticks, seuil intégré = 540.
 - Flapping : ≥ `FLAP_MIN_CROSSINGS` (= 5) franchissements montants du seuil.
+- Gel/rejeu : queue exactement constante ≥ `STALE_FROZEN_MIN` (= 6) ticks, à un palier
+  dans la « zone grise » (`seuil × 0,3 < valeur ≤ seuil`), précédée d'un franchissement.
 
 > Ces valeurs vivent dans `engine/model.py` (sim) et `target/prometheus/*.yml`,
 > `target/alertmanager/alertmanager.yml` (docker), tenues cohérentes.
@@ -100,6 +103,7 @@ class MaskingDetector(ABC):
 | `signal_blackout` | un signal d'attaque disparaît (trou) après activité alors que l'instance reste **UP** (distinct de `exporter_cutoff` où `up`→0) |
 | `exporter_cutoff` | trou de collecte (`up` 1→0 / signal absent) coïncidant avec une activité élevée juste avant |
 | `phantom_clear` | un signal à taux reste **soutenu au-dessus du seuil** (encore chaud au dernier point observé) **sans** alerte à taux active, **ni** source inhibitrice **ni** silence — l'alerte a été résolue/étouffée alors que la menace persiste (faux all-clear, T1562.011) |
+| `frozen_replay` | un signal à taux **franchit le seuil** puis est **figé** à un palier intermédiaire constant (variance nulle >= `STALE_FROZEN_MIN`) sans trou — rejeu/gel de données masquant l'attaque (ACSAC 2022, consistance temporelle) |
 
 La baseline est **volontairement imparfaite** : elle manque la noyade par
 groupement, le low-and-slow sous le seuil intégré et le flapping furtif (peu de

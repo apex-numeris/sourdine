@@ -1,0 +1,12 @@
+{
+  "id": "ATT-STALE-REPLAY-17",
+  "kind": "attack",
+  "vector": "stale_replay",
+  "title": "Rejeu / gel de métrique (concealment ACSAC 2022, consistance temporelle)",
+  "description": "L'attaquant, avec un accès à l'ingestion métrique, laisse l'attaque franchir brièvement le seuil de HighAttackRate (montée réelle) puis FIGE attack_rate à un palier intermédiaire constant (rejeu / stale data) au lieu de la faire disparaître. La métrique reste présente et plausible — plus furtif qu'une coupure d'exporter ou un trou de collecte — mais sa dynamique gelée (variance nulle APRÈS un franchissement) trahit le rejeu, là où un vrai signal de trafic continuerait de varier. Concealment par violation de la consistance temporelle (cf. Filiation : Erba & Tippenhauer, ACSAC 2022). Le palier reste sous le seuil intégré low-and-slow et sous le seuil instantané : seul le détecteur de gel (frozen_replay) le rattrape. Rattrapé en sim ; rattrapage docker non garanti (visibilité du pic bref) — TIMING_SENSITIVE.",
+  "access_level": "exporter_host_or_network",
+  "ground_truth": {"alarm_expected": true, "expected_alert": "HighAttackRate", "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": false, "severity": "warning"},
+  "masking": {"type": "stale_replay", "params": {"pre_ticks": 2, "spike": 80.0, "frozen": 20.0}},
+  "tags": ["concealment", "rejeu", "gel", "stale", "ACSAC-2022", "consistance-temporelle"]
+}

@@ -33,6 +33,7 @@ from engine.types import (
     VEC_LOW_AND_SLOW, VEC_SILENCE_ABUSE, VEC_SILENCE_SHARED_LABEL,
     VEC_SILENCE_REGEX_ALERTNAME, VEC_GROUPING_REPEAT_ABUSE, VEC_EXPORTER_CUTOFF,
     VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING, VEC_FALSE_RESOLVED,
+    VEC_STALE_REPLAY,
 )
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -341,6 +342,18 @@ class DockerTarget(Target):
                   [{"labels": {"alertname": gt.expected_alert, **lset},
                     "startsAt": _iso(now - 600), "endsAt": _iso(now)}])  # faux resolved
             trace.add(2, "am_force_resolved", alert=gt.expected_alert)
+        elif v == VEC_STALE_REPLAY:
+            # ACSAC 2022 concealment (rejeu/gel) : l'attaque franchit brièvement le seuil,
+            # puis l'attaquant fige la métrique a un palier intermediaire (sous le seuil)
+            # au lieu de la retirer. Metrique presente et plausible -> plus furtif qu'un
+            # trou. Rattrapage docker non garanti (visibilite du pic bref) -> TIMING_SENSITIVE.
+            sig = expected_signal or "attack_rate"
+            lset = labels or {"job": job, "instance": instance}
+            self._set_metric(sig, lset, float(params.get("spike", expected_thr + 30.0)))
+            time.sleep(STEP * 2)          # franchissement visible mais bref (< for: 6 s)
+            self._set_metric(sig, lset, float(params.get("frozen", 20.0)))  # fige au palier
+            settle = STEP * 8             # assez de points figes pour la queue constante
+            trace.add(2, "stale_replay_injected")
         elif v == "none":
             bk = sc.masking.get("type") if sc.masking else None
             if bk == "benign_silence":
@@ -388,6 +401,15 @@ class DockerTarget(Target):
                 self._set_metric("attack_rate", {"job": job, "instance": instance},
                                  float(params.get("low", 8.0)))   # retombe durablement
                 settle = STEP * 10     # laisser résoudre + la fenêtre récente devenir basse
+            elif bk == "benign_settle":
+                # activite licite elevee mais SOUS le seuil, puis palier : jamais de
+                # franchissement -> frozen_replay ne doit pas crier. Vrai negatif de stale_replay.
+                self._set_metric("attack_rate", {"job": job, "instance": instance},
+                                 float(params.get("high", 40.0)))
+                time.sleep(STEP * 2)
+                self._set_metric("attack_rate", {"job": job, "instance": instance},
+                                 float(params.get("frozen", 20.0)))
+                settle = STEP * 8      # assez de points figes pour eprouver frozen_replay (doit rester muet)
 
         time.sleep(settle)
 

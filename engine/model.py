@@ -45,6 +45,13 @@ FLOOD_MIN = 12                    # nb d'alertes dans un groupe au-delà duquel 
 # se complète jamais, donc l'alerte ne se déclenche jamais.
 FLAP_MIN_CROSSINGS = 5
 
+# --- Rejeu / gel (stale_replay) -----------------------------------------------
+# Nombre de points consécutifs EXACTEMENT constants au-delà duquel une queue figée est
+# jugée suspecte (rejeu/stale) : un vrai signal de trafic ne reste pas rigoureusement
+# constant aussi longtemps. Combiné à un franchissement de seuil antérieur et à une
+# valeur figée sous le seuil (zone grise), c'est la signature du concealment temporel.
+STALE_FROZEN_MIN = 6
+
 # --- Familles d'alertes -------------------------------------------------------
 # Métadonnées par alerte : signal déclencheur, type, sévérité, service.
 ALERT_RULES: dict[str, dict] = {

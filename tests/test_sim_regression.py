@@ -31,7 +31,7 @@ from engine.report import REPORT_FORMAT_VERSION  # noqa: E402
 from engine.scenarios import load_scenarios       # noqa: E402
 from run_campaign import build_report             # noqa: E402
 
-SAMPLE = os.path.join(_ROOT, "samples", "example-0.4.0.json")
+SAMPLE = os.path.join(_ROOT, "samples", "example-0.5.0.json")
 SCENARIOS = os.path.join(_ROOT, "scenarios")
 
 

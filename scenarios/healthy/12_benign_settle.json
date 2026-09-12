@@ -1,0 +1,12 @@
+{
+  "id": "HLT-BENIGN-SETTLE-12",
+  "kind": "healthy",
+  "vector": "none",
+  "title": "Stabilisation licite sous le seuil (piège à faux positif du gel)",
+  "description": "Un trafic licite monte à un niveau élevé mais SOUS le seuil, puis se stabilise à un palier constant (charge établie qui ne bouge plus). La métrique se fige — mais elle n'a JAMAIS franchi le seuil. Le détecteur de rejeu/gel (frozen_replay) ne doit PAS crier au masquage, car il exige un franchissement préalable du seuil (attaque réelle) avant le gel. Vrai négatif, garde anti-faux-positif du vecteur stale_replay.",
+  "access_level": "n/a",
+  "ground_truth": {"alarm_expected": false, "expected_alert": null, "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": false},
+  "masking": {"type": "benign_settle", "params": {"high": 40.0, "frozen": 20.0, "pre_ticks": 4}},
+  "tags": ["sain", "vrai-negatif", "gel-legitime", "anti-faux-positif"]
+}

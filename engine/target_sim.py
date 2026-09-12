@@ -22,6 +22,7 @@ from engine.types import (
     VEC_LOW_AND_SLOW, VEC_SILENCE_ABUSE, VEC_SILENCE_SHARED_LABEL,
     VEC_SILENCE_REGEX_ALERTNAME, VEC_GROUPING_REPEAT_ABUSE, VEC_EXPORTER_CUTOFF,
     VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING, VEC_FALSE_RESOLVED,
+    VEC_STALE_REPLAY,
 )
 
 H = model.HORIZON
@@ -250,6 +251,26 @@ class SimTarget(Target):
             trace.add(max(0, H - late), "attack_resumed", signal=expected_signal, rate=high)
             trace.add(H - 1, "am_force_resolved", alert=gt.expected_alert, via="alertmanager_api")
 
+        elif v == VEC_STALE_REPLAY:
+            # ACSAC 2022 concealment (rejeu/gel — consistance TEMPORELLE) : l'attaque
+            # franchit brièvement le seuil (< FOR_TICKS -> ne fire pas), puis l'attaquant
+            # FIGE la métrique à un palier intermédiaire constant (rejeu/stale) au lieu de
+            # la faire disparaître. Plus furtif qu'un trou : la métrique reste présente et
+            # plausible, mais sa variance nulle APRÈS un franchissement trahit le rejeu.
+            # low_and_slow (cumul sous le seuil intégré) et phantom_clear (figé SOUS le
+            # seuil) ne le voient pas : seul `frozen_replay` le rattrape.
+            expected_fired = False
+            pre = int(params.get("pre_ticks", 2))       # franchissement bref (< FOR_TICKS)
+            spike = float(params.get("spike", (expected_thr or model.ATTACK_RATE_THRESHOLD) + 30.0))
+            frozen = float(params.get("frozen", 20.0))  # palier figé, zone grise sous le seuil
+            if expected_signal:
+                series = _const(frozen)
+                for t in range(min(pre, H)):
+                    series[t] = spike
+                metrics[model.series_key(expected_signal, labels or {"job": job, "instance": instance})] = series
+            trace.add(0, "attack_crossed_threshold", signal=expected_signal, spike=spike)
+            trace.add(pre, "stale_replay_injected", frozen=frozen)
+
         elif v == "none":
             # scénario sain : action bénigne éventuelle (ressemble de loin à un vecteur)
             bk = sc.masking.get("type") if sc.masking else None
@@ -326,6 +347,19 @@ class SimTarget(Target):
                     res[t] = low
                 metrics[model.series_key("attack_rate", {"job": job, "instance": instance})] = res
                 trace.add(at, "legit_resolve", reason="menace retombee sous le seuil")
+            elif bk == "benign_settle":
+                # activité licite élevée mais SOUS le seuil, puis stabilisation à un palier :
+                # la métrique se fige mais n'a JAMAIS franchi le seuil -> frozen_replay ne
+                # doit pas crier (il exige un franchissement préalable). Vrai négatif du
+                # rejeu/gel (garde anti-FP de stale_replay).
+                high = float(params.get("high", 40.0))       # sous le seuil (50)
+                frozen = float(params.get("frozen", 20.0))
+                pre = int(params.get("pre_ticks", 4))
+                st: list[Optional[float]] = _const(frozen)
+                for t in range(min(pre, H)):
+                    st[t] = high
+                metrics[model.series_key("attack_rate", {"job": job, "instance": instance})] = st
+                trace.add(pre, "licit_settle", high=high, frozen=frozen)
 
         # --- 3) inhibiteurs qui firent RÉELLEMENT (ex. coupure -> InstanceDown)
         up_key = model.series_key("up", {"instance": instance, "job": job})

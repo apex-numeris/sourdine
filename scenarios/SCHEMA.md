@@ -29,7 +29,7 @@ les cibles (sim / docker) l'instancient.
 `firewall_down_spoof`, `instance_down_spoof`, `postgres_down_spoof`,
 `low_and_slow`, `threshold_flapping`, `silence_abuse`, `silence_shared_label`,
 `silence_regex_alertname`, `grouping_repeat_abuse`, `exporter_cutoff`,
-`selective_metric_drop`, `false_resolved`, `none`.
+`selective_metric_drop`, `false_resolved`, `stale_replay`, `none`.
 
 ## Niveaux d'accès (`access_level`)
 
@@ -53,11 +53,14 @@ les cibles (sim / docker) l'instancient.
 - `exporter_cutoff` — `params.pre_ticks` (activité avant la coupure ; l'instance tombe).
 - `selective_metric_drop` — `params.pre_ticks` (activité avant le trou ; l'instance reste UP).
 - `false_resolved` — `params.at` (tick du faux `resolved` posté à l'API Alertmanager) ; le signal à taux reste soutenu au-dessus du seuil. Masque en sim (état figé) ; en docker, la règle Prometheus ré-affirme l'alerte au cycle suivant — écart de fidélité assumé (T1562.011).
+- `stale_replay` — `params.pre_ticks` (franchissement bref du seuil), `spike` (valeur du pic), `frozen` (palier figé, zone grise sous le seuil). Rejeu/gel : la métrique franchit le seuil puis est figée à un palier constant (ACSAC 2022, consistance temporelle).
 - `none` (sains) — `type` bénin : `benign_silence` (`broad`, `alertname`, `at`, `minor_activity`),
   `benign_exporter_restart` (`pre_ticks`, `gap`), `benign_spike` (`rate`),
   `benign_jitter` (`high`, `low`), `benign_brief_spike` (`spike`, `at`, `dur`, `baseline`),
   `benign_signal_gap` (`low`, `at`), `benign_resolve` (`high`, `low`, `at` : la métrique
-  franchit le seuil puis retombe durablement — all-clear légitime), ou `none`.
+  franchit le seuil puis retombe durablement — all-clear légitime),
+  `benign_settle` (`high`, `frozen`, `pre_ticks` : activité sous le seuil puis palier — gel
+  légitime sans franchissement), ou `none`.
 
 ## Règle de cotation (normative)
 

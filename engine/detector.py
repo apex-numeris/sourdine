@@ -234,10 +234,55 @@ class BaselineDetector(MaskingDetector):
                                            "que l'instance reste UP : blackout sélectif du signal."))
         return None
 
+    def _h_phantom_clear(self, state) -> Optional[Verdict]:
+        """Faux all-clear (OWASP LLM-adjacent / MITRE T1562.011 Spoof Security Alerting) :
+        un signal à taux reste SOUTENU au-dessus du seuil (>= FOR_TICKS consécutifs dans
+        la fenêtre récente), donc l'alerte à taux AURAIT dû être active — mais aucune ne
+        l'est, et aucune cause légitime de suppression n'existe (ni source inhibitrice, ni
+        silence). L'alerte a été indûment résolue/étouffée alors que la menace persiste :
+        le chien qu'on a fait taire APRÈS qu'il a aboyé, distinct des vecteurs qui
+        l'empêchent d'aboyer. La détection est une corrélation métrique <-> alerte, comme
+        recommandé pour T1562.011 (comparer la télémétrie à la notification)."""
+        if any(a.name in ("HighAttackRate", "JailbreakSurge") for a in state.alerts):
+            return None                       # une alerte à taux est active : pas de masquage
+        if any(a.name in model.INHIBITOR_SOURCES for a in state.alerts):
+            return None                       # inhibition en jeu -> _h_inhibitor_isolation qualifie
+        if state.silences:
+            return None                       # silence en jeu -> _h_silence_abuse qualifie
+        for signal, thr in (("attack_rate", model.ATTACK_RATE_THRESHOLD),
+                            ("jailbreak_rate", model.JAILBREAK_RATE_THRESHOLD)):
+            for lbls, series in self._series(state, signal):
+                recent = series[-_RECENT:]
+                observed = [v for v in recent if v is not None]
+                # signal ENCORE chaud (dernier point observé > seuil) ET run soutenu
+                # récent : un all-clear légitime, lui, est retombé -> dernier point bas.
+                if observed and observed[-1] > thr and self._sustained_above(recent, thr):
+                    return Verdict(True, scope=f"{signal}{{job={lbls.get('job')}}}",
+                                   heuristic="phantom_clear",
+                                   reason=(f"{signal} encore au-dessus du seuil {thr:.0f} "
+                                           f"(soutenu >= {model.FOR_TICKS} ticks récents) sans alerte "
+                                           f"active ni cause de suppression : all-clear fantôme (resolved forcé)."))
+        return None
+
+    @staticmethod
+    def _sustained_above(series: list[Optional[float]], threshold: float) -> bool:
+        """Vrai s'il existe un run d'au moins FOR_TICKS valeurs consécutives > seuil
+        (une alerte à taux se serait déclenchée : `for:` complété)."""
+        run = 0
+        for v in series:
+            if v is not None and v > threshold:
+                run += 1
+                if run >= model.FOR_TICKS:
+                    return True
+            else:
+                run = 0
+        return False
+
     # -- interface ------------------------------------------------------------
     def detect(self, state: SupervisionState, trace: Trace) -> Verdict:
-        for h in (self._h_inhibitor_isolation, self._h_flapping, self._h_low_and_slow,
-                  self._h_silence_abuse, self._h_signal_blackout, self._h_exporter_cutoff):
+        for h in (self._h_inhibitor_isolation, self._h_flapping, self._h_phantom_clear,
+                  self._h_low_and_slow, self._h_silence_abuse, self._h_signal_blackout,
+                  self._h_exporter_cutoff):
             verdict = h(state)
             if verdict is not None:
                 return verdict

@@ -21,7 +21,7 @@ from engine.types import (
     VEC_FIREWALL_DOWN_SPOOF, VEC_INSTANCE_DOWN_SPOOF, VEC_POSTGRES_DOWN_SPOOF,
     VEC_LOW_AND_SLOW, VEC_SILENCE_ABUSE, VEC_SILENCE_SHARED_LABEL,
     VEC_SILENCE_REGEX_ALERTNAME, VEC_GROUPING_REPEAT_ABUSE, VEC_EXPORTER_CUTOFF,
-    VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING,
+    VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING, VEC_FALSE_RESOLVED,
 )
 
 H = model.HORIZON
@@ -225,6 +225,31 @@ class SimTarget(Target):
             # up laissé à sa valeur par défaut (1) -> instance vivante, pas d'InstanceDown
             trace.add(pre, "signal_blackout", instance=instance, instance_up=True)
 
+        elif v == VEC_FALSE_RESOLVED:
+            # T1562.011 Spoof Security Alerting — faux « all-clear ». L'attaque (re)monte
+            # au-dessus du seuil sur les derniers instants ; l'alerte de sécurité, qui
+            # aurait dû se déclencher, a été RÉSOLUE DE FORCE via l'API Alertmanager et
+            # reste étouffée. En sim (état figé), on ne crée pas l'alerte attendue
+            # (`expected_fired` reste False, make_fire=false) : le signal est posé haut
+            # sur les `late_ticks` derniers ticks (reprise), plus bas avant.
+            #   Le pic tient sur >= FOR_TICKS ticks récents (l'alerte AURAIT dû firer),
+            #   mais sa somme intégrée reste SOUS le seuil low-and-slow : SEUL le détecteur
+            #   de faux all-clear (phantom_clear) le rattrape. C'est ce qui distingue ce
+            #   vecteur du low-and-slow (cumul) — garder late_ticks * high < seuil intégré.
+            #   ⚠️ Fidélité : en docker, une VRAIE règle Prometheus ré-affirme l'alerte au
+            #   cycle suivant -> le faux resolved NE TIENT PAS, l'alarme ressort. Écart
+            #   assumé et mesuré (constat de fidélité 4) -> classé TIMING_SENSITIVE.
+            high = float(params.get("rate", (expected_thr or model.ATTACK_RATE_THRESHOLD) + 70.0))
+            late = int(params.get("late_ticks", 4))     # ticks récents au-dessus du seuil
+            floor = float(params.get("floor", 0.0))     # fond calme avant la reprise
+            if expected_signal:
+                series = _const(floor)
+                for t in range(max(0, H - late), H):
+                    series[t] = high
+                metrics[model.series_key(expected_signal, labels or {"job": job, "instance": instance})] = series
+            trace.add(max(0, H - late), "attack_resumed", signal=expected_signal, rate=high)
+            trace.add(H - 1, "am_force_resolved", alert=gt.expected_alert, via="alertmanager_api")
+
         elif v == "none":
             # scénario sain : action bénigne éventuelle (ressemble de loin à un vecteur)
             bk = sc.masking.get("type") if sc.masking else None
@@ -287,6 +312,20 @@ class SimTarget(Target):
                     sg[t] = None
                 metrics[model.series_key("attack_rate", {"job": job, "instance": instance})] = sg
                 trace.add(at, "licit_signal_gap", low=low)
+            elif bk == "benign_resolve":
+                # all-clear LÉGITIME (pendant sain de false_resolved) : la menace
+                # franchit le seuil (l'alerte a fire et été notifiée), PUIS retombe
+                # RÉELLEMENT et durablement sous le seuil -> resolved légitime. En fin
+                # de fenêtre : plus d'alerte ET signal bas. phantom_clear ne doit pas
+                # crier (son dernier point observé est sous le seuil). Vrai négatif.
+                high = float(params.get("high", model.ATTACK_RATE_THRESHOLD + 70.0))
+                low = float(params.get("low", 8.0))
+                at = int(params.get("at", 10))
+                res: list[Optional[float]] = _const(high)
+                for t in range(at, H):
+                    res[t] = low
+                metrics[model.series_key("attack_rate", {"job": job, "instance": instance})] = res
+                trace.add(at, "legit_resolve", reason="menace retombee sous le seuil")
 
         # --- 3) inhibiteurs qui firent RÉELLEMENT (ex. coupure -> InstanceDown)
         up_key = model.series_key("up", {"instance": instance, "job": job})

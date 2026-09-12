@@ -1,0 +1,12 @@
+{
+  "id": "ATT-FALSE-RESOLVED-JAILBREAK-16",
+  "kind": "attack",
+  "vector": "false_resolved",
+  "title": "Faux all-clear sur JailbreakSurge (reprise)",
+  "description": "Même manœuvre de resolved forcé, appliquée au signal de jailbreak : après une accalmie, le taux de jailbreak REMONTE au-dessus du seuil sur les derniers instants, mais l'alerte JailbreakSurge reste étouffée par un faux « resolved » posté à l'API Alertmanager. Étend la couverture du faux all-clear au second signal à taux (pendant du contrôle sur attack_rate). Comme pour attack_rate, la reprise reste sous le seuil intégré low-and-slow, donc seul phantom_clear la rattrape. Masqué et rattrapé en sim ; neutralisé par la ré-affirmation de la règle en docker.",
+  "access_level": "metric_or_am_api",
+  "ground_truth": {"alarm_expected": true, "expected_alert": "JailbreakSurge", "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": false, "severity": "high"},
+  "masking": {"type": "false_resolved", "params": {"late_ticks": 4}},
+  "tags": ["spoof-security-alerting", "faux-resolved", "jailbreak", "T1562.011", "reprise"]
+}

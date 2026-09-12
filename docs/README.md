@@ -1,7 +1,7 @@
 # Documentation Sourdine
 
 Documentation complète du **banc d'attaques de masquage d'alarme** (projet Sourdine).
-Version du banc : **0.1.0**. Langue : français. Support : Markdown versionné (diagrammes mermaid).
+Version du banc : **0.4.0**. Langue : français. Support : Markdown versionné (diagrammes mermaid).
 
 Sourdine mesure la résistance d'une chaîne d'alerte (Prometheus / Alertmanager) au
 **masquage d'alarme** : des attaques qui visent *l'observateur* — supprimer ou
@@ -28,16 +28,19 @@ Sourdine mesure la résistance d'une chaîne d'alerte (Prometheus / Alertmanager
   avec détecteur).
 - **Quoi** : banc autonome et jetable. Il monte sa **propre** cible éphémère
   (Prometheus + Alertmanager isolés, ou un modèle sim en process), joue un
-  catalogue de scénarios étiquetés (11 vecteurs + scénarios sains), et calcule
+  catalogue de scénarios étiquetés (12 vecteurs + scénarios sains), et calcule
   quatre taux + un contrôle de cohérence, ventilés par niveau d'accès attaquant.
 - **Garde-fous** : tout est synthétique et en laboratoire ; la cible n'est jamais
   la supervision de production ; le banc évalue une **baseline** de détection, pas
   le produit SentinelleIA (qui se branchera au même protocole).
-- **État** : v0.1.0, deux backends fonctionnels.
-  - Référence **sim** (déterministe) : suppression 100 % / rattrapage 75 % / faux
-    positifs 33 % / résiduel 25 % / cohérence 100 %.
-  - **docker** (vrais conteneurs) : 87,5 / 85,7 / 33,3 / 12,5 / 100 % — divergence
-    unique sur la noyade par groupement (constat de fidélité, cf. doc 04/05).
+- **État** : v0.4.0, deux backends fonctionnels ; 12 vecteurs / 27 scénarios
+  (16 attaques / 11 sains).
+  - Référence **sim** (déterministe) : suppression 100 % / rattrapage 81,2 % / faux
+    positifs 18,2 % / résiduel 18,8 % / cohérence 100 %.
+  - **docker** (vrais conteneurs) : 81,2 / 76,9 / 18,2 / 18,8 / 100 % — divergences de
+    fidélité sur la noyade par groupement, le blackout sélectif et le faux all-clear
+    (cf. doc 04 §7). Masquages préventifs (inhibition/silence) durcis : établis et
+    confirmés avant l'événement, avec retry déterministe (cf. doc 04 §5.4).
 
 ## Historique (branche `feature/masquage-alarmes`)
 

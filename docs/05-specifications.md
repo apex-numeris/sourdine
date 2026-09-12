@@ -37,7 +37,8 @@ Un fichier = un scénario, sous `scenarios/attacks/` ou `scenarios/healthy/`.
 | `grouping_repeat_abuse` | l'alerte noyée | `silence_or_routing_api` | `grouping_repeat_abuse` / `{count}` |
 | `exporter_cutoff` | l'alerte qui ne part jamais (instance tombe) | `exporter_host_or_network` | `exporter_cutoff` / `{pre_ticks}` |
 | `selective_metric_drop` | l'alerte qui ne part jamais (instance UP) | `exporter_host_or_network` | `selective_metric_drop` / `{pre_ticks}` |
-| `none` (sains) | — | `n/a` | `none` \| `benign_silence` \| `benign_exporter_restart` \| `benign_spike` \| `benign_jitter` \| `benign_brief_spike` \| `benign_signal_gap` |
+| `false_resolved` | l'alerte de sécurité résolue de force alors que la menace persiste (MITRE T1562.011) | `metric_or_am_api` | `false_resolved` / `{at}` |
+| `none` (sains) | — | `n/a` | `none` \| `benign_silence` \| `benign_exporter_restart` \| `benign_spike` \| `benign_jitter` \| `benign_brief_spike` \| `benign_signal_gap` \| `benign_resolve` |
 
 Niveaux d'accès : `metric_or_am_api`, `threshold_knowledge`, `silence_or_routing_api`,
 `exporter_host_or_network`, `n/a`.
@@ -98,6 +99,7 @@ class MaskingDetector(ABC):
 | `silence_abuse` | silence sur-périmétré (matcher `instance` large, **ou sans matcher `alertname` exact** — absent ou regex), **ou** silence étroit posé pendant une montée d'activité |
 | `signal_blackout` | un signal d'attaque disparaît (trou) après activité alors que l'instance reste **UP** (distinct de `exporter_cutoff` où `up`→0) |
 | `exporter_cutoff` | trou de collecte (`up` 1→0 / signal absent) coïncidant avec une activité élevée juste avant |
+| `phantom_clear` | un signal à taux reste **soutenu au-dessus du seuil** (encore chaud au dernier point observé) **sans** alerte à taux active, **ni** source inhibitrice **ni** silence — l'alerte a été résolue/étouffée alors que la menace persiste (faux all-clear, T1562.011) |
 
 La baseline est **volontairement imparfaite** : elle manque la noyade par
 groupement, le low-and-slow sous le seuil intégré et le flapping furtif (peu de

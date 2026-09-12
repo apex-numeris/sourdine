@@ -127,6 +127,26 @@ Deux mécanismes garantissent qu'un scénario ne contamine pas le suivant :
    pas d'un `now-60s` fixe — sinon l'historique TSDB de Prometheus bave d'un
    scénario sur l'autre (bug corrigé en `59c26c61`).
 
+### 5.4 Robustesse des masquages préventifs
+
+Les masquages par **inhibition** (spoofs `*_down_spoof`) et par **silence**
+(`silence_*`) sont déterministes par nature, mais leur application par Alertmanager
+peut perdre une course de *premier flush* : l'alerte cible est notifiée au sink avant
+qu'AM applique le muting, alors même que l'inhibiteur/silence est actif. À charge nulle,
+`instance_down_spoof` et le silence à `alertname=~.+` perdaient ~1 exécution sur 3.
+Trois leviers les rendent déterministes :
+
+1. **Ordre** : le masquage préventif est posé **avant** l'événement qui fait firer
+   l'alerte (et non après), pour être dans le muting index d'AM au firing.
+2. **Confirmation + stabilisation** : on attend que l'alerte source / le silence soit
+   `active` dans AM (`_await_alert_active` / `_await_silence_active`), puis on stabilise
+   au-delà de 2× `group_interval` ; les silences sont postés avec `startsAt` dans le
+   passé (activation immédiate). Le matcher regex sur `alertname` est le plus lent à indexer.
+3. **Retry** : si l'alerte fuite malgré tout, le scénario est re-tenté (jusqu'à 4 fois) ;
+   la course étant rare et ré-indépendante, la fuite résiduelle tombe sous 0,5 %. Les
+   vecteurs NON préventifs ne sont jamais re-tentés (leur résultat, dont `false_resolved`
+   non masqué en docker, est voulu).
+
 ## 6. Sémantique recréée (représentative, jamais copiée de la prod)
 
 Règles d'inhibition modélisées :
@@ -149,6 +169,17 @@ liste complète des alertes en [doc 05](05-specifications.md).
 2. **Noyade par groupement inefficace** contre un `group_wait` court : AM envoie le
    premier lot (avec la vraie alerte) sous quelques secondes. Docker cote ce vecteur
    « non masqué » ; la sim, qui modélise une config à fenêtre longue, le cote masqué.
+3. **Blackout sélectif (`selective_metric_drop`) rattrapé en sim, pas en docker** :
+   un vrai Prometheus représente une métrique supprimée par une série qui **s'arrête**
+   (staleness), pas par des trous `None`. Le détecteur de gap la voit en sim et la rate
+   en docker (le masquage, lui, réussit dans les deux cas — d'où le classement
+   TIMING_SENSITIVE).
+4. **Faux resolved (`false_resolved`, T1562.011) masque en sim, neutralisé en docker** :
+   le resolved posté à l'API AM masque en sim (état figé — l'alerte n'est pas recréée),
+   mais **ne tient pas** contre un vrai Prometheus, qui ré-affirme l'alerte au cycle
+   d'évaluation suivant (`endsAt` futur) : l'alarme ressort (`masked=False`, déterministe).
+   Résultat défensif : agir sur l'état d'Alertmanager est vain tant que la règle est active ;
+   le masquage n'existe qu'en sim (état non ré-évalué). Vecteur classé TIMING_SENSITIVE.
 
 Ces écarts sont **réels** et précieux : ils ne sont visibles qu'en exécutant la
 vraie cible, et justifient l'existence du backend docker à côté de la sim.

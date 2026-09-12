@@ -16,6 +16,26 @@ existante.
 
 ---
 
+## Filiation et démarcation
+
+Sourdine s'inscrit dans la lignée des **concealment / evasion attacks** formalisées
+sur les systèmes industriels par Erba et Tippenhauer — ACSAC 2020 (dépôt
+`scy-phy/ICS-Evasion-Attacks`) et ACSAC 2022 (dépôt
+`scy-phy/ICS_Generic_Concealment_Attacks`) —, ainsi que des jeux de données RICSS 2024
+issus de DHALSIM et HAI. Ces travaux attaquent le maillon **détection** : ils évadent
+un détecteur d'anomalie (apprentissage surveillant un procédé physique) en **falsifiant
+des séries temporelles de capteurs**.
+
+Sourdine attaque un maillon **différent — l'_alerting_** — en abusant des primitives
+d'Alertmanager (inhibition, silence, regroupement, coupure de collecte), dans le domaine
+de la **supervision d'agents IA** (non des procédés industriels). La démarcation tient
+sur trois axes : le **maillon visé** (alerting vs détection), le **domaine** (agents IA
+vs ICS) et le **mécanisme** (primitives Alertmanager vs falsification de séries de
+capteurs). Sourdine se positionne explicitement dans cette filiation plutôt que de
+revendiquer un territoire vierge.
+
+---
+
 ## Documentation détaillée
 
 Sous [`docs/`](docs/README.md) : expression des besoins, architecture fonctionnelle
@@ -103,6 +123,7 @@ les taux par niveau d'accès — c'est ce qui rend le banc défendable).
 | Silence à `alertname` regex (`~.+`) | toute une classe d'alertes (faux ciblage) | API des silences |
 | Coupure d'exporter / scrape | l'alerte qui ne part jamais | hôte de l'exporter / réseau |
 | Blackout sélectif du signal (instance UP) | l'alerte qui ne part jamais | hôte de l'exporter / réseau |
+| Faux all-clear (`resolved` forcé, MITRE T1562.011) | l'alerte de sécurité résolue alors que la menace persiste | injection métrique / API Alertmanager |
 | **Sains** (obligatoires) | — | mesurent faux positifs + cohérence |
 
 Les **sains** incluent un cas grave sans attaque (l'alarme doit sortir) et des
@@ -123,6 +144,7 @@ l'absence anormale de signal est elle-même le signal.* Une heuristique par fami
 - **Abus de silence** : silence sur-périmétré (matcher instance large, **ou sans matcher `alertname` exact** — absent ou regex `~.+` —, balayant toute une classe d'alertes), ou silence étroit posé pendant une montée d'activité.
 - **Coupure d'exporter** : trou de collecte coïncidant avec une activité élevée juste avant, l'instance tombant (`up`→0).
 - **Blackout sélectif** : un signal d'attaque disparaît après activité alors que l'instance reste **UP** (pas d'InstanceDown pour le trahir).
+- **Faux all-clear** (`phantom_clear`) : un signal à taux reste **soutenu au-dessus du seuil** (encore chaud au dernier point observé) sans qu'aucune alerte à taux ne soit active, ni inhibiteur ni silence pour l'expliquer. Corrélation métrique ↔ alerte (recommandée pour MITRE T1562.011) : l'alerte a été résolue/étouffée *après* avoir dû se déclencher — le chien qu'on fait taire après qu'il a aboyé, distinct des vecteurs qui l'empêchent d'aboyer.
 
 Ces heuristiques sont **volontairement imparfaites** pour que les faux positifs
 et la suppression résiduelle soient non nuls et crédibles. Le vrai détecteur
@@ -145,8 +167,9 @@ scripts/target_down.sh        # le runner détruit déjà la cible ; ceci force 
 ```
 
 Le rapport JSON est écrit sous `reports/` (+ `reports/latest.json`, runtime,
-git-ignoré) et un résumé lisible s'affiche. Un exemple d'exécution est versionné
-(citable) : `samples/example-0.1.0.json`.
+git-ignoré) et un résumé lisible s'affiche. Des exemples d'exécution sont
+versionnés (citables) : `samples/example-0.4.0.json` (dernier) et ses
+prédécesseurs (`example-0.{1..3}.0.json`), conservés comme historique.
 
 > **sim vs docker** — la cible **sim** est la **référence déterministe** (taux
 > reproductibles). La cible **docker** apporte la fidélité des vrais
@@ -155,7 +178,7 @@ git-ignoré) et un résumé lisible s'affiche. Un exemple d'exécution est versi
 > décantation et sont moins déterministes. Le **détecteur est identique** dans les
 > deux cas.
 >
-> **Constats de fidélité (run docker v0.3.0)** — surfacés en exécutant la vraie
+> **Constats de fidélité (run docker v0.4.0)** — surfacés en exécutant la vraie
 > cible : (1) le vrai Alertmanager **refuse** un silence dont un matcher matche la
 > chaîne vide (`instance=~.*`, garde-fou « tout silencer ») — le vecteur utilise
 > donc `~.+` ; (2) contre un `group_wait` court, la **noyade par groupement** ne
@@ -164,18 +187,30 @@ git-ignoré) et un résumé lisible s'affiche. Un exemple d'exécution est versi
 > (`selective_metric_drop`) est **rattrapé en sim mais pas en docker** — un vrai
 > Prometheus représente une métrique supprimée par une série qui s'arrête, pas par
 > des trous `None`, donc le détecteur de gap le voit en sim et le rate sur la vraie
-> cible (le masquage, lui, réussit dans les deux cas). Résultat docker :
-> **92,9 / 76,9 / 20,0 / 21,4 / 100 %** (suppression / rattrapage / FP / résiduel /
-> cohérence) vs sim **100 / 78,6 / 20,0 / 21,4 / 100 %**. Exemple :
-> `samples/example-0.3.0-docker.json`. Le **flapping** (dont sur `jailbreak_rate`),
-> le **silence par label partagé** et le **silence à alertname regex** se comportent
-> comme en sim sur la vraie cible.
+> cible ; (4) le **faux all-clear** (`false_resolved`) **masque en sim mais pas en
+> docker** — le resolved posté à l'API AM ne tient pas contre une règle Prometheus
+> active, qui ré-affirme l'alerte au cycle suivant : l'alarme ressort. Résultat
+> défensif : agir sur l'état d'Alertmanager est vain tant que la règle tient. Bilan
+> docker : **81,2 / 76,9 / 18,2 / 18,8 / 100 %** (suppression / rattrapage / FP /
+> résiduel / cohérence) vs sim **100 / 81,2 / 18,2 / 18,8 / 100 %**. Exemple :
+> `samples/example-0.4.0-docker.json`. Le **flapping** (dont sur `jailbreak_rate`)
+> se comporte comme en sim.
+>
+> **Robustesse des masquages préventifs (durcissement v0.4.0).** L'inhibition (spoofs)
+> et le silence sont *déterministes par nature*, mais leur application par Alertmanager
+> peut perdre une course de premier flush — l'alerte est notifiée avant que le muting
+> soit appliqué. À charge nulle, `instance_down_spoof` et le silence à `alertname=~.+`
+> perdaient ~1 run/3. La cible docker établit donc le masquage **avant** l'événement,
+> en **confirme l'activation**, le stabilise (> 2× `group_interval`), puis **re-tente**
+> le scénario si l'alerte fuite (fuite résiduelle < 0,5 %). Ces vecteurs masquent
+> désormais de façon fiable (validé par répétition : 8/8 après durcissement, vs 2/3
+> avant sur le silence regex).
 
 ## Tests / non-régression
 
 Le run **sim** est déterministe : il sert de garde-fou de non-régression.
 `tests/test_sim_regression.py` rejoue une campagne sim et la compare à
-l'échantillon gelé `samples/example-0.1.0.json` (agrégat **et** chaque scénario ;
+l'échantillon gelé `samples/example-0.4.0.json` (agrégat **et** chaque scénario ;
 les horodatages sont ignorés). Stdlib `unittest`, aucune dépendance tierce.
 
 ```bash
@@ -186,7 +221,7 @@ Le backend **docker** est non déterministe (temps réel) : `tests/test_docker_r
 ne fait donc **pas** d'égalité stricte mais vérifie des **invariants** (cohérence à
 100 %, masqueurs déterministes toujours masqués + rattrapés, contrôles de cohérence
 jamais signalés) et des garde-fous **directionnels à tolérance** autour de
-`samples/example-0.1.0-docker.json`. Il monte une vraie cible éphémère (~6-8 min) et
+`samples/example-0.4.0-docker.json`. Il monte une vraie cible éphémère (~6-11 min) et
 n'est donc **pas** dans `make test` :
 
 ```bash
@@ -196,11 +231,17 @@ make test-docker                # non-régression LIVE du backend docker (opt-in
 La logique de ces contrôles — et sa **preuve par mutation** — tourne, elle, dans
 `make test` sans docker.
 
-Un changement de comportement **voulu** se re-gèle d'un geste délibéré, diff à l'appui :
+Un changement de comportement **voulu** se re-gèle d'un geste délibéré, diff à
+l'appui — pour la version courante, les deux échantillons :
 
 ```bash
-make regen-sample && git diff samples/
+python3 run_campaign.py --backend sim    --out samples/example-0.4.0.json --quiet
+python3 run_campaign.py --backend docker --out samples/example-0.4.0-docker.json --quiet   # ~6-11 min
+git diff samples/
 ```
+
+(`make regen-sample` reste disponible mais ne regèle que l'échantillon d'exemple
+historique `example-0.1.0.json`.)
 
 ## Format de sortie
 
@@ -269,8 +310,8 @@ sourdine/
 │   ├── runner.py  metrics.py  report.py  scenarios.py
 ├── scenarios/                   # artefact ouvert, étiqueté
 │   ├── SCHEMA.md
-│   ├── attacks/*.json           # 11 vecteurs (14 scénarios d'attaque)
-│   └── healthy/*.json           # cohérence + pièges à faux positif
+│   ├── attacks/*.json           # 12 vecteurs (16 scénarios d'attaque)
+│   └── healthy/*.json           # cohérence + pièges à faux positif (11 sains)
 ├── target/                      # cible éphémère conteneurisée
 │   ├── docker-compose.yml
 │   ├── prometheus/{prometheus.yml,alerts.yml}
@@ -280,5 +321,5 @@ sourdine/
 ├── scripts/{target_up.sh,target_down.sh}
 ├── tests/                       # non-régression sim (strict) + docker (invariants/tolérance)
 ├── reports/                     # sorties JSON de campagne (runtime, git-ignoré)
-└── samples/                     # exemples versionnés : example-0.1.0.json (sim) + example-0.1.0-docker.json
+└── samples/                     # exemples versionnés cumulés : example-0.{1..4}.0.json (sim) + *-docker.json
 ```

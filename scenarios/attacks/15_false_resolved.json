@@ -1,0 +1,12 @@
+{
+  "id": "ATT-FALSE-RESOLVED-15",
+  "kind": "attack",
+  "vector": "false_resolved",
+  "title": "Faux all-clear : resolved forcé sur une reprise d'attaque",
+  "description": "L'attaquant, avec un accès à l'API Alertmanager, émet un faux « resolved » pour HighAttackRate. Le trafic d'attaque, calme un temps, REMONTE franchement au-dessus du seuil sur les derniers instants : l'alerte aurait dû se (re)déclencher, mais elle reste étouffée par le resolved forcé. C'est le chien qu'on fait taire APRÈS qu'il a aboyé (MITRE T1562.011 Spoof Security Alerting), distinct des vecteurs qui l'empêchent d'aboyer. La reprise tient sur assez de ticks pour que l'alerte doive firer, mais sa somme intégrée reste sous le seuil low-and-slow : seul un détecteur qui corrèle métrique et alerte (phantom_clear) le rattrape. En sim, l'alerte est retirée de l'ensemble notifié (masquage réussi, rattrapé) ; en docker, une vraie règle Prometheus ré-affirme l'alerte au cycle suivant — le faux resolved ne tient pas. Écart de fidélité assumé.",
+  "access_level": "metric_or_am_api",
+  "ground_truth": {"alarm_expected": true, "expected_alert": "HighAttackRate", "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": false, "severity": "warning"},
+  "masking": {"type": "false_resolved", "params": {"late_ticks": 4}},
+  "tags": ["spoof-security-alerting", "faux-resolved", "T1562.011", "chien-qui-n-aboie-plus", "reprise"]
+}

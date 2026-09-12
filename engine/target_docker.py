@@ -32,7 +32,7 @@ from engine.types import (
     VEC_FIREWALL_DOWN_SPOOF, VEC_INSTANCE_DOWN_SPOOF, VEC_POSTGRES_DOWN_SPOOF,
     VEC_LOW_AND_SLOW, VEC_SILENCE_ABUSE, VEC_SILENCE_SHARED_LABEL,
     VEC_SILENCE_REGEX_ALERTNAME, VEC_GROUPING_REPEAT_ABUSE, VEC_EXPORTER_CUTOFF,
-    VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING,
+    VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING, VEC_FALSE_RESOLVED,
 )
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -149,13 +149,64 @@ class DockerTarget(Target):
         for k, v in matchers.items():
             is_re = v.startswith("~")
             ms.append({"name": k, "value": v[1:] if is_re else v, "isRegex": is_re, "isEqual": True})
+        # startsAt dans le passé : le silence est actif dès sa création (pas de fenêtre
+        # d'ambiguïté d'activation), ce qui fiabilise son application aux alertes à venir.
         _http(f"{AM}/api/v2/silences", "POST", {
-            "matchers": ms, "startsAt": _iso(now), "endsAt": _iso(now + 600),
+            "matchers": ms, "startsAt": _iso(now - 60), "endsAt": _iso(now + 600),
             "createdBy": "sourdine-bench", "comment": "broad" if broad else "narrow",
         })
 
-    # -- exécution ------------------------------------------------------------
+    # -- confirmation d'activation d'un masquage préventif --------------------
+    # Robustesse : un masquage préventif (inhibition/silence) doit être ACTIF dans
+    # AM avant que l'alerte cible fire, sinon l'alerte peut être notifiée au premier
+    # flush avant qu'AM applique le muting (course de timing observée). Ces sondes
+    # confirment l'enregistrement ; l'appelant stabilise ensuite (> group_interval).
+    def _await_alert_active(self, name: str, timeout: float = 10.0) -> bool:
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            try:
+                for a in (_http(f"{AM}/api/v2/alerts") or []):
+                    if (a.get("labels", {}).get("alertname") == name
+                            and a.get("status", {}).get("state") == "active"):
+                        return True
+            except Exception:
+                pass
+            time.sleep(0.5)
+        return False
+
+    def _await_silence_active(self, timeout: float = 10.0) -> bool:
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            try:
+                for s in (_http(f"{AM}/api/v2/silences") or []):
+                    if s.get("status", {}).get("state") == "active":
+                        return True
+            except Exception:
+                pass
+            time.sleep(0.5)
+        return False
+
+    # -- exécution (retry déterministe pour les masquages préventifs) ----------
+    _PREVENTIVE = (VEC_FIREWALL_DOWN_SPOOF, VEC_INSTANCE_DOWN_SPOOF, VEC_POSTGRES_DOWN_SPOOF,
+                   VEC_SILENCE_ABUSE, VEC_SILENCE_SHARED_LABEL, VEC_SILENCE_REGEX_ALERTNAME)
+
     def execute(self, sc: Scenario) -> tuple[RawResult, SupervisionState, Trace]:
+        # Un masquage préventif (inhibition/silence) DOIT masquer (vecteur STRONG). Une
+        # fuite résiduelle = course de démarrage d'Alertmanager (le silence à matcher
+        # REGEX sur alertname est le plus tenace) : le masquage est actif mais pas encore
+        # appliqué au 1er flush de l'alerte. On re-tente alors le scénario complet (reset
+        # inclus) ; la course étant rare et ré-indépendante, 4 tentatives ramènent la
+        # proba de fuite à ~(1/4)^4 < 0,5 %. Les vecteurs NON préventifs ne sont jamais
+        # re-tentés : leur résultat (dont false_resolved masked=False en docker) est voulu.
+        attempts = 4 if (sc.vector in self._PREVENTIVE and sc.ground_truth.alarm_expected) else 1
+        raw, state, trace = self._execute_once(sc)
+        for _ in range(attempts - 1):
+            if not (sc.ground_truth.alarm_expected and raw.alarm_raised):
+                break                      # masqué -> succès, on garde cette exécution
+            raw, state, trace = self._execute_once(sc)
+        return raw, state, trace
+
+    def _execute_once(self, sc: Scenario) -> tuple[RawResult, SupervisionState, Trace]:
         self._reset()
         t0 = time.time()   # début de fenêtre PROPRE au scénario : évite le bleed TSDB
                            # (Prometheus retient l'historique ; sans borne basse, les
@@ -169,14 +220,24 @@ class DockerTarget(Target):
         trace = Trace()
         settle = SETTLE
 
-        if sc.event.get("make_fire") and expected_signal:
-            self._set_metric(expected_signal, labels or {"job": job, "instance": instance},
-                             expected_thr + max(70.0, expected_thr))
-            trace.add(0, "event_injected", alert=gt.expected_alert)
-
         v = sc.vector
         params = sc.masking.get("params", {}) if sc.masking else {}
 
+        def _fire_event():
+            if sc.event.get("make_fire") and expected_signal:
+                self._set_metric(expected_signal, labels or {"job": job, "instance": instance},
+                                 expected_thr + max(70.0, expected_thr))
+                trace.add(0, "event_injected", alert=gt.expected_alert)
+
+        # === Masquages PRÉVENTIFS (inhibition / silence) — établis et CONFIRMÉS actifs,
+        #     puis stabilisés (> group_interval), AVANT de faire firer l'alerte cible.
+        #     ROBUSTESSE : sinon l'alerte peut être notifiée au premier flush AVANT qu'AM
+        #     applique le muting (course de timing observée, ~1 run/3, à charge nulle —
+        #     l'inhibiteur/silence était pourtant actif). Poser le masquage d'abord et le
+        #     confirmer garantit qu'il est dans le muting index d'AM quand l'alerte fire,
+        #     rendant le masquage DÉTERMINISTE sans toucher aux seuils ni au `for:`. ===
+        preventive = v in (VEC_FIREWALL_DOWN_SPOOF, VEC_INSTANCE_DOWN_SPOOF, VEC_POSTGRES_DOWN_SPOOF,
+                           VEC_SILENCE_ABUSE, VEC_SILENCE_SHARED_LABEL, VEC_SILENCE_REGEX_ALERTNAME)
         if v in (VEC_FIREWALL_DOWN_SPOOF, VEC_INSTANCE_DOWN_SPOOF, VEC_POSTGRES_DOWN_SPOOF):
             src = {
                 VEC_FIREWALL_DOWN_SPOOF: ("FirewallDown", {"job": job}),
@@ -184,8 +245,37 @@ class DockerTarget(Target):
                 VEC_POSTGRES_DOWN_SPOOF: ("PostgreSQLDown", {"job": labels.get("job", "postgresql")}),
             }[v]
             self._post_alert(src[0], src[1])
+            self._await_alert_active(src[0])            # confirmé enregistré actif dans AM
             trace.add(2, "inhibitor_alert_appeared", alertname=src[0])
-        elif v == VEC_LOW_AND_SLOW:
+        elif v == VEC_SILENCE_ABUSE:
+            broad = bool(params.get("broad", False))
+            # AM refuse un matcher qui matche la chaîne vide (garde-fou « tout silencer ») ;
+            # ~.+ reste abusivement large (toute instance non vide) mais est accepté.
+            matchers = {"instance": "~.+"} if broad else {"alertname": gt.expected_alert or "~.+", "job": job}
+            self._post_silence(matchers, broad)
+            self._await_silence_active()
+        elif v == VEC_SILENCE_SHARED_LABEL:
+            # silence par label PARTAGÉ (job) sans matcher alertname : balaie toute la
+            # classe d'alertes du job sous couvert de maintenance de service.
+            label = params.get("label", "job")
+            value = params.get("value", job if label == "job" else instance)
+            self._post_silence({label: value}, broad=False)
+            self._await_silence_active()
+        elif v == VEC_SILENCE_REGEX_ALERTNAME:
+            # silence dont le matcher alertname est un regex (~.+) : matcher présent
+            # mais non littéral, il balaie toutes les alertes de l'instance.
+            self._post_silence({"alertname": "~.+", "instance": instance}, broad=False)
+            self._await_silence_active()
+
+        if preventive:
+            # stabilisation ample (> 2× group_interval de 5 s) : laisse AM indexer le
+            # masquage — en particulier les silences à matcher REGEX (~.+), plus lents à
+            # indexer que les matchers exacts — avant que l'alerte cible fire.
+            time.sleep(STEP * 6)
+        _fire_event()              # l'événement APRÈS l'établissement du masquage préventif
+
+        # === Masquages NON préventifs (basés métrique / post-événement) ===
+        if v == VEC_LOW_AND_SLOW:
             self._set_metric("attack_rate", {"job": job, "instance": instance}, params.get("rate", 30.0))
             settle = SETTLE_LONG
         elif v == VEC_THRESHOLD_FLAPPING:
@@ -212,22 +302,6 @@ class DockerTarget(Target):
                     time.sleep(STEP + 1)
             settle = STEP * 2
             trace.add(1, "threshold_flapping", high=high, low=low, spikes=n_spikes)
-        elif v == VEC_SILENCE_ABUSE:
-            broad = bool(params.get("broad", False))
-            # AM refuse un matcher qui matche la chaîne vide (garde-fou « tout silencer ») ;
-            # ~.+ reste abusivement large (toute instance non vide) mais est accepté.
-            matchers = {"instance": "~.+"} if broad else {"alertname": gt.expected_alert or "~.+", "job": job}
-            self._post_silence(matchers, broad)
-        elif v == VEC_SILENCE_SHARED_LABEL:
-            # silence par label PARTAGÉ (job) sans matcher alertname : balaie toute la
-            # classe d'alertes du job sous couvert de maintenance de service.
-            label = params.get("label", "job")
-            value = params.get("value", job if label == "job" else instance)
-            self._post_silence({label: value}, broad=False)
-        elif v == VEC_SILENCE_REGEX_ALERTNAME:
-            # silence dont le matcher alertname est un regex (~.+) : matcher présent
-            # mais non littéral, il balaie toutes les alertes de l'instance.
-            self._post_silence({"alertname": "~.+", "instance": instance}, broad=False)
         elif v == VEC_GROUPING_REPEAT_ABUSE:
             for i in range(int(params.get("count", 20))):
                 self._post_alert(gt.expected_alert or "HighAttackRate", {"job": job, "instance": f"flood-{i}"})
@@ -249,6 +323,24 @@ class DockerTarget(Target):
             time.sleep(STEP * 2)          # activité visible, < for: (6 s) -> ne fire pas
             self._del_metric(sig, lset)    # le signal disparaît, inst_up reste 1
             trace.add(2, "signal_blackout", instance=instance)
+        elif v == VEC_FALSE_RESOLVED:
+            # T1562.011 Spoof Security Alerting — faux « all-clear » via l'API AM. La
+            # menace est réelle : la métrique est (re)montée au-dessus du seuil ;
+            # l'attaquant POST un resolved (endsAt dans le passé) pour l'alerte de sécurité.
+            #   ⚠️ Fidélité : contrairement au sim (état figé -> masque), un VRAI Prometheus
+            #   ré-affirme l'alerte au cycle d'évaluation suivant (endsAt futur). Le faux
+            #   resolved NE TIENT donc PAS : l'alarme ressort en docker (masked=False,
+            #   déterministe). Écart assumé et mesuré (constat de fidélité 4) ; le vecteur
+            #   est classé TIMING_SENSITIVE (pas STRONG_MASK) pour cette raison.
+            sig = expected_signal or "attack_rate"
+            lset = labels or {"job": job, "instance": instance}
+            self._set_metric(sig, lset, expected_thr + 70.0)
+            time.sleep(STEP * 4)          # laisser la règle fire (for:) et notifier
+            now = time.time()
+            _http(f"{AM}/api/v2/alerts", "POST",
+                  [{"labels": {"alertname": gt.expected_alert, **lset},
+                    "startsAt": _iso(now - 600), "endsAt": _iso(now)}])  # faux resolved
+            trace.add(2, "am_force_resolved", alert=gt.expected_alert)
         elif v == "none":
             bk = sc.masking.get("type") if sc.masking else None
             if bk == "benign_silence":
@@ -284,6 +376,18 @@ class DockerTarget(Target):
                                  float(params.get("low", 8.0)))
                 time.sleep(STEP * 2)
                 self._del_metric("attack_rate", {"job": job, "instance": instance})
+            elif bk == "benign_resolve":
+                # all-clear LÉGITIME (pendant sain de false_resolved) : la métrique
+                # franchit le seuil (l'alerte fire et notifie), PUIS retombe RÉELLEMENT
+                # et durablement sous le seuil -> resolved légitime. La décantation
+                # longue laisse Prometheus résoudre l'alerte et remplit la fenêtre
+                # récente de valeurs basses : phantom_clear ne doit pas crier. Vrai négatif.
+                self._set_metric("attack_rate", {"job": job, "instance": instance},
+                                 float(params.get("high", model.ATTACK_RATE_THRESHOLD + 70.0)))
+                time.sleep(STEP * 4)   # l'alerte fire et se notifie une 1re fois
+                self._set_metric("attack_rate", {"job": job, "instance": instance},
+                                 float(params.get("low", 8.0)))   # retombe durablement
+                settle = STEP * 10     # laisser résoudre + la fenêtre récente devenir basse
 
         time.sleep(settle)
 

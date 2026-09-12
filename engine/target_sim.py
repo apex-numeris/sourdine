@@ -22,7 +22,7 @@ from engine.types import (
     VEC_LOW_AND_SLOW, VEC_SILENCE_ABUSE, VEC_SILENCE_SHARED_LABEL,
     VEC_SILENCE_REGEX_ALERTNAME, VEC_GROUPING_REPEAT_ABUSE, VEC_EXPORTER_CUTOFF,
     VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING, VEC_FALSE_RESOLVED,
-    VEC_STALE_REPLAY, VEC_STATISTICAL_REPLAY,
+    VEC_STALE_REPLAY, VEC_STATISTICAL_REPLAY, VEC_CONSTRAINED_REPLAY,
 )
 
 H = model.HORIZON
@@ -292,6 +292,24 @@ class SimTarget(Target):
                 metrics[model.series_key(expected_signal, labels or {"job": job, "instance": instance})] = series
             trace.add(0, "statistical_replay_injected", mean=mean)
 
+        elif v == VEC_CONSTRAINED_REPLAY:
+            # ACSAC 2022 constrained replay : rejeu sur un SOUS-ENSEMBLE de signaux.
+            # L'attaquant rejoue `attack_rate` bas (masque les attaques rapportées) mais NE
+            # masque PAS `blocked_rate` (requêtes bloquées par le firewall, qui restent
+            # élevées) → incohérence SPATIALE : le firewall bloque massivement mais ne
+            # rapporte quasi aucune attaque. Détectable par la corrélation inter-signaux
+            # (spatial_incoherence), là où le full statistical_replay (qui masque TOUT)
+            # reste indétectable.
+            expected_fired = False
+            lset = labels or {"job": job, "instance": instance}
+            attack_lo = float(params.get("attack", 20.0))     # rejeu bas (sous le seuil)
+            blocked_hi = float(params.get("blocked", 80.0))   # attaque réelle bloquée, NON masquée
+            if expected_signal:
+                metrics[model.series_key(expected_signal, lset)] = \
+                    [max(0.0, attack_lo + _NOISE[t % len(_NOISE)]) for t in range(H)]
+            metrics[model.series_key("blocked_rate", lset)] = _const(blocked_hi)
+            trace.add(0, "constrained_replay_injected", attack=attack_lo, blocked=blocked_hi)
+
         elif v == "none":
             # scénario sain : action bénigne éventuelle (ressemble de loin à un vecteur)
             bk = sc.masking.get("type") if sc.masking else None
@@ -391,6 +409,15 @@ class SimTarget(Target):
                 series = [max(0.0, mean + _NOISE[t % len(_NOISE)]) for t in range(H)]
                 metrics[model.series_key("attack_rate", {"job": job, "instance": instance})] = series
                 trace.add(1, "licit_noise", mean=mean)
+            elif bk == "benign_correlated":
+                # attack_rate et blocked_rate COHÉRENTS (corrélés, tous deux bas) : pas
+                # d'incohérence spatiale -> spatial_incoherence ne doit pas crier. Vrai
+                # négatif de constrained_replay (garde anti-FP de la consistance spatiale).
+                lvl = float(params.get("level", 18.0))
+                metrics[model.series_key("attack_rate", {"job": job, "instance": instance})] = \
+                    [max(0.0, lvl + _NOISE[t % len(_NOISE)]) for t in range(H)]
+                metrics[model.series_key("blocked_rate", {"job": job, "instance": instance})] = _const(lvl)
+                trace.add(1, "licit_correlated", level=lvl)
 
         # --- 3) inhibiteurs qui firent RÉELLEMENT (ex. coupure -> InstanceDown)
         up_key = model.series_key("up", {"instance": instance, "job": job})

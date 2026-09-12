@@ -1,0 +1,12 @@
+{
+  "id": "HLT-BENIGN-CORRELATED-14",
+  "kind": "healthy",
+  "vector": "none",
+  "title": "Signaux corrélés cohérents (vrai négatif de la consistance spatiale)",
+  "description": "Un trafic où attack_rate et blocked_rate restent COHÉRENTS (corrélés, tous deux à un niveau bas de repos) : le firewall bloque à peu près ce qu'il rapporte comme attaque, sans divergence. Le détecteur de consistance spatiale (spatial_incoherence) ne doit PAS crier au masquage — sinon toute charge où les deux signaux bougent ensemble deviendrait un faux positif. Vrai négatif, garde anti-faux-positif du vecteur constrained_replay.",
+  "access_level": "n/a",
+  "ground_truth": {"alarm_expected": false, "expected_alert": null, "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": false},
+  "masking": {"type": "benign_correlated", "params": {"level": 18.0}},
+  "tags": ["sain", "vrai-negatif", "consistance-spatiale", "correlation"]
+}

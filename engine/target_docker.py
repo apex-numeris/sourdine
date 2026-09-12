@@ -33,7 +33,7 @@ from engine.types import (
     VEC_LOW_AND_SLOW, VEC_SILENCE_ABUSE, VEC_SILENCE_SHARED_LABEL,
     VEC_SILENCE_REGEX_ALERTNAME, VEC_GROUPING_REPEAT_ABUSE, VEC_EXPORTER_CUTOFF,
     VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING, VEC_FALSE_RESOLVED,
-    VEC_STALE_REPLAY, VEC_STATISTICAL_REPLAY,
+    VEC_STALE_REPLAY, VEC_STATISTICAL_REPLAY, VEC_CONSTRAINED_REPLAY,
 )
 
 # Déviations déterministes (bruit réaliste) pour les signaux à distribution préservée
@@ -369,6 +369,19 @@ class DockerTarget(Target):
                 time.sleep(STEP)          # chaque point bruite est scrape
             settle = STEP * 2
             trace.add(0, "statistical_replay_injected")
+        elif v == VEC_CONSTRAINED_REPLAY:
+            # ACSAC 2022 constrained replay : attack_rate rejoue bas (masque), blocked_rate
+            # NON masque (attaque bloquee, reste eleve) -> incoherence spatiale detectable.
+            sig = expected_signal or "attack_rate"
+            lset = labels or {"job": job, "instance": instance}
+            attack_lo = float(params.get("attack", 20.0))
+            blocked_hi = float(params.get("blocked", 80.0))
+            self._set_metric("blocked_rate", lset, blocked_hi)
+            for dev in _NOISE:
+                self._set_metric(sig, lset, max(0.0, attack_lo + dev))
+                time.sleep(STEP)
+            settle = STEP * 2
+            trace.add(0, "constrained_replay_injected")
         elif v == "none":
             bk = sc.masking.get("type") if sc.masking else None
             if bk == "benign_silence":
@@ -434,6 +447,16 @@ class DockerTarget(Target):
                                      max(0.0, mean + dev))
                     time.sleep(STEP)
                 settle = STEP * 2
+            elif bk == "benign_correlated":
+                # attack_rate et blocked_rate coherents (correles, bas) : pas d'incoherence
+                # spatiale -> spatial_incoherence doit rester muet. Vrai negatif.
+                lvl = float(params.get("level", 18.0))
+                self._set_metric("blocked_rate", {"job": job, "instance": instance}, lvl)
+                for dev in _NOISE:
+                    self._set_metric("attack_rate", {"job": job, "instance": instance},
+                                     max(0.0, lvl + dev))
+                    time.sleep(STEP)
+                settle = STEP * 2
 
         time.sleep(settle)
 
@@ -492,7 +515,7 @@ class DockerTarget(Target):
         end = time.time()   # fenêtre [début du scénario ; maintenant] — pas de bleed
         out: dict[str, list[Optional[float]]] = {}
         for metric in ("attack_rate", "jailbreak_rate", "critical_attacks", "pg_conns",
-                       "inst_up", "fw_up", "pg_up"):
+                       "inst_up", "fw_up", "pg_up", "blocked_rate"):
             try:
                 res = _http(f"{PROM}/api/v1/query_range?query={metric}&start={start:.0f}"
                             f"&end={end:.0f}&step={STEP}s")

@@ -318,11 +318,32 @@ class BaselineDetector(MaskingDetector):
             i -= 1
         return i if (len(series) - i) >= model.STALE_FROZEN_MIN else None
 
+    def _h_spatial_incoherence(self, state) -> Optional[Verdict]:
+        """Consistance SPATIALE (ACSAC 2022, constrained replay). `attack_rate` (attaques
+        rapportées) et `blocked_rate` (requêtes bloquées par le firewall) sont normalement
+        corrélés — ils mesurent la même activité malveillante sous deux angles. Un
+        constrained replay rejoue attack_rate bas (masque le compteur d'attaques) mais ne
+        masque PAS blocked_rate : le firewall bloque massivement alors qu'il ne rapporte
+        quasi aucune attaque. Cette divergence entre deux signaux qui devraient bouger
+        ensemble trahit le masquage — là où le full statistical_replay, qui masque TOUT,
+        reste indétectable (aucune corrélation à briser)."""
+        if any(a.name in ("HighAttackRate", "JailbreakSurge") for a in state.alerts):
+            return None                       # une alerte à taux est active : pas de masquage
+        thr = model.ATTACK_RATE_THRESHOLD
+        blocked = self._recent_max(state, "blocked_rate")
+        attack = self._recent_max(state, "attack_rate")
+        if blocked > thr and attack < thr * 0.6:
+            return Verdict(True, scope="attack_rate<->blocked_rate", heuristic="spatial_incoherence",
+                           reason=(f"blocked_rate élevé ({blocked:.0f}) mais attack_rate bas "
+                                   f"({attack:.0f}) : incohérence spatiale — deux signaux corrélés "
+                                   f"divergent, le compteur d'attaques a été masqué (constrained replay)."))
+        return None
+
     # -- interface ------------------------------------------------------------
     def detect(self, state: SupervisionState, trace: Trace) -> Verdict:
         for h in (self._h_inhibitor_isolation, self._h_flapping, self._h_phantom_clear,
                   self._h_low_and_slow, self._h_silence_abuse, self._h_signal_blackout,
-                  self._h_exporter_cutoff, self._h_frozen_replay):
+                  self._h_exporter_cutoff, self._h_frozen_replay, self._h_spatial_incoherence):
             verdict = h(state)
             if verdict is not None:
                 return verdict

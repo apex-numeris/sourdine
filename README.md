@@ -126,6 +126,7 @@ les taux par niveau d'accès — c'est ce qui rend le banc défendable).
 | Faux all-clear (`resolved` forcé, MITRE T1562.011) | l'alerte de sécurité résolue alors que la menace persiste | injection métrique / API Alertmanager |
 | Rejeu / gel de métrique (ACSAC 2022 concealment) | l'attaque, figée à un palier après un franchissement, ne ré-alerte plus | hôte de l'exporter / ingestion métrique |
 | Concealment statistique (distribution-preserving, ACSAC 2022) — **résiduel** | l'attaque diluée en bruit réaliste sous le seuil (indétectable marginalement) | hôte de l'exporter / ingestion métrique |
+| Constrained replay (rejeu sur un sous-ensemble, ACSAC 2022) | l'attaque masquée sur `attack_rate` mais pas sur `blocked_rate` (incohérence spatiale) | hôte de l'exporter / ingestion métrique |
 | **Sains** (obligatoires) | — | mesurent faux positifs + cohérence |
 
 Les **sains** incluent un cas grave sans attaque (l'alarme doit sortir) et des
@@ -148,15 +149,17 @@ l'absence anormale de signal est elle-même le signal.* Une heuristique par fami
 - **Blackout sélectif** : un signal d'attaque disparaît après activité alors que l'instance reste **UP** (pas d'InstanceDown pour le trahir).
 - **Faux all-clear** (`phantom_clear`) : un signal à taux reste **soutenu au-dessus du seuil** (encore chaud au dernier point observé) sans qu'aucune alerte à taux ne soit active, ni inhibiteur ni silence pour l'expliquer. Corrélation métrique ↔ alerte (recommandée pour MITRE T1562.011) : l'alerte a été résolue/étouffée *après* avoir dû se déclencher — le chien qu'on fait taire après qu'il a aboyé, distinct des vecteurs qui l'empêchent d'aboyer.
 - **Rejeu / gel** (`frozen_replay`) : après un **franchissement** du seuil (attaque réelle), le signal est **figé** à un palier intermédiaire constant (variance nulle) sans disparaître — la métrique reste présente et plausible, mais sa dynamique gelée trahit le rejeu/stale (ACSAC 2022, consistance temporelle). Distinct du low-and-slow (jamais au-dessus du seuil) et du pic bénin (qui retombe au repos).
+- **Incohérence spatiale** (`spatial_incoherence`) : `attack_rate` (attaques rapportées) et `blocked_rate` (requêtes bloquées) sont normalement corrélés ; quand le firewall **bloque massivement** mais **ne rapporte quasi aucune attaque**, deux signaux qui devraient bouger ensemble divergent — signature du *constrained replay* (ACSAC 2022, consistance spatiale). C'est ce que le concealment marginal, aussi soigné soit-il, ne peut pas contourner s'il ne masque qu'un sous-ensemble des signaux.
 
 Ces heuristiques sont **volontairement imparfaites** pour que les faux positifs
-et la suppression résiduelle soient non nuls et crédibles. Le **concealment statistique**
-(`statistical_replay`) en est l'exemple emblématique : en préservant la distribution du
-trafic normal (bruit réaliste, sous le seuil, cumul normal), il reste **indétectable par
-toute heuristique marginale** — seule la consistance spatiale (corrélation inter-signaux,
-hors baseline) ou un détecteur de contenu le rattraperait, exactement comme ACSAC 2022 le
-démontre pour le full replay. La suppression résiduelle non nulle mesure honnêtement cette
-limite ; le vrai détecteur devra faire mieux au même protocole.
+et la suppression résiduelle soient non nuls et crédibles. Le **full statistical concealment**
+(`statistical_replay`) en est l'exemple emblématique : en préservant la distribution du trafic
+normal **et** la cohérence de *tous* les signaux, il ne brise aucune consistance vérifiable et
+reste **indétectable** (cf. ACSAC 2022 sur le full replay) → suppression résiduelle assumée. En
+revanche, dès que le concealment ne masque qu'un **sous-ensemble** des signaux (*constrained
+replay*), il brise la consistance **spatiale** et redevient détectable (`spatial_incoherence`) —
+c'est le contraste exact d'ACSAC 2022 entre full et constrained replay. La suppression résiduelle
+non nulle mesure honnêtement ce qui reste hors de portée ; le vrai détecteur devra faire mieux encore.
 
 ---
 
@@ -176,8 +179,8 @@ scripts/target_down.sh        # le runner détruit déjà la cible ; ceci force 
 
 Le rapport JSON est écrit sous `reports/` (+ `reports/latest.json`, runtime,
 git-ignoré) et un résumé lisible s'affiche. Des exemples d'exécution sont
-versionnés (citables) : `samples/example-0.6.0.json` (dernier) et ses
-prédécesseurs (`example-0.{1..5}.0.json`), conservés comme historique.
+versionnés (citables) : `samples/example-0.7.0.json` (dernier) et ses
+prédécesseurs (`example-0.{1..6}.0.json`), conservés comme historique.
 
 > **sim vs docker** — la cible **sim** est la **référence déterministe** (taux
 > reproductibles). La cible **docker** apporte la fidélité des vrais
@@ -186,7 +189,7 @@ prédécesseurs (`example-0.{1..5}.0.json`), conservés comme historique.
 > décantation et sont moins déterministes. Le **détecteur est identique** dans les
 > deux cas.
 >
-> **Constats de fidélité (run docker v0.6.0)** — surfacés en exécutant la vraie
+> **Constats de fidélité (run docker v0.7.0)** — surfacés en exécutant la vraie
 > cible : (1) le vrai Alertmanager **refuse** un silence dont un matcher matche la
 > chaîne vide (`instance=~.*`, garde-fou « tout silencer ») — le vecteur utilise
 > donc `~.+` ; (2) contre un `group_wait` court, la **noyade par groupement** ne
@@ -201,10 +204,12 @@ prédécesseurs (`example-0.{1..5}.0.json`), conservés comme historique.
 > dépend de la visibilité du pic de franchissement bref (TIMING_SENSITIVE). À noter :
 > le **concealment statistique** (`statistical_replay`) masque et reste **résiduel dans
 > les deux backends** — ce n'est pas un écart de fidélité mais une limite de la baseline
-> (cf. « Détecteur baseline »), d'où la hausse de la suppression résiduelle. Bilan
-> docker : **83,3 / 73,3 / 15,4 / 22,2 / 100 %** (suppression / rattrapage / FP /
-> résiduel / cohérence) vs sim **100 / 77,8 / 15,4 / 22,2 / 100 %**. Exemple :
-> `samples/example-0.6.0-docker.json`. Le **flapping** (dont sur `jailbreak_rate`)
+> (cf. « Détecteur baseline »). Le **constrained replay** (`constrained_replay`), lui, ne masque
+> qu'un sous-ensemble des signaux et est **rattrapé par la consistance spatiale**
+> (`spatial_incoherence`) dans les deux backends — le contraste ACSAC 2022 full vs constrained.
+> Bilan docker : **84,2 / 75,0 / 14,3 / 21,1 / 100 %** (suppression / rattrapage / FP /
+> résiduel / cohérence) vs sim **100 / 78,9 / 14,3 / 21,1 / 100 %**. Exemple :
+> `samples/example-0.7.0-docker.json`. Le **flapping** (dont sur `jailbreak_rate`)
 > se comporte comme en sim.
 >
 > **Robustesse des masquages préventifs (durcissement v0.4.0).** L'inhibition (spoofs)
@@ -221,7 +226,7 @@ prédécesseurs (`example-0.{1..5}.0.json`), conservés comme historique.
 
 Le run **sim** est déterministe : il sert de garde-fou de non-régression.
 `tests/test_sim_regression.py` rejoue une campagne sim et la compare à
-l'échantillon gelé `samples/example-0.6.0.json` (agrégat **et** chaque scénario ;
+l'échantillon gelé `samples/example-0.7.0.json` (agrégat **et** chaque scénario ;
 les horodatages sont ignorés). Stdlib `unittest`, aucune dépendance tierce.
 
 ```bash
@@ -232,7 +237,7 @@ Le backend **docker** est non déterministe (temps réel) : `tests/test_docker_r
 ne fait donc **pas** d'égalité stricte mais vérifie des **invariants** (cohérence à
 100 %, masqueurs déterministes toujours masqués + rattrapés, contrôles de cohérence
 jamais signalés) et des garde-fous **directionnels à tolérance** autour de
-`samples/example-0.6.0-docker.json`. Il monte une vraie cible éphémère (~6-16 min) et
+`samples/example-0.7.0-docker.json`. Il monte une vraie cible éphémère (~6-18 min) et
 n'est donc **pas** dans `make test` :
 
 ```bash
@@ -246,8 +251,8 @@ Un changement de comportement **voulu** se re-gèle d'un geste délibéré, diff
 l'appui — pour la version courante, les deux échantillons :
 
 ```bash
-python3 run_campaign.py --backend sim    --out samples/example-0.6.0.json --quiet
-python3 run_campaign.py --backend docker --out samples/example-0.6.0-docker.json --quiet   # ~6-16 min
+python3 run_campaign.py --backend sim    --out samples/example-0.7.0.json --quiet
+python3 run_campaign.py --backend docker --out samples/example-0.7.0-docker.json --quiet   # ~6-18 min
 git diff samples/
 ```
 
@@ -321,8 +326,8 @@ sourdine/
 │   ├── runner.py  metrics.py  report.py  scenarios.py
 ├── scenarios/                   # artefact ouvert, étiqueté
 │   ├── SCHEMA.md
-│   ├── attacks/*.json           # 14 vecteurs (18 scénarios d'attaque)
-│   └── healthy/*.json           # cohérence + pièges à faux positif (13 sains)
+│   ├── attacks/*.json           # 15 vecteurs (19 scénarios d'attaque)
+│   └── healthy/*.json           # cohérence + pièges à faux positif (14 sains)
 ├── target/                      # cible éphémère conteneurisée
 │   ├── docker-compose.yml
 │   ├── prometheus/{prometheus.yml,alerts.yml}
@@ -332,5 +337,5 @@ sourdine/
 ├── scripts/{target_up.sh,target_down.sh}
 ├── tests/                       # non-régression sim (strict) + docker (invariants/tolérance)
 ├── reports/                     # sorties JSON de campagne (runtime, git-ignoré)
-└── samples/                     # exemples versionnés cumulés : example-0.{1..6}.0.json (sim) + *-docker.json
+└── samples/                     # exemples versionnés cumulés : example-0.{1..7}.0.json (sim) + *-docker.json
 ```

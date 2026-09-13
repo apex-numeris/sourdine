@@ -20,7 +20,7 @@
 | `target_base.py` | Interface `Target` (setup / execute / teardown) |
 | `target_sim.py` | Cible **sim** : interprète l'intention du scénario → état final déterministe |
 | `target_docker.py` | Cible **docker** : pilote de vrais Prometheus/Alertmanager via leurs API |
-| `detector.py` | Interface `MaskingDetector` + `BaselineDetector` (10 heuristiques, une par famille de vecteurs) |
+| `detector.py` | Interface `MaskingDetector` + `BaselineDetector` (11 heuristiques, une par famille de vecteurs) |
 | `runner.py` | Moteur deux passes (`run_campaign`) |
 | `metrics.py` | Calcul des 4 taux + cohérence + ventilation par accès |
 | `report.py` | Rapport JSON versionné + résumé lisible |
@@ -190,6 +190,11 @@ liste complète des alertes en [doc 05](05-specifications.md).
    (`notification_blackhole`) de façon déterministe dans les deux backends → classé STRONG_MASK,
    pas TIMING_SENSITIVE. Mentionné ici pour l'exhaustivité : contrairement aux cinq précédents,
    sim et docker concordent.
+7. **Watchdog suppression (`watchdog_suppression`, MITRE T1562) — AUCUN écart** : le heartbeat
+   `watchdog` est mis à 0 (chaîne morte), valeur explicite et non un trou de staleness, donc le
+   silence soutenu est visible **de façon identique** en sim et en docker — pas d'écart de
+   représentation comme pour `selective_metric_drop` (constat 3). Masqué ET rattrapé (`watchdog_gap`)
+   de façon déterministe dans les deux backends → STRONG_MASK.
 
 Ces écarts sont **réels** et précieux : ils ne sont visibles qu'en exécutant la
 vraie cible, et justifient l'existence du backend docker à côté de la sim.

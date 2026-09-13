@@ -30,7 +30,7 @@ les cibles (sim / docker) l'instancient.
 `low_and_slow`, `threshold_flapping`, `silence_abuse`, `silence_shared_label`,
 `silence_regex_alertname`, `grouping_repeat_abuse`, `exporter_cutoff`,
 `selective_metric_drop`, `false_resolved`, `stale_replay`, `statistical_replay`,
-`constrained_replay`, `route_blackhole`, `none`.
+`constrained_replay`, `route_blackhole`, `watchdog_suppression`, `none`.
 
 ## Niveaux d'accès (`access_level`)
 
@@ -58,6 +58,7 @@ les cibles (sim / docker) l'instancient.
 - `statistical_replay` — `params.mean` (moyenne sous le seuil). Concealment distribution-preserving : signal bruité tiré de la distribution normale, cumul normal — **résiduel** (indétectable par la baseline marginale ; ACSAC 2022, consistance statistique).
 - `constrained_replay` — `params.attack` (rejeu bas de attack_rate), `blocked` (blocked_rate élevé, non masqué). Rejeu sur un sous-ensemble : casse la corrélation attack_rate ↔ blocked_rate → **détectable** par la consistance SPATIALE (ACSAC 2022).
 - `route_blackhole` — `params.rate` (taux d'attaque soutenu au-dessus du seuil). L'alerte de sécurité fire mais est reroutée vers un récepteur trou-noir (label de routage `route_target=blackhole`) : notification avalée, sans silence ni inhibiteur (MITRE T1562.006 Indicator Blocking). **Déterministe** dans les deux backends, rattrapé par `notification_blackhole` (corrélation métrique ↔ livraison, discriminant : classe de l'alerte).
+- `watchdog_suppression` — `params.silent_from` (tick à partir duquel le heartbeat s'éteint). La chaîne d'alerte est désactivée et le signal d'attaque aveuglé : rien n'est observable, seul le heartbeat `watchdog` (toujours à 1 sinon) tombe à 0 de façon soutenue (dead man's switch, MITRE T1562 Impair Defenses). **Déterministe** dans les deux backends, rattrapé par `watchdog_gap` (silence soutenu du heartbeat).
 - `none` (sains) — `type` bénin : `benign_silence` (`broad`, `alertname`, `at`, `minor_activity`),
   `benign_exporter_restart` (`pre_ticks`, `gap`), `benign_spike` (`rate`),
   `benign_jitter` (`high`, `low`), `benign_brief_spike` (`spike`, `at`, `dur`, `baseline`),
@@ -68,7 +69,9 @@ les cibles (sim / docker) l'instancient.
   indiscernable d'une attaque à distribution préservée), `benign_correlated` (`level` :
   attack_rate et blocked_rate cohérents/corrélés — pas d'incohérence spatiale),
   `benign_route_mute` (`pg_conns` : une alerte opérationnelle NON-sécurité, route-mutée
-  pendant une maintenance légitime — non délivrée mais pas une menace de sécurité), ou `none`.
+  pendant une maintenance légitime — non délivrée mais pas une menace de sécurité),
+  `benign_watchdog_blip` (`at`, `len` : raté transitoire du heartbeat watchdog qui se
+  rétablit — chaîne saine, pas un dead man's switch), ou `none`.
 
 ## Règle de cotation (normative)
 

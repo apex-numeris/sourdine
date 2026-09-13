@@ -52,6 +52,16 @@ FLAP_MIN_CROSSINGS = 5
 # valeur figée sous le seuil (zone grise), c'est la signature du concealment temporel.
 STALE_FROZEN_MIN = 6
 
+# --- Watchdog / dead man's switch (meta-monitoring) ---------------------------
+# Heartbeat toujours émis (vector(1)) qui prouve que TOUTE la chaîne d'alerte
+# (Prometheus -> Alertmanager -> livraison) est vivante. « Un système de supervision
+# ne peut pas surveiller de façon fiable sa propre panne » : si la chaîne tombe, le
+# heartbeat s'arrête et un veilleur INDÉPENDANT le remarque. Son silence SOUTENU est
+# le signal (dead man's switch déclenché). Un raté transitoire (un scrape manqué) se
+# rétablit tout seul : seule une absence d'au moins WATCHDOG_MIN_SILENCE ticks compte.
+WATCHDOG_SIGNAL = "watchdog"
+WATCHDOG_MIN_SILENCE = 4
+
 # --- Familles d'alertes -------------------------------------------------------
 # Métadonnées par alerte : signal déclencheur, type, sévérité, service.
 ALERT_RULES: dict[str, dict] = {

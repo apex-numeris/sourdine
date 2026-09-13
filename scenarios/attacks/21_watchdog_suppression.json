@@ -1,0 +1,12 @@
+{
+  "id": "ATT-WATCHDOG-SUPPRESSION-21",
+  "kind": "attack",
+  "vector": "watchdog_suppression",
+  "title": "Dead man's switch défait : chaîne d'alerte désactivée, heartbeat watchdog éteint",
+  "description": "L'attaquant, avec un accès au plan de contrôle de la chaîne d'alerte, DÉSACTIVE la livraison des notifications (Alertmanager / route vers un néant global) AVANT de frapper, puis aveugle le signal d'attaque : rien de la menace n'est observable — aucune alerte active, aucune métrique d'attaque visible. « Un système de supervision ne peut pas surveiller de façon fiable sa propre panne » : toutes les alertes tombent en silence, car les alertes elles-mêmes transitent par la chaîne compromise. Aucune heuristique métrique↔alerte (phantom_clear, low_and_slow, blackout, route_blackhole) ne peut voir la menace, faute de signal. Le SEUL tell est le heartbeat `watchdog` — toujours émis quand la chaîne est vivante (`vector(1)`) — qui s'éteint durablement : le dead man's switch se déclenche, un veilleur indépendant constate que la chaîne est morte, et l'ABSENCE d'alertes n'est plus une preuve d'absence de menace (MITRE T1562 Impair Defenses). L'alarme attendue est totalement masquée ; seule `watchdog_gap` la rattrape.",
+  "access_level": "silence_or_routing_api",
+  "ground_truth": {"alarm_expected": true, "expected_alert": "HighAttackRate", "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": false, "severity": "warning"},
+  "masking": {"type": "watchdog_suppression", "params": {"silent_from": 18}},
+  "tags": ["dead-mans-switch", "watchdog", "meta-monitoring", "T1562", "chaine-d-alerte-morte", "heartbeat"]
+}

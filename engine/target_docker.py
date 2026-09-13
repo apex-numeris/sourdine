@@ -34,7 +34,7 @@ from engine.types import (
     VEC_SILENCE_REGEX_ALERTNAME, VEC_GROUPING_REPEAT_ABUSE, VEC_EXPORTER_CUTOFF,
     VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING, VEC_FALSE_RESOLVED,
     VEC_STALE_REPLAY, VEC_STATISTICAL_REPLAY, VEC_CONSTRAINED_REPLAY,
-    VEC_ROUTE_BLACKHOLE,
+    VEC_ROUTE_BLACKHOLE, VEC_WATCHDOG_SUPPRESSION,
 )
 
 # Label de routage qui envoie une alerte vers le récepteur « trou noir » (route baked
@@ -403,6 +403,15 @@ class DockerTarget(Target):
             self._set_metric(sig, lset, expected_thr + max(70.0, expected_thr))
             settle = STEP * 8          # laisser l'alerte firer (for: 6s) et rester active
             trace.add(2, "route_blackholed", alert=gt.expected_alert, receiver="blackhole")
+        elif v == VEC_WATCHDOG_SUPPRESSION:
+            # T1562 Impair Defenses : l'attaquant desactive la chaine d'alerte et aveugle
+            # le signal d'attaque -> rien de la menace n'est observable (aucune alerte,
+            # aucune metrique d'attaque). Seul tell : le heartbeat watchdog s'eteint. On
+            # met watchdog a 0 (chaine morte) ; l'alarme attendue n'est jamais firee ni
+            # livree (masquee). Seul watchdog_gap la rattrape. Deterministe (watchdog=0 tenu).
+            self._set_metric("watchdog", {}, 0.0)
+            settle = STEP * 8          # assez de scrapes a 0 pour la queue silencieuse
+            trace.add(0, "watchdog_silent", reason="alerting_pipeline_down")
         elif v == "none":
             bk = sc.masking.get("type") if sc.masking else None
             if bk == "benign_silence":
@@ -488,6 +497,15 @@ class DockerTarget(Target):
                                   _BLACKHOLE_LABEL[0]: _BLACKHOLE_LABEL[1]},
                                  float(params.get("pg_conns", model.PG_CONN_THRESHOLD + 60.0)))
                 settle = STEP * 8
+            elif bk == "benign_watchdog_blip":
+                # rate TRANSITOIRE du heartbeat watchdog qui se retablit : chaine saine.
+                # On coupe brievement (0) puis on retablit (1) -> la queue de la fenetre
+                # est a 1 -> watchdog_gap doit rester muet (exige un silence SOUTENU).
+                # Vrai negatif du dead man's switch (anti alert-fatigue sur jitter de scrape).
+                self._set_metric("watchdog", {}, 0.0)
+                time.sleep(STEP * 2)       # bref (< WATCHDOG_MIN_SILENCE scrapes)
+                self._set_metric("watchdog", {}, 1.0)   # retabli, tient jusqu'a la fin
+                settle = STEP * 6          # la queue redevient 1 -> pas de silence soutenu
 
         time.sleep(settle)
 
@@ -553,7 +571,7 @@ class DockerTarget(Target):
         end = time.time()   # fenêtre [début du scénario ; maintenant] — pas de bleed
         out: dict[str, list[Optional[float]]] = {}
         for metric in ("attack_rate", "jailbreak_rate", "critical_attacks", "pg_conns",
-                       "inst_up", "fw_up", "pg_up", "blocked_rate"):
+                       "inst_up", "fw_up", "pg_up", "blocked_rate", "watchdog"):
             try:
                 res = _http(f"{PROM}/api/v1/query_range?query={metric}&start={start:.0f}"
                             f"&end={end:.0f}&step={STEP}s")

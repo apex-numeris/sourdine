@@ -25,6 +25,9 @@ def _defaults():
     }
     STATE["fw_up"] = {(("job", "firewall"),): 1.0}
     STATE["pg_up"] = {(("job", "postgresql"),): 1.0}
+    # heartbeat watchdog (dead man's switch) : toujours vivant (1) tant que la chaine
+    # d'alerte l'emet. Le vecteur watchdog_suppression le met a 0 (chaine morte).
+    STATE["watchdog"] = {(): 1.0}
 
 
 def _key(labels: dict) -> tuple:

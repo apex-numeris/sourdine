@@ -373,12 +373,34 @@ class BaselineDetector(MaskingDetector):
                                            f"d'indicateur au routage (T1562.006)."))
         return None
 
+    def _h_watchdog_gap(self, state) -> Optional[Verdict]:
+        """Dead man's switch (watchdog / heartbeat) déclenché — meta-monitoring. Le
+        heartbeat `watchdog`, TOUJOURS émis quand la chaîne d'alerte est vivante
+        (Prometheus -> Alertmanager -> livraison), a cessé pendant une période SOUTENUE :
+        la chaîne elle-même est compromise, et l'ABSENCE d'alertes n'est donc plus une
+        preuve d'absence de menace. C'est la dernière ligne de défense : même un
+        attaquant qui aveugle parfaitement le signal d'attaque (aucune alerte, aucune
+        métrique visible) est trahi par le heartbeat qui s'éteint (T1562 Impair Defenses —
+        désactivation de la chaîne d'alerte). Un raté transitoire (un scrape manqué) se
+        rétablit ; seule une silence d'au moins WATCHDOG_MIN_SILENCE ticks consécutifs
+        en fin de fenêtre trompe le switch — sinon on paierait chaque jitter de scrape."""
+        n = model.WATCHDOG_MIN_SILENCE
+        for _lbls, series in self._series(state, model.WATCHDOG_SIGNAL):
+            tail = series[-n:]
+            if len(tail) >= n and all(v in (None, 0.0) for v in tail):
+                return Verdict(True, scope="watchdog", heuristic="watchdog_gap",
+                               reason=(f"Heartbeat watchdog éteint depuis >= {n} ticks : dead man's "
+                                       f"switch déclenché, chaîne d'alerte compromise — l'absence "
+                                       f"d'alertes n'est plus fiable (T1562 Impair Defenses)."))
+        return None
+
     # -- interface ------------------------------------------------------------
     def detect(self, state: SupervisionState, trace: Trace) -> Verdict:
         for h in (self._h_inhibitor_isolation, self._h_notification_blackhole,
                   self._h_flapping, self._h_phantom_clear,
                   self._h_low_and_slow, self._h_silence_abuse, self._h_signal_blackout,
-                  self._h_exporter_cutoff, self._h_frozen_replay, self._h_spatial_incoherence):
+                  self._h_exporter_cutoff, self._h_frozen_replay, self._h_spatial_incoherence,
+                  self._h_watchdog_gap):
             verdict = h(state)
             if verdict is not None:
                 return verdict

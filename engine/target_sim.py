@@ -23,7 +23,7 @@ from engine.types import (
     VEC_SILENCE_REGEX_ALERTNAME, VEC_GROUPING_REPEAT_ABUSE, VEC_EXPORTER_CUTOFF,
     VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING, VEC_FALSE_RESOLVED,
     VEC_STALE_REPLAY, VEC_STATISTICAL_REPLAY, VEC_CONSTRAINED_REPLAY,
-    VEC_ROUTE_BLACKHOLE,
+    VEC_ROUTE_BLACKHOLE, VEC_WATCHDOG_SUPPRESSION,
 )
 
 H = model.HORIZON
@@ -99,6 +99,8 @@ class SimTarget(Target):
         metrics[model.series_key("up", {"instance": instance, "job": job})] = _const(UP)
         metrics[model.series_key("fw_up", {"job": job})] = _const(UP)
         metrics[model.series_key("pg_up", {"job": "postgresql"})] = _const(UP)
+        # heartbeat watchdog (dead man's switch) : toujours vivant par défaut (1)
+        metrics[model.series_key(model.WATCHDOG_SIGNAL, {})] = _const(UP)
 
         expected_signal = model.ALERT_RULES.get(gt.expected_alert or "", {}).get("signal")
         expected_thr = model.ALERT_RULES.get(gt.expected_alert or "", {}).get("threshold", 0.0)
@@ -329,6 +331,22 @@ class SimTarget(Target):
                                 labels=lset, route_muted=True))
             trace.add(2, "route_blackholed", alert=gt.expected_alert, receiver="blackhole")
 
+        elif v == VEC_WATCHDOG_SUPPRESSION:
+            # MITRE T1562 Impair Defenses — l'attaquant DÉSACTIVE la chaîne d'alerte
+            # (Alertmanager / livraison) AVANT de frapper, puis aveugle le signal
+            # d'attaque : rien de la menace n'est observable (aucune alerte active,
+            # aucune métrique d'attaque), donc AUCUNE des heuristiques métrique/alerte ne
+            # peut la voir. Le SEUL tell est le heartbeat watchdog qui s'éteint. On coupe
+            # donc le watchdog (0) sur la queue de la fenêtre ; l'alarme attendue n'est ni
+            # levée ni notifiée (masquée). Seul `watchdog_gap` la rattrape — dead man's switch.
+            expected_fired = False
+            silent_from = int(params.get("silent_from", H - 12))
+            wd: list[Optional[float]] = _const(UP)
+            for t in range(max(0, silent_from), H):
+                wd[t] = DOWN                     # heartbeat éteint (0) = chaîne morte
+            metrics[model.series_key(model.WATCHDOG_SIGNAL, {})] = wd
+            trace.add(silent_from, "watchdog_silent", reason="alerting_pipeline_down")
+
         elif v == "none":
             # scénario sain : action bénigne éventuelle (ressemble de loin à un vecteur)
             bk = sc.masking.get("type") if sc.masking else None
@@ -450,6 +468,19 @@ class SimTarget(Target):
                                     labels={"job": "postgresql", "instance": instance},
                                     route_muted=True))
                 trace.add(2, "route_blackholed", alert="PostgreSQLHighConnections", legit_maintenance=True)
+            elif bk == "benign_watchdog_blip":
+                # raté TRANSITOIRE du heartbeat watchdog (un scrape manqué) qui se
+                # rétablit : la chaîne d'alerte est saine. watchdog_gap ne doit PAS crier
+                # (il exige un silence SOUTENU en fin de fenêtre) — sinon on paierait chaque
+                # jitter de scrape (alert fatigue). Vrai négatif du dead man's switch : sans
+                # le garde de silence soutenu, ce blip transitoire deviendrait un faux positif.
+                blip_at = int(params.get("at", 12))
+                blip_len = int(params.get("len", 2))     # court, loin de la fin de fenêtre
+                wd: list[Optional[float]] = _const(UP)
+                for t in range(blip_at, min(H, blip_at + blip_len)):
+                    wd[t] = None                          # scrape manqué (trou), puis rétabli
+                metrics[model.series_key(model.WATCHDOG_SIGNAL, {})] = wd
+                trace.add(blip_at, "watchdog_blip", transient=True, length=blip_len)
 
         # --- 3) inhibiteurs qui firent RÉELLEMENT (ex. coupure -> InstanceDown)
         up_key = model.series_key("up", {"instance": instance, "job": job})

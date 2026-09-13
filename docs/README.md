@@ -1,7 +1,7 @@
 # Documentation Sourdine
 
 Documentation complète du **banc d'attaques de masquage d'alarme** (projet Sourdine).
-Version du banc : **0.8.0**. Langue : français. Support : Markdown versionné (diagrammes mermaid).
+Version du banc : **0.9.0**. Langue : français. Support : Markdown versionné (diagrammes mermaid).
 
 Sourdine mesure la résistance d'une chaîne d'alerte (Prometheus / Alertmanager) au
 **masquage d'alarme** : des attaques qui visent *l'observateur* — supprimer ou
@@ -28,23 +28,25 @@ Sourdine mesure la résistance d'une chaîne d'alerte (Prometheus / Alertmanager
   avec détecteur).
 - **Quoi** : banc autonome et jetable. Il monte sa **propre** cible éphémère
   (Prometheus + Alertmanager isolés, ou un modèle sim en process), joue un
-  catalogue de scénarios étiquetés (16 vecteurs + scénarios sains), et calcule
+  catalogue de scénarios étiquetés (17 vecteurs + scénarios sains), et calcule
   quatre taux + un contrôle de cohérence, ventilés par niveau d'accès attaquant.
 - **Garde-fous** : tout est synthétique et en laboratoire ; la cible n'est jamais
   la supervision de production ; le banc évalue une **baseline** de détection, pas
   le produit SentinelleIA (qui se branchera au même protocole).
-- **État** : v0.8.0, deux backends fonctionnels ; 16 vecteurs / 35 scénarios
-  (20 attaques / 15 sains).
-  - Référence **sim** (déterministe) : suppression 100 % / rattrapage 80,0 % / faux
-    positifs 13,3 % / résiduel 20,0 % / cohérence 100 %.
-  - **docker** (vrais conteneurs) : 85,0 / 76,5 / 13,3 / 20,0 / 100 % — divergences de
+- **État** : v0.9.0, deux backends fonctionnels ; 17 vecteurs / 37 scénarios
+  (21 attaques / 16 sains).
+  - Référence **sim** (déterministe) : suppression 100 % / rattrapage 81,0 % / faux
+    positifs 12,5 % / résiduel 19,0 % / cohérence 100 %.
+  - **docker** (vrais conteneurs) : 85,7 / 77,8 / 12,5 / 19,0 / 100 % — divergences de
     fidélité sur la noyade par groupement, le blackout sélectif, le faux all-clear et
     le rejeu/gel (cf. doc 04 §7). Masquages préventifs (inhibition/silence) durcis (cf.
     doc 04 §5.4). Le **full statistical concealment** (`statistical_replay`) reste résiduel
     (limite assumée) ; le **constrained replay** (sous-ensemble masqué) est rattrapé par la
     **consistance spatiale** (`spatial_incoherence`) — contraste ACSAC 2022. Le **route
     black-hole** (`route_blackhole`, MITRE T1562.006 Indicator Blocking) masque de façon
-    déterministe dans les deux backends et est rattrapé par `notification_blackhole`.
+    déterministe dans les deux backends et est rattrapé par `notification_blackhole` ; le
+    **watchdog suppression** (`watchdog_suppression`, MITRE T1562, dead man's switch) est
+    rattrapé par `watchdog_gap` (heartbeat éteint) même quand tout le reste est aveuglé.
 
 ## Historique (branche `feature/masquage-alarmes`)
 

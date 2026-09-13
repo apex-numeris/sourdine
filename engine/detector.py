@@ -108,6 +108,33 @@ class BaselineDetector(MaskingDetector):
                                            f"(sa cible vivante {tgt.name} reste élevée) — inhibition suspecte."))
         return None
 
+    def _h_rogue_inhibitor(self, state) -> Optional[Verdict]:
+        """Règle d'inhibition ROGUE (MITRE T1562.001 Disable or Modify Tools). Une alerte de
+        sécurité est inhibée par une source qui n'appartient PAS à l'ensemble des sources
+        d'inhibition sanctionnées (baseline) : l'attaquant a ajouté une règle d'inhibition dont
+        la source est une alerte bénigne qu'il contrôle, pour étouffer la classe sécurité. C'est
+        distinct des spoofs (round 1-3), qui FALSIFIENT une source SANCTIONNÉE (InstanceDown…) et
+        que `inhibitor_isolation` rattrape par non-corroboration : ici la source est ILLÉGITIME,
+        donc `inhibitor_isolation` — qui ne regarde que les sources sanctionnées — ne l'examine
+        même pas. Détection par dérive de config : l'inhibition ne figure pas dans la baseline
+        sanctionnée. Le discriminant est la LÉGITIMITÉ de la source, pas la corroboration."""
+        for a in state.alerts:
+            if a.name not in model.SECURITY_RATE_ALERTS:
+                continue
+            rogue = [ib for ib in a.inhibited_by
+                     if not any(ib.startswith(s) for s in model.INHIBITOR_SOURCES)]
+            if not rogue:
+                continue
+            signal = model.ALERT_RULES.get(a.name, {}).get("signal")
+            thr = model.ALERT_RULES.get(a.name, {}).get("threshold", 0.0)
+            if signal and self._recent_max(state, signal) > thr:
+                return Verdict(True, scope=f"{a.name}<-{rogue[0]}", heuristic="rogue_inhibitor",
+                               reason=(f"Alerte de sécurité {a.name} inhibée par une source NON "
+                                       f"sanctionnée ({rogue[0]}) alors que la menace est réelle "
+                                       f"(> {thr:.0f}) : règle d'inhibition rogue (config d'alerte "
+                                       f"altérée, T1562.001)."))
+        return None
+
     def _h_low_and_slow(self, state) -> Optional[Verdict]:
         rate_alert_present = any(a.name in ("HighAttackRate", "JailbreakSurge") for a in state.alerts)
         if rate_alert_present:
@@ -414,7 +441,8 @@ class BaselineDetector(MaskingDetector):
 
     # -- interface ------------------------------------------------------------
     def detect(self, state: SupervisionState, trace: Trace) -> Verdict:
-        for h in (self._h_inhibitor_isolation, self._h_notification_blackhole,
+        for h in (self._h_inhibitor_isolation, self._h_rogue_inhibitor,
+                  self._h_notification_blackhole,
                   self._h_flapping, self._h_phantom_clear,
                   self._h_low_and_slow, self._h_silence_abuse, self._h_signal_blackout,
                   self._h_cardinality_flood, self._h_exporter_cutoff,

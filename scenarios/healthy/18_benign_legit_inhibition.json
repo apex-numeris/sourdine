@@ -1,0 +1,12 @@
+{
+  "id": "HLT-BENIGN-LEGIT-INHIBITION-18",
+  "kind": "healthy",
+  "vector": "none",
+  "title": "Inhibition de maintenance légitime d'une alerte opérationnelle (piège à faux positif de la règle rogue)",
+  "description": "Pendant une maintenance planifiée de la base, l'ops a une règle d'inhibition dont la source `DBMaintenance` (non sanctionnée, mais légitime) suppRIME PostgreSQLHighConnections — les connexions élevées sont attendues pendant la maintenance, on ne veut pas être réveillé. Une source d'inhibition non sanctionnée n'est PAS rogue en soi : elle ne l'est que si elle étouffe une alerte de SÉCURITÉ. Ici la cible est OPÉRATIONNELLE (non-sécurité), donc `rogue_inhibitor` ne doit PAS crier — son discriminant combine source non sanctionnée ET cible de sécurité. `inhibitor_isolation` non plus (DBMaintenance non sanctionnée, il ne l'examine pas). Vrai négatif, garde anti-faux-positif du vecteur rogue_inhibitor : sans le garde de CLASSE (sécurité), cette maintenance parfaitement légitime serait criée comme rogue.",
+  "access_level": "n/a",
+  "ground_truth": {"alarm_expected": false, "expected_alert": null, "labels": {"job": "postgresql", "instance": "pg-1"}},
+  "event": {"make_fire": false},
+  "masking": {"type": "benign_maintenance_inhibition", "params": {"pg_conns": 240}},
+  "tags": ["sain", "vrai-negatif", "inhibition-maintenance", "cible-operationnelle", "anti-faux-positif"]
+}

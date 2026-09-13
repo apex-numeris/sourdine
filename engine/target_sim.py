@@ -24,6 +24,7 @@ from engine.types import (
     VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING, VEC_FALSE_RESOLVED,
     VEC_STALE_REPLAY, VEC_STATISTICAL_REPLAY, VEC_CONSTRAINED_REPLAY,
     VEC_ROUTE_BLACKHOLE, VEC_WATCHDOG_SUPPRESSION, VEC_CARDINALITY_FLOOD,
+    VEC_ROGUE_INHIBITOR,
 )
 
 H = model.HORIZON
@@ -369,6 +370,18 @@ class SimTarget(Target):
             metrics[model.series_key(model.CARDINALITY_SIGNAL, {})] = ss
             trace.add(pre, "cardinality_flood", scrape_samples=samples)
 
+        elif v == VEC_ROGUE_INHIBITOR:
+            # T1562.001 Disable or Modify Tools — l'attaquant AJOUTE une règle d'inhibition
+            # dont la SOURCE n'est pas sanctionnée : `RogueMuter`, une alerte bénigne qu'il
+            # contrôle, inhibe la classe sécurité. L'alerte de sécurité fire (make_fire=true,
+            # menace réelle) puis est inhibée par cette règle rogue -> non notifiée.
+            # `inhibitor_isolation` ne regarde que les sources SANCTIONNÉES -> il ne l'examine
+            # même pas ; seule `rogue_inhibitor` la rattrape. On pose ici la source rogue ;
+            # l'inhibition est appliquée après apply_inhibitions (étape 5), car celui-ci
+            # n'utilise que les règles sanctionnées et ne toucherait pas à RogueMuter.
+            alerts.append(Alert(name="RogueMuter", labels={"job": job}))
+            trace.add(2, "rogue_inhibit_rule", source="RogueMuter", target=gt.expected_alert)
+
         elif v == "none":
             # scénario sain : action bénigne éventuelle (ressemble de loin à un vecteur)
             bk = sc.masking.get("type") if sc.masking else None
@@ -512,6 +525,21 @@ class SimTarget(Target):
                 bump = float(params.get("samples", 400.0))
                 metrics[model.series_key(model.CARDINALITY_SIGNAL, {})] = _const(bump)
                 trace.add(1, "cardinality_bump", scrape_samples=bump, legit_deploy=True)
+            elif bk == "benign_maintenance_inhibition":
+                # inhibition de MAINTENANCE légitime : une source NON sanctionnée (`DBMaintenance`,
+                # ajoutée par l'ops) inhibe une alerte OPÉRATIONNELLE non-sécurité
+                # (PostgreSQLHighConnections) pendant une maintenance planifiée — on ne veut pas être
+                # réveillé par des connexions élevées attendues. Une source non sanctionnée n'est PAS
+                # rogue en soi : elle ne l'est que si elle étouffe une alerte de SÉCURITÉ.
+                # rogue_inhibitor ne doit donc PAS crier (cible non-sécurité) ; inhibitor_isolation
+                # non plus (DBMaintenance non sanctionnée -> non examinée). Vrai négatif : sans le
+                # garde de CLASSE (sécurité), cette maintenance parfaitement légitime serait un FP.
+                pg = float(params.get("pg_conns", model.PG_CONN_THRESHOLD + 60.0))
+                metrics[model.series_key("pg_conns", {"job": "postgresql", "instance": instance})] = _const(pg)
+                alerts.append(Alert(name="DBMaintenance", labels={"job": "postgresql"}))
+                alerts.append(Alert(name="PostgreSQLHighConnections", labels={"job": "postgresql", "instance": instance},
+                                    inhibited_by=["DBMaintenance"]))
+                trace.add(2, "maintenance_inhibition", source="DBMaintenance", target="PostgreSQLHighConnections")
 
         # --- 3) inhibiteurs qui firent RÉELLEMENT (ex. coupure -> InstanceDown)
         up_key = model.series_key("up", {"instance": instance, "job": job})
@@ -533,6 +561,10 @@ class SimTarget(Target):
             same_group = [a for a in alerts if model.group_key(a) == model.group_key(expected_alert_obj)]
             if len(same_group) >= model.FLOOD_MIN:
                 expected_alert_obj.delayed = True
+        # inhibition ROGUE : règle ajoutée par l'attaquant (source non sanctionnée) — appliquée
+        # ici car apply_inhibitions n'emploie que les règles sanctionnées de la baseline.
+        if v == VEC_ROGUE_INHIBITOR and expected_alert_obj is not None:
+            expected_alert_obj.inhibited_by.append("RogueMuter")
 
         notified = [a for a in alerts if a.notified]
 

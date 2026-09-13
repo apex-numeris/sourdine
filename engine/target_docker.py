@@ -35,6 +35,7 @@ from engine.types import (
     VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING, VEC_FALSE_RESOLVED,
     VEC_STALE_REPLAY, VEC_STATISTICAL_REPLAY, VEC_CONSTRAINED_REPLAY,
     VEC_ROUTE_BLACKHOLE, VEC_WATCHDOG_SUPPRESSION, VEC_CARDINALITY_FLOOD,
+    VEC_ROGUE_INHIBITOR,
 )
 
 # Label de routage qui envoie une alerte vers le récepteur « trou noir » (route baked
@@ -200,7 +201,8 @@ class DockerTarget(Target):
 
     # -- exécution (retry déterministe pour les masquages préventifs) ----------
     _PREVENTIVE = (VEC_FIREWALL_DOWN_SPOOF, VEC_INSTANCE_DOWN_SPOOF, VEC_POSTGRES_DOWN_SPOOF,
-                   VEC_SILENCE_ABUSE, VEC_SILENCE_SHARED_LABEL, VEC_SILENCE_REGEX_ALERTNAME)
+                   VEC_SILENCE_ABUSE, VEC_SILENCE_SHARED_LABEL, VEC_SILENCE_REGEX_ALERTNAME,
+                   VEC_ROGUE_INHIBITOR)
 
     def execute(self, sc: Scenario) -> tuple[RawResult, SupervisionState, Trace]:
         # Un masquage préventif (inhibition/silence) DOIT masquer (vecteur STRONG). Une
@@ -249,7 +251,8 @@ class DockerTarget(Target):
         #     confirmer garantit qu'il est dans le muting index d'AM quand l'alerte fire,
         #     rendant le masquage DÉTERMINISTE sans toucher aux seuils ni au `for:`. ===
         preventive = v in (VEC_FIREWALL_DOWN_SPOOF, VEC_INSTANCE_DOWN_SPOOF, VEC_POSTGRES_DOWN_SPOOF,
-                           VEC_SILENCE_ABUSE, VEC_SILENCE_SHARED_LABEL, VEC_SILENCE_REGEX_ALERTNAME)
+                           VEC_SILENCE_ABUSE, VEC_SILENCE_SHARED_LABEL, VEC_SILENCE_REGEX_ALERTNAME,
+                           VEC_ROGUE_INHIBITOR)
         if v in (VEC_FIREWALL_DOWN_SPOOF, VEC_INSTANCE_DOWN_SPOOF, VEC_POSTGRES_DOWN_SPOOF):
             src = {
                 VEC_FIREWALL_DOWN_SPOOF: ("FirewallDown", {"job": job}),
@@ -278,6 +281,14 @@ class DockerTarget(Target):
             # mais non littéral, il balaie toutes les alertes de l'instance.
             self._post_silence({"alertname": "~.+", "instance": instance}, broad=False)
             self._await_silence_active()
+        elif v == VEC_ROGUE_INHIBITOR:
+            # T1562.001 : regle d'inhibition ROGUE (source non sanctionnee). On poste la source
+            # RogueMuter (job=firewall) ; la regle baked dans alertmanager.yml (RogueMuter ->
+            # classe securite, equal job) inhibe alors HighAttackRate quand elle fire. Preventif :
+            # la source doit etre active AVANT que l'alerte cible fire.
+            self._post_alert("RogueMuter", {"job": job})
+            self._await_alert_active("RogueMuter")
+            trace.add(2, "rogue_inhibit_rule", source="RogueMuter")
 
         if preventive:
             # stabilisation ample (> 2× group_interval de 5 s) : laisse AM indexer le
@@ -522,6 +533,19 @@ class DockerTarget(Target):
                 # ne doit PAS crier (seuil loin au-dessus). Vrai negatif de la bombe.
                 self._set_metric("scrape_samples", {}, float(params.get("samples", 400.0)))
                 settle = STEP * 4
+            elif bk == "benign_maintenance_inhibition":
+                # inhibition de MAINTENANCE legitime : source NON sanctionnee (DBMaintenance) inhibe
+                # une alerte OPERATIONNELLE (PostgreSQLHighConnections) pendant une maintenance. Une
+                # source non sanctionnee n'est rogue que si elle etouffe une alerte de SECURITE.
+                # rogue_inhibitor doit rester muet (cible non-securite). La regle DBMaintenance ->
+                # PostgreSQL.* est baked dans alertmanager.yml (inerte sans DBMaintenance). Preventif :
+                # poser la source avant que la cible fire.
+                self._post_alert("DBMaintenance", {"job": "postgresql"})
+                self._await_alert_active("DBMaintenance")
+                time.sleep(STEP * 6)
+                self._set_metric("pg_conns", {"job": "postgresql", "instance": instance},
+                                 float(params.get("pg_conns", model.PG_CONN_THRESHOLD + 60.0)))
+                settle = STEP * 8   # laisser PostgreSQLHighConnections firer et l'inhibition maintenance s'appliquer
 
         time.sleep(settle)
 

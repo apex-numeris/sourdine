@@ -43,3 +43,17 @@ inhibit_rules:
   - source_matchers: ['alertname="PostgreSQLDown"']
     target_matchers: ['alertname=~"PostgreSQL.*"']
     equal: ['job']
+  # Regle d'inhibition ROGUE (source NON sanctionnee) - support du vecteur rogue_inhibitor
+  # (MITRE T1562.001 Disable or Modify Tools). Represente une regle qu'un attaquant AJOUTE pour
+  # etouffer la classe securite via une alerte benigne qu'il controle. INERTE pour tout autre
+  # scenario : seule une alerte RogueMuter (qu'aucun autre scenario ne poste) l'active.
+  - source_matchers: ['alertname="RogueMuter"']
+    target_matchers: ['alertname=~"HighAttackRate|CriticalAttacksDetected|JailbreakSurge"']
+    equal: ['job']
+  # Regle d'inhibition de MAINTENANCE LEGITIME (source non sanctionnee, mais cible OPERATIONNELLE) :
+  # pendant une maintenance DB, DBMaintenance inhibe PostgreSQLHighConnections (connexions elevees
+  # attendues). Le pendant sain de rogue_inhibitor : une source non sanctionnee n'est rogue que si
+  # elle etouffe une alerte de SECURITE. INERTE sans une alerte DBMaintenance.
+  - source_matchers: ['alertname="DBMaintenance"']
+    target_matchers: ['alertname=~"PostgreSQL.*"']
+    equal: ['job']

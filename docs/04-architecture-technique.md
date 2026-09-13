@@ -20,7 +20,7 @@
 | `target_base.py` | Interface `Target` (setup / execute / teardown) |
 | `target_sim.py` | Cible **sim** : interprète l'intention du scénario → état final déterministe |
 | `target_docker.py` | Cible **docker** : pilote de vrais Prometheus/Alertmanager via leurs API |
-| `detector.py` | Interface `MaskingDetector` + `BaselineDetector` (12 heuristiques, une par famille de vecteurs) |
+| `detector.py` | Interface `MaskingDetector` + `BaselineDetector` (13 heuristiques, une par famille de vecteurs) |
 | `runner.py` | Moteur deux passes (`run_campaign`) |
 | `metrics.py` | Calcul des 4 taux + cohérence + ventilation par accès |
 | `report.py` | Rapport JSON versionné + résumé lisible |
@@ -201,6 +201,13 @@ liste complète des alertes en [doc 05](05-specifications.md).
    cette fausse panne d'une vraie coupure (que `exporter_cutoff` ne voit pas faute d'activité
    d'attaque avant le trou). Masqué ET rattrapé (`cardinality_flood`) de façon déterministe dans les
    deux backends → STRONG_MASK.
+9. **Règle d'inhibition rogue (`rogue_inhibitor`, MITRE T1562.001) — AUCUN écart** : masquage
+   préventif (comme les spoofs) — la règle rogue (source `RogueMuter` non sanctionnée) est baked dans
+   `alertmanager.yml`, la source postée et confirmée active AVANT que l'alerte cible fire (retry
+   déterministe). L'inhibition étant préventive, elle masque de façon fiable dans les deux backends ;
+   `inhibitor_isolation` ne l'examine pas (source non sanctionnée), seul `rogue_inhibitor` la rattrape
+   → STRONG_MASK. Le pendant sain (`benign_maintenance_inhibition`) — source non sanctionnée inhibant
+   une alerte OPÉRATIONNELLE — reste non signalé (discriminant de classe).
 
 Ces écarts sont **réels** et précieux : ils ne sont visibles qu'en exécutant la
 vraie cible, et justifient l'existence du backend docker à côté de la sim.

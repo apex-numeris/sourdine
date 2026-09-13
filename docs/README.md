@@ -1,7 +1,7 @@
 # Documentation Sourdine
 
 Documentation complète du **banc d'attaques de masquage d'alarme** (projet Sourdine).
-Version du banc : **0.10.0**. Langue : français. Support : Markdown versionné (diagrammes mermaid).
+Version du banc : **0.11.0**. Langue : français. Support : Markdown versionné (diagrammes mermaid).
 
 Sourdine mesure la résistance d'une chaîne d'alerte (Prometheus / Alertmanager) au
 **masquage d'alarme** : des attaques qui visent *l'observateur* — supprimer ou
@@ -28,16 +28,16 @@ Sourdine mesure la résistance d'une chaîne d'alerte (Prometheus / Alertmanager
   avec détecteur).
 - **Quoi** : banc autonome et jetable. Il monte sa **propre** cible éphémère
   (Prometheus + Alertmanager isolés, ou un modèle sim en process), joue un
-  catalogue de scénarios étiquetés (18 vecteurs + scénarios sains), et calcule
+  catalogue de scénarios étiquetés (19 vecteurs + scénarios sains), et calcule
   quatre taux + un contrôle de cohérence, ventilés par niveau d'accès attaquant.
 - **Garde-fous** : tout est synthétique et en laboratoire ; la cible n'est jamais
   la supervision de production ; le banc évalue une **baseline** de détection, pas
   le produit SentinelleIA (qui se branchera au même protocole).
-- **État** : v0.10.0, deux backends fonctionnels ; 18 vecteurs / 39 scénarios
-  (22 attaques / 17 sains).
-  - Référence **sim** (déterministe) : suppression 100 % / rattrapage 81,8 % / faux
-    positifs 11,8 % / résiduel 18,2 % / cohérence 100 %.
-  - **docker** (vrais conteneurs) : 81,8 / 77,8 / 11,8 / 18,2 / 100 % — divergences de
+- **État** : v0.11.0, deux backends fonctionnels ; 19 vecteurs / 41 scénarios
+  (23 attaques / 18 sains).
+  - Référence **sim** (déterministe) : suppression 100 % / rattrapage 82,6 % / faux
+    positifs 11,1 % / résiduel 17,4 % / cohérence 100 %.
+  - **docker** (vrais conteneurs) : 87,0 / 80,0 / 11,1 / 17,4 / 100 % — divergences de
     fidélité sur la noyade par groupement, le blackout sélectif, le faux all-clear et
     le rejeu/gel (cf. doc 04 §7). Masquages préventifs (inhibition/silence) durcis (cf.
     doc 04 §5.4). Le **full statistical concealment** (`statistical_replay`) reste résiduel
@@ -49,7 +49,10 @@ Sourdine mesure la résistance d'une chaîne d'alerte (Prometheus / Alertmanager
     rattrapé par `watchdog_gap` (heartbeat éteint) même quand tout le reste est aveuglé ; la
     **bombe de cardinalité** (`cardinality_flood`, MITRE Impair Defenses / T1499) fait échouer
     le scrape (sample_limit, `up`=0, fausse panne) et est rattrapée par `cardinality_flood`
-    (pic de `scrape_samples`) là où les heuristiques d'absence voient une simple coupure.
+    (pic de `scrape_samples`) là où les heuristiques d'absence voient une simple coupure ; la
+    **règle d'inhibition rogue** (`rogue_inhibitor`, MITRE T1562.001) étouffe la classe sécurité
+    par une source d'inhibition NON sanctionnée et est rattrapée par `rogue_inhibitor` (dérive de
+    config vs baseline) là où l'heuristique d'inhibition, bornée aux sources sanctionnées, ne la voit pas.
 
 ## Historique (branche `feature/masquage-alarmes`)
 

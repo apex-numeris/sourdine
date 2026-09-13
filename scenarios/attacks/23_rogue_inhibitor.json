@@ -1,0 +1,12 @@
+{
+  "id": "ATT-ROGUE-INHIBITOR-23",
+  "kind": "attack",
+  "vector": "rogue_inhibitor",
+  "title": "Règle d'inhibition rogue : une source non sanctionnée étouffe la classe sécurité",
+  "description": "L'attaquant, avec un accès à la configuration d'Alertmanager, AJOUTE une règle d'inhibition dont la source (`RogueMuter`) est une alerte bénigne qu'il contrôle et peut déclencher à volonté, ciblant la classe d'alertes de sécurité du firewall (HighAttackRate/CriticalAttacksDetected/JailbreakSurge). L'attaque de taux est réelle : HighAttackRate se déclenche — mais la règle rogue l'inhibe, la notification ne part jamais. C'est distinct des spoofs d'inhibition (qui FALSIFIENT une source SANCTIONNÉE comme InstanceDown, rattrapés par corroboration) : ici la source est ILLÉGITIME, donc un détecteur qui ne vérifie que la corroboration des sources sanctionnées ne l'examine même pas. La détection est une dérive de configuration : l'inhibition ne figure pas dans la baseline sanctionnée (MITRE T1562.001 Disable or Modify Tools — altération de la config d'alerte). Le risque est réel : « sans equal labels, une seule alerte peut supprimer toute une classe de cibles ». Seul `rogue_inhibitor` la rattrape.",
+  "access_level": "silence_or_routing_api",
+  "ground_truth": {"alarm_expected": true, "expected_alert": "HighAttackRate", "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": true, "severity": "warning"},
+  "masking": {"type": "rogue_inhibitor", "params": {}},
+  "tags": ["rogue-inhibit-rule", "T1562.001", "disable-modify-tools", "config-alteree", "source-non-sanctionnee"]
+}

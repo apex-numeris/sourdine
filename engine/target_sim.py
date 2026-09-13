@@ -23,7 +23,7 @@ from engine.types import (
     VEC_SILENCE_REGEX_ALERTNAME, VEC_GROUPING_REPEAT_ABUSE, VEC_EXPORTER_CUTOFF,
     VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING, VEC_FALSE_RESOLVED,
     VEC_STALE_REPLAY, VEC_STATISTICAL_REPLAY, VEC_CONSTRAINED_REPLAY,
-    VEC_ROUTE_BLACKHOLE, VEC_WATCHDOG_SUPPRESSION,
+    VEC_ROUTE_BLACKHOLE, VEC_WATCHDOG_SUPPRESSION, VEC_CARDINALITY_FLOOD,
 )
 
 H = model.HORIZON
@@ -101,6 +101,8 @@ class SimTarget(Target):
         metrics[model.series_key("pg_up", {"job": "postgresql"})] = _const(UP)
         # heartbeat watchdog (dead man's switch) : toujours vivant par défaut (1)
         metrics[model.series_key(model.WATCHDOG_SIGNAL, {})] = _const(UP)
+        # cardinalité du scrape (échantillons rendus) : basse au repos
+        metrics[model.series_key(model.CARDINALITY_SIGNAL, {})] = _const(50.0)
 
         expected_signal = model.ALERT_RULES.get(gt.expected_alert or "", {}).get("signal")
         expected_thr = model.ALERT_RULES.get(gt.expected_alert or "", {}).get("threshold", 0.0)
@@ -347,6 +349,26 @@ class SimTarget(Target):
             metrics[model.series_key(model.WATCHDOG_SIGNAL, {})] = wd
             trace.add(silent_from, "watchdog_silent", reason="alerting_pipeline_down")
 
+        elif v == VEC_CARDINALITY_FLOOD:
+            # MITRE Impair Defenses via épuisement de ressources (bombe de cardinalité).
+            # L'attaquant injecte un flot de séries à très haute cardinalité -> le scrape
+            # dépasse sample_limit -> Prometheus REJETTE le scrape (`up`=0, « comme si la
+            # cible était tombée ») et le vrai signal n'est jamais ingéré. Indiscernable
+            # d'une vraie panne pour exporter_cutoff / inhibitor_isolation (aucune activité
+            # d'attaque visible avant le trou), SAUF le pic de `scrape_samples`. Seul
+            # `cardinality_flood` le rattrape ; l'alarme attendue n'est ni levée ni notifiée.
+            expected_fired = False
+            pre = int(params.get("pre_ticks", 3))
+            samples = float(params.get("samples", 50000.0))
+            up_series = _const(UP)
+            ss = _const(50.0)
+            for t in range(max(0, pre), H):
+                up_series[t] = DOWN      # scrape échoue (sample_limit) -> up=0
+                ss[t] = samples          # explosion de cardinalité
+            metrics[model.series_key("up", {"instance": instance, "job": job})] = up_series
+            metrics[model.series_key(model.CARDINALITY_SIGNAL, {})] = ss
+            trace.add(pre, "cardinality_flood", scrape_samples=samples)
+
         elif v == "none":
             # scénario sain : action bénigne éventuelle (ressemble de loin à un vecteur)
             bk = sc.masking.get("type") if sc.masking else None
@@ -481,6 +503,15 @@ class SimTarget(Target):
                     wd[t] = None                          # scrape manqué (trou), puis rétabli
                 metrics[model.series_key(model.WATCHDOG_SIGNAL, {})] = wd
                 trace.add(blip_at, "watchdog_blip", transient=True, length=blip_len)
+            elif bk == "benign_cardinality_bump":
+                # croissance de cardinalité LÉGITIME (un déploiement ajoute quelques séries) :
+                # scrape_samples monte modestement mais reste SOUS sample_limit, le scrape
+                # réussit (up=1). cardinality_flood ne doit PAS crier — son seuil est calé loin
+                # au-dessus de toute croissance normale. Vrai négatif : sans ce garde de magnitude,
+                # le moindre déploiement deviendrait un faux positif.
+                bump = float(params.get("samples", 400.0))
+                metrics[model.series_key(model.CARDINALITY_SIGNAL, {})] = _const(bump)
+                trace.add(1, "cardinality_bump", scrape_samples=bump, legit_deploy=True)
 
         # --- 3) inhibiteurs qui firent RÉELLEMENT (ex. coupure -> InstanceDown)
         up_key = model.series_key("up", {"instance": instance, "job": job})

@@ -28,6 +28,9 @@ def _defaults():
     # heartbeat watchdog (dead man's switch) : toujours vivant (1) tant que la chaine
     # d'alerte l'emet. Le vecteur watchdog_suppression le met a 0 (chaine morte).
     STATE["watchdog"] = {(): 1.0}
+    # nombre d'echantillons du dernier scrape (modele de scrape_samples_scraped) : bas au
+    # repos. Le vecteur cardinality_flood le fait exploser (bombe de series -> sample_limit).
+    STATE["scrape_samples"] = {(): 50.0}
 
 
 def _key(labels: dict) -> tuple:

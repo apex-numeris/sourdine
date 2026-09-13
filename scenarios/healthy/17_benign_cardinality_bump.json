@@ -1,0 +1,12 @@
+{
+  "id": "HLT-BENIGN-CARDINALITY-BUMP-17",
+  "kind": "healthy",
+  "vector": "none",
+  "title": "Croissance de cardinalité légitime (piège à faux positif de la bombe)",
+  "description": "Un déploiement légitime ajoute quelques nouvelles séries (nouveaux endpoints, nouveaux labels bornés) : le nombre d'échantillons du scrape (`scrape_samples`) monte modestement mais reste NETTEMENT sous le `sample_limit` — le scrape réussit, `up` reste à 1, rien n'est masqué. Le détecteur de bombe de cardinalité (`cardinality_flood`) ne doit PAS crier : son seuil est calé loin au-dessus de toute croissance normale, précisément pour ne pas paniquer à chaque déploiement. Vrai négatif, garde anti-faux-positif du vecteur cardinality_flood : sans un seuil de magnitude bien au-dessus de la croissance légitime, le moindre déploiement deviendrait un faux positif (et l'alerte de cardinalité, criant sans cesse, finirait ignorée).",
+  "access_level": "n/a",
+  "ground_truth": {"alarm_expected": false, "expected_alert": null, "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": false},
+  "masking": {"type": "benign_cardinality_bump", "params": {"samples": 400}},
+  "tags": ["sain", "vrai-negatif", "cardinalite-legitime", "deploiement", "anti-faux-positif"]
+}

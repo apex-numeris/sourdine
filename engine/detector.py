@@ -394,12 +394,31 @@ class BaselineDetector(MaskingDetector):
                                        f"d'alertes n'est plus fiable (T1562 Impair Defenses)."))
         return None
 
+    def _h_cardinality_flood(self, state) -> Optional[Verdict]:
+        """DoS d'ingestion par explosion de cardinalité (MITRE Impair Defenses via épuisement
+        de ressources). Un attaquant injecte un flot de séries à très haute cardinalité (labels
+        uniques) ; le scrape dépasse `sample_limit` et Prometheus REJETTE le scrape entier —
+        `up` passe à 0 « comme si la cible était tombée », et le vrai signal n'est jamais ingéré.
+        La panne est donc INDISCERNABLE d'une vraie coupure pour les heuristiques d'absence
+        (exporter_cutoff, inhibitor_isolation) — sauf que le nombre d'échantillons du scrape
+        (`scrape_samples`) explose bien au-delà de toute croissance légitime (un déploiement
+        n'ajoute que quelques dizaines de séries). C'est ce pic qui distingue la bombe de
+        cardinalité d'une vraie panne ; alerte standard `prometheus_target_scrapes_exceeded_sample_limit_total`."""
+        flood = self._recent_max(state, model.CARDINALITY_SIGNAL)
+        if flood > model.CARDINALITY_FLOOD_THRESHOLD:
+            return Verdict(True, scope=model.CARDINALITY_SIGNAL, heuristic="cardinality_flood",
+                           reason=(f"scrape_samples={flood:.0f} > {model.CARDINALITY_FLOOD_THRESHOLD:.0f} : "
+                                   f"explosion de cardinalité (bombe de séries) faisant échouer le scrape "
+                                   f"(sample_limit -> up=0) et masquant le vrai signal — DoS d'ingestion."))
+        return None
+
     # -- interface ------------------------------------------------------------
     def detect(self, state: SupervisionState, trace: Trace) -> Verdict:
         for h in (self._h_inhibitor_isolation, self._h_notification_blackhole,
                   self._h_flapping, self._h_phantom_clear,
                   self._h_low_and_slow, self._h_silence_abuse, self._h_signal_blackout,
-                  self._h_exporter_cutoff, self._h_frozen_replay, self._h_spatial_incoherence,
+                  self._h_cardinality_flood, self._h_exporter_cutoff,
+                  self._h_frozen_replay, self._h_spatial_incoherence,
                   self._h_watchdog_gap):
             verdict = h(state)
             if verdict is not None:

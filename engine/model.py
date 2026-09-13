@@ -62,6 +62,18 @@ STALE_FROZEN_MIN = 6
 WATCHDOG_SIGNAL = "watchdog"
 WATCHDOG_MIN_SILENCE = 4
 
+# --- Cardinalité d'ingestion (bombe de séries) --------------------------------
+# `scrape_samples` = nombre d'échantillons rendus par la cible au dernier scrape
+# (métrique Prometheus `scrape_samples_scraped`). Un attaquant qui injecte un flot de
+# séries à très haute cardinalité fait dépasser `sample_limit` : Prometheus REJETTE le
+# scrape entier et met `up` à 0 « comme si la cible était tombée » — le vrai signal
+# n'est jamais ingéré. Le pic de `scrape_samples` bien au-delà de toute croissance
+# légitime (un déploiement n'ajoute que quelques dizaines de séries) est ce qui distingue
+# la bombe de cardinalité d'une vraie panne (MITRE Impair Defenses via épuisement de
+# ressources / T1499). Seuil calé loin au-dessus d'un bump licite, loin sous une bombe.
+CARDINALITY_SIGNAL = "scrape_samples"
+CARDINALITY_FLOOD_THRESHOLD = 5000.0
+
 # --- Familles d'alertes -------------------------------------------------------
 # Métadonnées par alerte : signal déclencheur, type, sévérité, service.
 ALERT_RULES: dict[str, dict] = {

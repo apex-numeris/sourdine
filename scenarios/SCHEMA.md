@@ -30,7 +30,7 @@ les cibles (sim / docker) l'instancient.
 `low_and_slow`, `threshold_flapping`, `silence_abuse`, `silence_shared_label`,
 `silence_regex_alertname`, `grouping_repeat_abuse`, `exporter_cutoff`,
 `selective_metric_drop`, `false_resolved`, `stale_replay`, `statistical_replay`,
-`constrained_replay`, `route_blackhole`, `watchdog_suppression`, `none`.
+`constrained_replay`, `route_blackhole`, `watchdog_suppression`, `cardinality_flood`, `none`.
 
 ## Niveaux d'accès (`access_level`)
 
@@ -59,6 +59,7 @@ les cibles (sim / docker) l'instancient.
 - `constrained_replay` — `params.attack` (rejeu bas de attack_rate), `blocked` (blocked_rate élevé, non masqué). Rejeu sur un sous-ensemble : casse la corrélation attack_rate ↔ blocked_rate → **détectable** par la consistance SPATIALE (ACSAC 2022).
 - `route_blackhole` — `params.rate` (taux d'attaque soutenu au-dessus du seuil). L'alerte de sécurité fire mais est reroutée vers un récepteur trou-noir (label de routage `route_target=blackhole`) : notification avalée, sans silence ni inhibiteur (MITRE T1562.006 Indicator Blocking). **Déterministe** dans les deux backends, rattrapé par `notification_blackhole` (corrélation métrique ↔ livraison, discriminant : classe de l'alerte).
 - `watchdog_suppression` — `params.silent_from` (tick à partir duquel le heartbeat s'éteint). La chaîne d'alerte est désactivée et le signal d'attaque aveuglé : rien n'est observable, seul le heartbeat `watchdog` (toujours à 1 sinon) tombe à 0 de façon soutenue (dead man's switch, MITRE T1562 Impair Defenses). **Déterministe** dans les deux backends, rattrapé par `watchdog_gap` (silence soutenu du heartbeat).
+- `cardinality_flood` — `params.samples` (nombre d'échantillons du scrape floodé), `pre_ticks` (début du flood). Une bombe de cardinalité fait dépasser `sample_limit` : le scrape est rejeté (`up`=0, fausse panne) et le vrai signal n'est jamais ingéré ; seul le pic de `scrape_samples` la distingue d'une vraie coupure (MITRE Impair Defenses / T1499 épuisement de ressources). **Déterministe** dans les deux backends, rattrapé par `cardinality_flood` (magnitude de `scrape_samples`).
 - `none` (sains) — `type` bénin : `benign_silence` (`broad`, `alertname`, `at`, `minor_activity`),
   `benign_exporter_restart` (`pre_ticks`, `gap`), `benign_spike` (`rate`),
   `benign_jitter` (`high`, `low`), `benign_brief_spike` (`spike`, `at`, `dur`, `baseline`),
@@ -71,7 +72,9 @@ les cibles (sim / docker) l'instancient.
   `benign_route_mute` (`pg_conns` : une alerte opérationnelle NON-sécurité, route-mutée
   pendant une maintenance légitime — non délivrée mais pas une menace de sécurité),
   `benign_watchdog_blip` (`at`, `len` : raté transitoire du heartbeat watchdog qui se
-  rétablit — chaîne saine, pas un dead man's switch), ou `none`.
+  rétablit — chaîne saine, pas un dead man's switch),
+  `benign_cardinality_bump` (`samples` : croissance de cardinalité légitime, sous
+  `sample_limit`, scrape réussi — pas une bombe), ou `none`.
 
 ## Règle de cotation (normative)
 

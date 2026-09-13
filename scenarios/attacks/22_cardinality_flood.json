@@ -1,0 +1,12 @@
+{
+  "id": "ATT-CARDINALITY-FLOOD-22",
+  "kind": "attack",
+  "vector": "cardinality_flood",
+  "title": "Bombe de cardinalité : sample_limit dépassé, fausse panne qui masque le vrai signal",
+  "description": "L'attaquant, avec un accès à l'ingestion métrique, injecte un flot de séries à très haute cardinalité (des milliers de valeurs de labels uniques — chemins, UUID, tokens). Le scrape de la cible dépasse alors le `sample_limit` de Prometheus, qui REJETTE le scrape entier et met `up` à 0 « comme si la cible était tombée » : le vrai `attack_rate` n'est jamais ingéré, l'alerte HighAttackRate ne peut pas se déclencher, l'alarme est masquée. Vu des heuristiques d'absence (exporter_cutoff, inhibitor_isolation), c'est indiscernable d'une vraie coupure — d'autant qu'aucune activité d'attaque n'était visible avant le trou (l'attaquant floode dès le départ). Le SEUL tell est le nombre d'échantillons du scrape (`scrape_samples`) qui explose bien au-delà de toute croissance légitime (un déploiement n'ajoute que quelques dizaines de séries). C'est un DoS d'ingestion à des fins d'évasion (MITRE Impair Defenses / épuisement de ressources T1499) : la bombe de cardinalité déguise sa suppression en panne. Seul `cardinality_flood` la rattrape.",
+  "access_level": "metric_or_am_api",
+  "ground_truth": {"alarm_expected": true, "expected_alert": "HighAttackRate", "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": false, "severity": "warning"},
+  "masking": {"type": "cardinality_flood", "params": {"samples": 50000, "pre_ticks": 3}},
+  "tags": ["cardinality-bomb", "sample-limit", "ingestion-dos", "T1499", "impair-defenses", "fausse-panne"]
+}

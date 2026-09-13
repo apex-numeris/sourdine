@@ -20,7 +20,7 @@
 | `target_base.py` | Interface `Target` (setup / execute / teardown) |
 | `target_sim.py` | Cible **sim** : interprète l'intention du scénario → état final déterministe |
 | `target_docker.py` | Cible **docker** : pilote de vrais Prometheus/Alertmanager via leurs API |
-| `detector.py` | Interface `MaskingDetector` + `BaselineDetector` (11 heuristiques, une par famille de vecteurs) |
+| `detector.py` | Interface `MaskingDetector` + `BaselineDetector` (12 heuristiques, une par famille de vecteurs) |
 | `runner.py` | Moteur deux passes (`run_campaign`) |
 | `metrics.py` | Calcul des 4 taux + cohérence + ventilation par accès |
 | `report.py` | Rapport JSON versionné + résumé lisible |
@@ -195,6 +195,12 @@ liste complète des alertes en [doc 05](05-specifications.md).
    silence soutenu est visible **de façon identique** en sim et en docker — pas d'écart de
    représentation comme pour `selective_metric_drop` (constat 3). Masqué ET rattrapé (`watchdog_gap`)
    de façon déterministe dans les deux backends → STRONG_MASK.
+8. **Bombe de cardinalité (`cardinality_flood`, MITRE Impair Defenses / T1499) — AUCUN écart** :
+   `scrape_samples` mis à une valeur explicite très haute + `inst_up`=0 (scrape rejeté, `sample_limit`
+   dépassé, `up`=0 « comme si la cible était tombée »). Le pic de cardinalité est ce qui distingue
+   cette fausse panne d'une vraie coupure (que `exporter_cutoff` ne voit pas faute d'activité
+   d'attaque avant le trou). Masqué ET rattrapé (`cardinality_flood`) de façon déterministe dans les
+   deux backends → STRONG_MASK.
 
 Ces écarts sont **réels** et précieux : ils ne sont visibles qu'en exécutant la
 vraie cible, et justifient l'existence du backend docker à côté de la sim.

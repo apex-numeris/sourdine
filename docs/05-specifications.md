@@ -43,7 +43,8 @@ Un fichier = un scénario, sous `scenarios/attacks/` ou `scenarios/healthy/`.
 | `constrained_replay` | l'attaque masquée sur attack_rate mais pas sur blocked_rate (ACSAC 2022) — **détectable (spatial)** | `exporter_host_or_network` | `constrained_replay` / `{attack, blocked}` |
 | `route_blackhole` | l'alerte de sécurité active mais reroutée vers un récepteur trou-noir, notification avalée (MITRE T1562.006) — **détectable (blocage d'indicateur)** | `silence_or_routing_api` | `route_blackhole` / `{rate}` |
 | `watchdog_suppression` | chaîne d'alerte désactivée + signal aveuglé ; seul le heartbeat watchdog éteint le trahit (MITRE T1562, dead man's switch) — **détectable (meta-monitoring)** | `silence_or_routing_api` | `watchdog_suppression` / `{silent_from}` |
-| `none` (sains) | — | `n/a` | `none` \| `benign_silence` \| `benign_exporter_restart` \| `benign_spike` \| `benign_jitter` \| `benign_brief_spike` \| `benign_signal_gap` \| `benign_resolve` \| `benign_settle` \| `benign_noise` \| `benign_correlated` \| `benign_route_mute` \| `benign_watchdog_blip` |
+| `cardinality_flood` | bombe de cardinalité → sample_limit dépassé → scrape rejeté (`up`=0, fausse panne), vrai signal jamais ingéré ; pic de `scrape_samples` (MITRE Impair Defenses / T1499) — **détectable (DoS d'ingestion)** | `metric_or_am_api` | `cardinality_flood` / `{samples, pre_ticks}` |
+| `none` (sains) | — | `n/a` | `none` \| `benign_silence` \| `benign_exporter_restart` \| `benign_spike` \| `benign_jitter` \| `benign_brief_spike` \| `benign_signal_gap` \| `benign_resolve` \| `benign_settle` \| `benign_noise` \| `benign_correlated` \| `benign_route_mute` \| `benign_watchdog_blip` \| `benign_cardinality_bump` |
 
 Niveaux d'accès : `metric_or_am_api`, `threshold_knowledge`, `silence_or_routing_api`,
 `exporter_host_or_network`, `n/a`.

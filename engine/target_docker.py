@@ -34,7 +34,7 @@ from engine.types import (
     VEC_SILENCE_REGEX_ALERTNAME, VEC_GROUPING_REPEAT_ABUSE, VEC_EXPORTER_CUTOFF,
     VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING, VEC_FALSE_RESOLVED,
     VEC_STALE_REPLAY, VEC_STATISTICAL_REPLAY, VEC_CONSTRAINED_REPLAY,
-    VEC_ROUTE_BLACKHOLE, VEC_WATCHDOG_SUPPRESSION,
+    VEC_ROUTE_BLACKHOLE, VEC_WATCHDOG_SUPPRESSION, VEC_CARDINALITY_FLOOD,
 )
 
 # Label de routage qui envoie une alerte vers le récepteur « trou noir » (route baked
@@ -412,6 +412,16 @@ class DockerTarget(Target):
             self._set_metric("watchdog", {}, 0.0)
             settle = STEP * 8          # assez de scrapes a 0 pour la queue silencieuse
             trace.add(0, "watchdog_silent", reason="alerting_pipeline_down")
+        elif v == VEC_CARDINALITY_FLOOD:
+            # MITRE Impair Defenses via epuisement de ressources (bombe de cardinalite).
+            # Le scrape depasse sample_limit -> up=0 (comme une panne) et le vrai signal
+            # n'est pas ingere ; scrape_samples explose (le tell). Modele : on met
+            # scrape_samples tres haut et inst_up=0 (scrape rejete), sans firer l'attaque.
+            # Seul cardinality_flood rattrape ; l'alarme attendue n'est jamais livree (masquee).
+            self._set_metric("scrape_samples", {}, float(params.get("samples", 50000.0)))
+            self._set_metric("inst_up", {"job": job, "instance": instance}, 0.0)
+            settle = STEP * 8          # laisser InstanceDown firer + scraper le pic de cardinalite
+            trace.add(0, "cardinality_flood", scrape_samples=params.get("samples", 50000.0))
         elif v == "none":
             bk = sc.masking.get("type") if sc.masking else None
             if bk == "benign_silence":
@@ -506,6 +516,12 @@ class DockerTarget(Target):
                 time.sleep(STEP * 2)       # bref (< WATCHDOG_MIN_SILENCE scrapes)
                 self._set_metric("watchdog", {}, 1.0)   # retabli, tient jusqu'a la fin
                 settle = STEP * 6          # la queue redevient 1 -> pas de silence soutenu
+            elif bk == "benign_cardinality_bump":
+                # croissance de cardinalite LEGITIME (deploiement) : scrape_samples monte
+                # modestement mais reste sous sample_limit, up reste 1. cardinality_flood
+                # ne doit PAS crier (seuil loin au-dessus). Vrai negatif de la bombe.
+                self._set_metric("scrape_samples", {}, float(params.get("samples", 400.0)))
+                settle = STEP * 4
 
         time.sleep(settle)
 
@@ -571,7 +587,7 @@ class DockerTarget(Target):
         end = time.time()   # fenêtre [début du scénario ; maintenant] — pas de bleed
         out: dict[str, list[Optional[float]]] = {}
         for metric in ("attack_rate", "jailbreak_rate", "critical_attacks", "pg_conns",
-                       "inst_up", "fw_up", "pg_up", "blocked_rate", "watchdog"):
+                       "inst_up", "fw_up", "pg_up", "blocked_rate", "watchdog", "scrape_samples"):
             try:
                 res = _http(f"{PROM}/api/v1/query_range?query={metric}&start={start:.0f}"
                             f"&end={end:.0f}&step={STEP}s")

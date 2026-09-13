@@ -30,7 +30,7 @@ les cibles (sim / docker) l'instancient.
 `low_and_slow`, `threshold_flapping`, `silence_abuse`, `silence_shared_label`,
 `silence_regex_alertname`, `grouping_repeat_abuse`, `exporter_cutoff`,
 `selective_metric_drop`, `false_resolved`, `stale_replay`, `statistical_replay`,
-`constrained_replay`, `none`.
+`constrained_replay`, `route_blackhole`, `none`.
 
 ## Niveaux d'accès (`access_level`)
 
@@ -57,6 +57,7 @@ les cibles (sim / docker) l'instancient.
 - `stale_replay` — `params.pre_ticks` (franchissement bref du seuil), `spike` (valeur du pic), `frozen` (palier figé, zone grise sous le seuil). Rejeu/gel : la métrique franchit le seuil puis est figée à un palier constant (ACSAC 2022, consistance temporelle).
 - `statistical_replay` — `params.mean` (moyenne sous le seuil). Concealment distribution-preserving : signal bruité tiré de la distribution normale, cumul normal — **résiduel** (indétectable par la baseline marginale ; ACSAC 2022, consistance statistique).
 - `constrained_replay` — `params.attack` (rejeu bas de attack_rate), `blocked` (blocked_rate élevé, non masqué). Rejeu sur un sous-ensemble : casse la corrélation attack_rate ↔ blocked_rate → **détectable** par la consistance SPATIALE (ACSAC 2022).
+- `route_blackhole` — `params.rate` (taux d'attaque soutenu au-dessus du seuil). L'alerte de sécurité fire mais est reroutée vers un récepteur trou-noir (label de routage `route_target=blackhole`) : notification avalée, sans silence ni inhibiteur (MITRE T1562.006 Indicator Blocking). **Déterministe** dans les deux backends, rattrapé par `notification_blackhole` (corrélation métrique ↔ livraison, discriminant : classe de l'alerte).
 - `none` (sains) — `type` bénin : `benign_silence` (`broad`, `alertname`, `at`, `minor_activity`),
   `benign_exporter_restart` (`pre_ticks`, `gap`), `benign_spike` (`rate`),
   `benign_jitter` (`high`, `low`), `benign_brief_spike` (`spike`, `at`, `dur`, `baseline`),
@@ -65,7 +66,9 @@ les cibles (sim / docker) l'instancient.
   `benign_settle` (`high`, `frozen`, `pre_ticks` : activité sous le seuil puis palier — gel
   légitime sans franchissement), `benign_noise` (`mean` : trafic licite bruité sous le seuil,
   indiscernable d'une attaque à distribution préservée), `benign_correlated` (`level` :
-  attack_rate et blocked_rate cohérents/corrélés — pas d'incohérence spatiale), ou `none`.
+  attack_rate et blocked_rate cohérents/corrélés — pas d'incohérence spatiale),
+  `benign_route_mute` (`pg_conns` : une alerte opérationnelle NON-sécurité, route-mutée
+  pendant une maintenance légitime — non délivrée mais pas une menace de sécurité), ou `none`.
 
 ## Règle de cotation (normative)
 

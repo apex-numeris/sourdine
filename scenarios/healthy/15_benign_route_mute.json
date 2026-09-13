@@ -1,0 +1,12 @@
+{
+  "id": "HLT-BENIGN-ROUTE-MUTE-15",
+  "kind": "healthy",
+  "vector": "none",
+  "title": "Mute de route légitime pendant une maintenance (piège à faux positif du blocage d'indicateur)",
+  "description": "Pendant une maintenance planifiée de la base, une alerte OPÉRATIONNELLE non liée à la sécurité — PostgreSQLHighConnections — est routée vers le récepteur trou-noir : sa notification n'est pas délivrée, ce qui est ici LÉGITIME (on ne veut pas être réveillé par une alerte de connexions élevées attendue pendant la maintenance). L'alerte est donc réellement `route_muted`, exactement comme dans le vecteur route_blackhole — mais ce n'est PAS une menace de sécurité. Le détecteur notification_blackhole ne doit PAS crier au masquage : son discriminant est la CLASSE de l'alerte (alerte de sécurité vs opérationnelle), pas la seule présence d'une route mutée. Vrai négatif, garde anti-faux-positif du vecteur route_blackhole : sans le garde de classe, un détecteur naïf flaguerait cette maintenance.",
+  "access_level": "n/a",
+  "ground_truth": {"alarm_expected": false, "expected_alert": null, "labels": {"job": "postgresql", "instance": "pg-1"}},
+  "event": {"make_fire": false},
+  "masking": {"type": "benign_route_mute", "params": {"pg_conns": 240.0}},
+  "tags": ["sain", "vrai-negatif", "mute-de-route-legitime", "maintenance", "anti-faux-positif"]
+}

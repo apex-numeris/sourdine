@@ -1,0 +1,1717 @@
+{
+  "sourdine_report_version": "1.0",
+  "bench_version": "0.8.0",
+  "generated_at": "2026-09-13T14:08:17Z",
+  "target_backend": "docker",
+  "detector": "baseline-heuristic-v1",
+  "note": "Le banc évalue une baseline, PAS le produit SentinelleIA. Aucun résultat n'est celui de SentinelleIA tant que le vrai détecteur n'est pas branché derrière la même interface.",
+  "aggregate": {
+    "n_scenarios": 35,
+    "n_attaques": 20,
+    "n_sains": 15,
+    "n_masquees": 17,
+    "taux_suppression_reussie": 0.85,
+    "taux_rattrapage": 0.7647058823529411,
+    "taux_faux_positifs": 0.13333333333333333,
+    "taux_suppression_residuelle": 0.2,
+    "controle_coherence": 1.0,
+    "par_niveau_acces": {
+      "exporter_host_or_network": {
+        "n_attaques": 5,
+        "taux_suppression_reussie": 1.0,
+        "taux_rattrapage": 0.6,
+        "taux_suppression_residuelle": 0.4
+      },
+      "metric_or_am_api": {
+        "n_attaques": 5,
+        "taux_suppression_reussie": 0.6,
+        "taux_rattrapage": 1.0,
+        "taux_suppression_residuelle": 0.0
+      },
+      "silence_or_routing_api": {
+        "n_attaques": 5,
+        "taux_suppression_reussie": 0.8,
+        "taux_rattrapage": 1.0,
+        "taux_suppression_residuelle": 0.0
+      },
+      "threshold_knowledge": {
+        "n_attaques": 5,
+        "taux_suppression_reussie": 1.0,
+        "taux_rattrapage": 0.6,
+        "taux_suppression_residuelle": 0.4
+      }
+    }
+  },
+  "scenarios": [
+    {
+      "id": "ATT-CONSTRAINED-REPLAY-19",
+      "kind": "attack",
+      "vector": "constrained_replay",
+      "access_level": "exporter_host_or_network",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": true,
+        "expected_alert": "HighAttackRate",
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": true,
+        "notified_alerts": [],
+        "fired_alerts": []
+      },
+      "detector_verdict": {
+        "masking_suspected": true,
+        "scope": "attack_rate<->blocked_rate",
+        "reason": "blocked_rate élevé (80) mais attack_rate bas (28) : incohérence spatiale — deux signaux corrélés divergent, le compteur d'attaques a été masqué (constrained replay).",
+        "heuristic": "spatial_incoherence"
+      },
+      "timestamp": "2026-09-13T13:49:55Z"
+    },
+    {
+      "id": "ATT-EXPORTER-CUTOFF-08",
+      "kind": "attack",
+      "vector": "exporter_cutoff",
+      "access_level": "exporter_host_or_network",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": true,
+        "expected_alert": "HighAttackRate",
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": true,
+        "notified_alerts": [
+          {
+            "name": "InstanceDown",
+            "labels": {
+              "instance": "fw-1",
+              "job": "firewall",
+              "service": "infrastructure",
+              "severity": "critical"
+            }
+          }
+        ],
+        "fired_alerts": [
+          {
+            "name": "InstanceDown",
+            "labels": {
+              "instance": "fw-1",
+              "job": "firewall",
+              "service": "infrastructure",
+              "severity": "critical"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          }
+        ]
+      },
+      "detector_verdict": {
+        "masking_suspected": true,
+        "scope": "up",
+        "reason": "Trou de collecte coïncidant avec une activité élevée juste avant.",
+        "heuristic": "exporter_cutoff"
+      },
+      "timestamp": "2026-09-13T13:50:21Z"
+    },
+    {
+      "id": "ATT-FALSE-RESOLVED-15",
+      "kind": "attack",
+      "vector": "false_resolved",
+      "access_level": "metric_or_am_api",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": true,
+        "expected_alert": "HighAttackRate",
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": true,
+        "masked": false,
+        "notified_alerts": [
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "fw-1",
+              "job": "firewall",
+              "service": "firewall",
+              "severity": "warning"
+            }
+          }
+        ],
+        "fired_alerts": [
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "fw-1",
+              "job": "firewall",
+              "service": "firewall",
+              "severity": "warning"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          }
+        ]
+      },
+      "detector_verdict": {
+        "masking_suspected": false,
+        "scope": null,
+        "reason": "Aucun motif de masquage détecté.",
+        "heuristic": null
+      },
+      "timestamp": "2026-09-13T13:50:49Z"
+    },
+    {
+      "id": "ATT-FALSE-RESOLVED-JAILBREAK-16",
+      "kind": "attack",
+      "vector": "false_resolved",
+      "access_level": "metric_or_am_api",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": true,
+        "expected_alert": "JailbreakSurge",
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": true,
+        "masked": false,
+        "notified_alerts": [
+          {
+            "name": "JailbreakSurge",
+            "labels": {
+              "instance": "fw-1",
+              "job": "firewall",
+              "service": "firewall",
+              "severity": "high"
+            }
+          }
+        ],
+        "fired_alerts": [
+          {
+            "name": "JailbreakSurge",
+            "labels": {
+              "instance": "fw-1",
+              "job": "firewall",
+              "service": "firewall",
+              "severity": "high"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          }
+        ]
+      },
+      "detector_verdict": {
+        "masking_suspected": false,
+        "scope": null,
+        "reason": "Aucun motif de masquage détecté.",
+        "heuristic": null
+      },
+      "timestamp": "2026-09-13T13:51:17Z"
+    },
+    {
+      "id": "ATT-FLAP-CATCHABLE-09",
+      "kind": "attack",
+      "vector": "threshold_flapping",
+      "access_level": "threshold_knowledge",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": true,
+        "expected_alert": "HighAttackRate",
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": true,
+        "notified_alerts": [],
+        "fired_alerts": []
+      },
+      "detector_verdict": {
+        "masking_suspected": true,
+        "scope": "attack_rate{job=firewall}",
+        "reason": "7 franchissements montants du seuil 50 sans alerte à taux : `for:` réinitialisé en boucle.",
+        "heuristic": "threshold_flapping"
+      },
+      "timestamp": "2026-09-13T13:52:11Z"
+    },
+    {
+      "id": "ATT-FLAP-JAILBREAK-14",
+      "kind": "attack",
+      "vector": "threshold_flapping",
+      "access_level": "threshold_knowledge",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": true,
+        "expected_alert": "JailbreakSurge",
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": true,
+        "notified_alerts": [],
+        "fired_alerts": []
+      },
+      "detector_verdict": {
+        "masking_suspected": true,
+        "scope": "jailbreak_rate{job=firewall}",
+        "reason": "7 franchissements montants du seuil 10 sans alerte à taux : `for:` réinitialisé en boucle.",
+        "heuristic": "threshold_flapping"
+      },
+      "timestamp": "2026-09-13T13:53:05Z"
+    },
+    {
+      "id": "ATT-FLAP-STEALTH-10",
+      "kind": "attack",
+      "vector": "threshold_flapping",
+      "access_level": "threshold_knowledge",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": true,
+        "expected_alert": "HighAttackRate",
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": true,
+        "notified_alerts": [],
+        "fired_alerts": []
+      },
+      "detector_verdict": {
+        "masking_suspected": false,
+        "scope": null,
+        "reason": "Aucun motif de masquage détecté.",
+        "heuristic": null
+      },
+      "timestamp": "2026-09-13T13:53:35Z"
+    },
+    {
+      "id": "ATT-FW-DOWN-SPOOF-01",
+      "kind": "attack",
+      "vector": "firewall_down_spoof",
+      "access_level": "metric_or_am_api",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": true,
+        "expected_alert": "HighAttackRate",
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": true,
+        "notified_alerts": [
+          {
+            "name": "FirewallDown",
+            "labels": {
+              "job": "firewall"
+            }
+          }
+        ],
+        "fired_alerts": [
+          {
+            "name": "FirewallDown",
+            "labels": {
+              "job": "firewall"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "fw-1",
+              "job": "firewall",
+              "service": "firewall",
+              "severity": "warning"
+            },
+            "inhibited_by": [
+              "FirewallDown"
+            ],
+            "silenced_by": [],
+            "route_muted": false
+          }
+        ]
+      },
+      "detector_verdict": {
+        "masking_suspected": true,
+        "scope": "job=firewall",
+        "reason": "Alerte source FirewallDown active et non corroborée (sa cible vivante HighAttackRate reste élevée) — inhibition suspecte.",
+        "heuristic": "inhibitor_isolation"
+      },
+      "timestamp": "2026-09-13T13:54:07Z"
+    },
+    {
+      "id": "ATT-GROUP-FLOOD-07",
+      "kind": "attack",
+      "vector": "grouping_repeat_abuse",
+      "access_level": "silence_or_routing_api",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": true,
+        "expected_alert": "HighAttackRate",
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": true,
+        "masked": false,
+        "notified_alerts": [
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-0",
+              "job": "firewall"
+            }
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-1",
+              "job": "firewall"
+            }
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-10",
+              "job": "firewall"
+            }
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-11",
+              "job": "firewall"
+            }
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-12",
+              "job": "firewall"
+            }
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-13",
+              "job": "firewall"
+            }
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-14",
+              "job": "firewall"
+            }
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-15",
+              "job": "firewall"
+            }
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-16",
+              "job": "firewall"
+            }
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-17",
+              "job": "firewall"
+            }
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-18",
+              "job": "firewall"
+            }
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-19",
+              "job": "firewall"
+            }
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-2",
+              "job": "firewall"
+            }
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-3",
+              "job": "firewall"
+            }
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-4",
+              "job": "firewall"
+            }
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-5",
+              "job": "firewall"
+            }
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-6",
+              "job": "firewall"
+            }
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-7",
+              "job": "firewall"
+            }
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-8",
+              "job": "firewall"
+            }
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-9",
+              "job": "firewall"
+            }
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "fw-1",
+              "job": "firewall",
+              "service": "firewall",
+              "severity": "warning"
+            }
+          }
+        ],
+        "fired_alerts": [
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-5",
+              "job": "firewall"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-15",
+              "job": "firewall"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-2",
+              "job": "firewall"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-7",
+              "job": "firewall"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-13",
+              "job": "firewall"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-11",
+              "job": "firewall"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-8",
+              "job": "firewall"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-10",
+              "job": "firewall"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-1",
+              "job": "firewall"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-0",
+              "job": "firewall"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-4",
+              "job": "firewall"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-18",
+              "job": "firewall"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-6",
+              "job": "firewall"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-12",
+              "job": "firewall"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-3",
+              "job": "firewall"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "fw-1",
+              "job": "firewall",
+              "service": "firewall",
+              "severity": "warning"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-17",
+              "job": "firewall"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-14",
+              "job": "firewall"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-16",
+              "job": "firewall"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-9",
+              "job": "firewall"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          },
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "flood-19",
+              "job": "firewall"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          }
+        ]
+      },
+      "detector_verdict": {
+        "masking_suspected": false,
+        "scope": null,
+        "reason": "Aucun motif de masquage détecté.",
+        "heuristic": null
+      },
+      "timestamp": "2026-09-13T13:54:27Z"
+    },
+    {
+      "id": "ATT-INSTANCE-DOWN-SPOOF-02",
+      "kind": "attack",
+      "vector": "instance_down_spoof",
+      "access_level": "metric_or_am_api",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": true,
+        "expected_alert": "HighAttackRate",
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": true,
+        "notified_alerts": [
+          {
+            "name": "InstanceDown",
+            "labels": {
+              "instance": "fw-1",
+              "job": "firewall"
+            }
+          }
+        ],
+        "fired_alerts": [
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "fw-1",
+              "job": "firewall",
+              "service": "firewall",
+              "severity": "warning"
+            },
+            "inhibited_by": [
+              "InstanceDown"
+            ],
+            "silenced_by": [],
+            "route_muted": false
+          },
+          {
+            "name": "InstanceDown",
+            "labels": {
+              "instance": "fw-1",
+              "job": "firewall"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          }
+        ]
+      },
+      "detector_verdict": {
+        "masking_suspected": true,
+        "scope": "instance=fw-1",
+        "reason": "Alerte source InstanceDown active et non corroborée (sa cible vivante HighAttackRate reste élevée) — inhibition suspecte.",
+        "heuristic": "inhibitor_isolation"
+      },
+      "timestamp": "2026-09-13T13:54:59Z"
+    },
+    {
+      "id": "ATT-LOW-SLOW-CATCHABLE-04",
+      "kind": "attack",
+      "vector": "low_and_slow",
+      "access_level": "threshold_knowledge",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": true,
+        "expected_alert": "HighAttackRate",
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": true,
+        "notified_alerts": [],
+        "fired_alerts": []
+      },
+      "detector_verdict": {
+        "masking_suspected": true,
+        "scope": "attack_rate{job=firewall}",
+        "reason": "Somme intégrée 600 > 540 sur 20 ticks sans alerte à taux.",
+        "heuristic": "low_and_slow"
+      },
+      "timestamp": "2026-09-13T13:55:51Z"
+    },
+    {
+      "id": "ATT-LOW-SLOW-STEALTH-05",
+      "kind": "attack",
+      "vector": "low_and_slow",
+      "access_level": "threshold_knowledge",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": true,
+        "expected_alert": "HighAttackRate",
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": true,
+        "notified_alerts": [],
+        "fired_alerts": []
+      },
+      "detector_verdict": {
+        "masking_suspected": false,
+        "scope": null,
+        "reason": "Aucun motif de masquage détecté.",
+        "heuristic": null
+      },
+      "timestamp": "2026-09-13T13:56:43Z"
+    },
+    {
+      "id": "ATT-PG-DOWN-SPOOF-03",
+      "kind": "attack",
+      "vector": "postgres_down_spoof",
+      "access_level": "metric_or_am_api",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": true,
+        "expected_alert": "PostgreSQLHighConnections",
+        "labels": {
+          "job": "postgresql",
+          "instance": "pg-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": true,
+        "notified_alerts": [
+          {
+            "name": "PostgreSQLDown",
+            "labels": {
+              "job": "postgresql"
+            }
+          }
+        ],
+        "fired_alerts": [
+          {
+            "name": "PostgreSQLDown",
+            "labels": {
+              "job": "postgresql"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          },
+          {
+            "name": "PostgreSQLHighConnections",
+            "labels": {
+              "instance": "pg-1",
+              "job": "postgresql",
+              "service": "postgresql",
+              "severity": "warning"
+            },
+            "inhibited_by": [
+              "PostgreSQLDown"
+            ],
+            "silenced_by": [],
+            "route_muted": false
+          }
+        ]
+      },
+      "detector_verdict": {
+        "masking_suspected": true,
+        "scope": "job=postgresql",
+        "reason": "Alerte source PostgreSQLDown active et non corroborée (sa cible vivante PostgreSQLHighConnections reste élevée) — inhibition suspecte.",
+        "heuristic": "inhibitor_isolation"
+      },
+      "timestamp": "2026-09-13T13:57:15Z"
+    },
+    {
+      "id": "ATT-ROUTE-BLACKHOLE-20",
+      "kind": "attack",
+      "vector": "route_blackhole",
+      "access_level": "silence_or_routing_api",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": true,
+        "expected_alert": "HighAttackRate",
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": true,
+        "notified_alerts": [],
+        "fired_alerts": [
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "fw-1",
+              "job": "firewall",
+              "service": "firewall",
+              "severity": "warning"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": true
+          }
+        ]
+      },
+      "detector_verdict": {
+        "masking_suspected": true,
+        "scope": "HighAttackRate{job=firewall}",
+        "reason": "Alerte de sécurité HighAttackRate active et menace soutenue (> 50) mais notification non délivrée (route mutée / récepteur trou-noir), sans silence ni inhibiteur : blocage d'indicateur au routage (T1562.006).",
+        "heuristic": "notification_blackhole"
+      },
+      "timestamp": "2026-09-13T13:57:39Z"
+    },
+    {
+      "id": "ATT-SIGNAL-BLACKOUT-12",
+      "kind": "attack",
+      "vector": "selective_metric_drop",
+      "access_level": "exporter_host_or_network",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": true,
+        "expected_alert": "HighAttackRate",
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": true,
+        "notified_alerts": [],
+        "fired_alerts": []
+      },
+      "detector_verdict": {
+        "masking_suspected": false,
+        "scope": null,
+        "reason": "Aucun motif de masquage détecté.",
+        "heuristic": null
+      },
+      "timestamp": "2026-09-13T13:58:03Z"
+    },
+    {
+      "id": "ATT-SILENCE-BROAD-06",
+      "kind": "attack",
+      "vector": "silence_abuse",
+      "access_level": "silence_or_routing_api",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": true,
+        "expected_alert": "CriticalAttacksDetected",
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": true,
+        "notified_alerts": [],
+        "fired_alerts": [
+          {
+            "name": "CriticalAttacksDetected",
+            "labels": {
+              "instance": "fw-1",
+              "job": "firewall",
+              "service": "firewall",
+              "severity": "critical"
+            },
+            "inhibited_by": [],
+            "silenced_by": [
+              "52899bca-bb61-4eaa-acb7-446ddbeb8dbb"
+            ],
+            "route_muted": false
+          }
+        ]
+      },
+      "detector_verdict": {
+        "masking_suspected": true,
+        "scope": "silence=52899bca-bb61-4eaa-acb7-446ddbeb8dbb",
+        "reason": "Silence sur-périmétré (pas de matcher alertname, ou instance large) : met en sourdine toute une classe d'alertes.",
+        "heuristic": "silence_abuse"
+      },
+      "timestamp": "2026-09-13T13:58:35Z"
+    },
+    {
+      "id": "ATT-SILENCE-REGEX-13",
+      "kind": "attack",
+      "vector": "silence_regex_alertname",
+      "access_level": "silence_or_routing_api",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": true,
+        "expected_alert": "CriticalAttacksDetected",
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": true,
+        "notified_alerts": [],
+        "fired_alerts": [
+          {
+            "name": "CriticalAttacksDetected",
+            "labels": {
+              "instance": "fw-1",
+              "job": "firewall",
+              "service": "firewall",
+              "severity": "critical"
+            },
+            "inhibited_by": [],
+            "silenced_by": [
+              "efa7f879-df86-42e9-bfdb-7d95b4306b54"
+            ],
+            "route_muted": false
+          }
+        ]
+      },
+      "detector_verdict": {
+        "masking_suspected": true,
+        "scope": "silence=efa7f879-df86-42e9-bfdb-7d95b4306b54",
+        "reason": "Silence sur-périmétré (pas de matcher alertname, ou instance large) : met en sourdine toute une classe d'alertes.",
+        "heuristic": "silence_abuse"
+      },
+      "timestamp": "2026-09-13T13:59:07Z"
+    },
+    {
+      "id": "ATT-SILENCE-SHARED-11",
+      "kind": "attack",
+      "vector": "silence_shared_label",
+      "access_level": "silence_or_routing_api",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": true,
+        "expected_alert": "CriticalAttacksDetected",
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": true,
+        "notified_alerts": [],
+        "fired_alerts": [
+          {
+            "name": "CriticalAttacksDetected",
+            "labels": {
+              "instance": "fw-1",
+              "job": "firewall",
+              "service": "firewall",
+              "severity": "critical"
+            },
+            "inhibited_by": [],
+            "silenced_by": [
+              "306931bf-62b1-45f4-bf2e-be749e39ebbe"
+            ],
+            "route_muted": false
+          }
+        ]
+      },
+      "detector_verdict": {
+        "masking_suspected": true,
+        "scope": "silence=306931bf-62b1-45f4-bf2e-be749e39ebbe",
+        "reason": "Silence sur-périmétré (pas de matcher alertname, ou instance large) : met en sourdine toute une classe d'alertes.",
+        "heuristic": "silence_abuse"
+      },
+      "timestamp": "2026-09-13T14:00:43Z"
+    },
+    {
+      "id": "ATT-STALE-REPLAY-17",
+      "kind": "attack",
+      "vector": "stale_replay",
+      "access_level": "exporter_host_or_network",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": true,
+        "expected_alert": "HighAttackRate",
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": true,
+        "notified_alerts": [],
+        "fired_alerts": []
+      },
+      "detector_verdict": {
+        "masking_suspected": true,
+        "scope": "attack_rate{job=firewall}",
+        "reason": "attack_rate a franchi le seuil 50 puis est FIGÉ à 20 (variance nulle >= 6 ticks) sans trou : rejeu/stale masquant l'attaque.",
+        "heuristic": "frozen_replay"
+      },
+      "timestamp": "2026-09-13T14:01:11Z"
+    },
+    {
+      "id": "ATT-STATISTICAL-REPLAY-18",
+      "kind": "attack",
+      "vector": "statistical_replay",
+      "access_level": "exporter_host_or_network",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": true,
+        "expected_alert": "HighAttackRate",
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": true,
+        "notified_alerts": [],
+        "fired_alerts": []
+      },
+      "detector_verdict": {
+        "masking_suspected": false,
+        "scope": null,
+        "reason": "Aucun motif de masquage détecté.",
+        "heuristic": null
+      },
+      "timestamp": "2026-09-13T14:01:43Z"
+    },
+    {
+      "id": "HLT-BENIGN-BRIEF-SPIKE-08",
+      "kind": "healthy",
+      "vector": "none",
+      "access_level": "n/a",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": false,
+        "expected_alert": null,
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": false,
+        "notified_alerts": [],
+        "fired_alerts": []
+      },
+      "detector_verdict": {
+        "masking_suspected": false,
+        "scope": null,
+        "reason": "Aucun motif de masquage détecté.",
+        "heuristic": null
+      },
+      "timestamp": "2026-09-13T14:02:05Z"
+    },
+    {
+      "id": "HLT-BENIGN-CORRELATED-14",
+      "kind": "healthy",
+      "vector": "none",
+      "access_level": "n/a",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": false,
+        "expected_alert": null,
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": false,
+        "notified_alerts": [],
+        "fired_alerts": []
+      },
+      "detector_verdict": {
+        "masking_suspected": false,
+        "scope": null,
+        "reason": "Aucun motif de masquage détecté.",
+        "heuristic": null
+      },
+      "timestamp": "2026-09-13T14:02:37Z"
+    },
+    {
+      "id": "HLT-BENIGN-JITTER-07",
+      "kind": "healthy",
+      "vector": "none",
+      "access_level": "n/a",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": false,
+        "expected_alert": null,
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": false,
+        "notified_alerts": [],
+        "fired_alerts": []
+      },
+      "detector_verdict": {
+        "masking_suspected": false,
+        "scope": null,
+        "reason": "Aucun motif de masquage détecté.",
+        "heuristic": null
+      },
+      "timestamp": "2026-09-13T14:02:57Z"
+    },
+    {
+      "id": "HLT-BENIGN-NOISE-13",
+      "kind": "healthy",
+      "vector": "none",
+      "access_level": "n/a",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": false,
+        "expected_alert": null,
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": false,
+        "notified_alerts": [],
+        "fired_alerts": []
+      },
+      "detector_verdict": {
+        "masking_suspected": false,
+        "scope": null,
+        "reason": "Aucun motif de masquage détecté.",
+        "heuristic": null
+      },
+      "timestamp": "2026-09-13T14:03:29Z"
+    },
+    {
+      "id": "HLT-BENIGN-RESTART-04",
+      "kind": "healthy",
+      "vector": "none",
+      "access_level": "n/a",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": false,
+        "expected_alert": null,
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": false,
+        "notified_alerts": [
+          {
+            "name": "InstanceDown",
+            "labels": {
+              "instance": "fw-1",
+              "job": "firewall",
+              "service": "infrastructure",
+              "severity": "critical"
+            }
+          }
+        ],
+        "fired_alerts": [
+          {
+            "name": "InstanceDown",
+            "labels": {
+              "instance": "fw-1",
+              "job": "firewall",
+              "service": "infrastructure",
+              "severity": "critical"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          }
+        ]
+      },
+      "detector_verdict": {
+        "masking_suspected": false,
+        "scope": null,
+        "reason": "Aucun motif de masquage détecté.",
+        "heuristic": null
+      },
+      "timestamp": "2026-09-13T14:03:49Z"
+    },
+    {
+      "id": "HLT-BENIGN-ROUTE-MUTE-15",
+      "kind": "healthy",
+      "vector": "none",
+      "access_level": "n/a",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": false,
+        "expected_alert": null,
+        "labels": {
+          "job": "postgresql",
+          "instance": "pg-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": false,
+        "notified_alerts": [],
+        "fired_alerts": [
+          {
+            "name": "PostgreSQLHighConnections",
+            "labels": {
+              "instance": "pg-1",
+              "job": "postgresql",
+              "service": "postgresql",
+              "severity": "warning"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": true
+          }
+        ]
+      },
+      "detector_verdict": {
+        "masking_suspected": false,
+        "scope": null,
+        "reason": "Aucun motif de masquage détecté.",
+        "heuristic": null
+      },
+      "timestamp": "2026-09-13T14:04:13Z"
+    },
+    {
+      "id": "HLT-BENIGN-SETTLE-12",
+      "kind": "healthy",
+      "vector": "none",
+      "access_level": "n/a",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": false,
+        "expected_alert": null,
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": false,
+        "notified_alerts": [],
+        "fired_alerts": []
+      },
+      "detector_verdict": {
+        "masking_suspected": false,
+        "scope": null,
+        "reason": "Aucun motif de masquage détecté.",
+        "heuristic": null
+      },
+      "timestamp": "2026-09-13T14:04:41Z"
+    },
+    {
+      "id": "HLT-BENIGN-SIGNAL-GAP-10",
+      "kind": "healthy",
+      "vector": "none",
+      "access_level": "n/a",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": false,
+        "expected_alert": null,
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": false,
+        "notified_alerts": [],
+        "fired_alerts": []
+      },
+      "detector_verdict": {
+        "masking_suspected": false,
+        "scope": null,
+        "reason": "Aucun motif de masquage détecté.",
+        "heuristic": null
+      },
+      "timestamp": "2026-09-13T14:05:05Z"
+    },
+    {
+      "id": "HLT-BENIGN-SILENCE-03",
+      "kind": "healthy",
+      "vector": "none",
+      "access_level": "n/a",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": false,
+        "expected_alert": null,
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": false,
+        "notified_alerts": [],
+        "fired_alerts": []
+      },
+      "detector_verdict": {
+        "masking_suspected": true,
+        "scope": "silence=d657642d-fee5-4615-8c10-c0cc299d5d70",
+        "reason": "Silence étroit posé pendant une montée d'activité.",
+        "heuristic": "silence_abuse"
+      },
+      "timestamp": "2026-09-13T14:05:25Z"
+    },
+    {
+      "id": "HLT-BENIGN-SILENCE-NARROW-06",
+      "kind": "healthy",
+      "vector": "none",
+      "access_level": "n/a",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": false,
+        "expected_alert": null,
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": false,
+        "notified_alerts": [],
+        "fired_alerts": []
+      },
+      "detector_verdict": {
+        "masking_suspected": false,
+        "scope": null,
+        "reason": "Aucun motif de masquage détecté.",
+        "heuristic": null
+      },
+      "timestamp": "2026-09-13T14:05:45Z"
+    },
+    {
+      "id": "HLT-BENIGN-SPIKE-05",
+      "kind": "healthy",
+      "vector": "none",
+      "access_level": "n/a",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": false,
+        "expected_alert": null,
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": false,
+        "notified_alerts": [],
+        "fired_alerts": []
+      },
+      "detector_verdict": {
+        "masking_suspected": true,
+        "scope": "attack_rate{job=firewall}",
+        "reason": "Somme intégrée 600 > 540 sur 20 ticks sans alerte à taux.",
+        "heuristic": "low_and_slow"
+      },
+      "timestamp": "2026-09-13T14:06:37Z"
+    },
+    {
+      "id": "HLT-COHERENCE-CRITICAL-01",
+      "kind": "healthy",
+      "vector": "none",
+      "access_level": "n/a",
+      "coherence_control": true,
+      "ground_truth": {
+        "alarm_expected": true,
+        "expected_alert": "CriticalAttacksDetected",
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": true,
+        "masked": false,
+        "notified_alerts": [
+          {
+            "name": "CriticalAttacksDetected",
+            "labels": {
+              "instance": "fw-1",
+              "job": "firewall",
+              "service": "firewall",
+              "severity": "critical"
+            }
+          }
+        ],
+        "fired_alerts": [
+          {
+            "name": "CriticalAttacksDetected",
+            "labels": {
+              "instance": "fw-1",
+              "job": "firewall",
+              "service": "firewall",
+              "severity": "critical"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          }
+        ]
+      },
+      "detector_verdict": {
+        "masking_suspected": false,
+        "scope": null,
+        "reason": "Aucun motif de masquage détecté.",
+        "heuristic": null
+      },
+      "timestamp": "2026-09-13T14:06:58Z"
+    },
+    {
+      "id": "HLT-COHERENCE-JAILBREAK-09",
+      "kind": "healthy",
+      "vector": "none",
+      "access_level": "n/a",
+      "coherence_control": true,
+      "ground_truth": {
+        "alarm_expected": true,
+        "expected_alert": "JailbreakSurge",
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": true,
+        "masked": false,
+        "notified_alerts": [
+          {
+            "name": "JailbreakSurge",
+            "labels": {
+              "instance": "fw-1",
+              "job": "firewall",
+              "service": "firewall",
+              "severity": "high"
+            }
+          }
+        ],
+        "fired_alerts": [
+          {
+            "name": "JailbreakSurge",
+            "labels": {
+              "instance": "fw-1",
+              "job": "firewall",
+              "service": "firewall",
+              "severity": "high"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          }
+        ]
+      },
+      "detector_verdict": {
+        "masking_suspected": false,
+        "scope": null,
+        "reason": "Aucun motif de masquage détecté.",
+        "heuristic": null
+      },
+      "timestamp": "2026-09-13T14:07:18Z"
+    },
+    {
+      "id": "HLT-COHERENCE-RATE-02",
+      "kind": "healthy",
+      "vector": "none",
+      "access_level": "n/a",
+      "coherence_control": true,
+      "ground_truth": {
+        "alarm_expected": true,
+        "expected_alert": "HighAttackRate",
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": true,
+        "masked": false,
+        "notified_alerts": [
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "fw-1",
+              "job": "firewall",
+              "service": "firewall",
+              "severity": "warning"
+            }
+          }
+        ],
+        "fired_alerts": [
+          {
+            "name": "HighAttackRate",
+            "labels": {
+              "instance": "fw-1",
+              "job": "firewall",
+              "service": "firewall",
+              "severity": "warning"
+            },
+            "inhibited_by": [],
+            "silenced_by": [],
+            "route_muted": false
+          }
+        ]
+      },
+      "detector_verdict": {
+        "masking_suspected": false,
+        "scope": null,
+        "reason": "Aucun motif de masquage détecté.",
+        "heuristic": null
+      },
+      "timestamp": "2026-09-13T14:07:38Z"
+    },
+    {
+      "id": "HLT-LEGIT-RESOLVE-11",
+      "kind": "healthy",
+      "vector": "none",
+      "access_level": "n/a",
+      "coherence_control": false,
+      "ground_truth": {
+        "alarm_expected": false,
+        "expected_alert": null,
+        "labels": {
+          "job": "firewall",
+          "instance": "fw-1"
+        }
+      },
+      "raw_result": {
+        "alarm_raised": false,
+        "masked": false,
+        "notified_alerts": [],
+        "fired_alerts": []
+      },
+      "detector_verdict": {
+        "masking_suspected": false,
+        "scope": null,
+        "reason": "Aucun motif de masquage détecté.",
+        "heuristic": null
+      },
+      "timestamp": "2026-09-13T14:08:14Z"
+    }
+  ]
+}

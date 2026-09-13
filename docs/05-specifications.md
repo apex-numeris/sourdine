@@ -41,7 +41,8 @@ Un fichier = un scénario, sous `scenarios/attacks/` ou `scenarios/healthy/`.
 | `stale_replay` | l'attaque figée à un palier après un franchissement (rejeu/gel, ACSAC 2022) | `exporter_host_or_network` | `stale_replay` / `{pre_ticks, spike, frozen}` |
 | `statistical_replay` | l'attaque diluée en bruit réaliste sous le seuil (distribution-preserving, ACSAC 2022) — **résiduel** | `exporter_host_or_network` | `statistical_replay` / `{mean}` |
 | `constrained_replay` | l'attaque masquée sur attack_rate mais pas sur blocked_rate (ACSAC 2022) — **détectable (spatial)** | `exporter_host_or_network` | `constrained_replay` / `{attack, blocked}` |
-| `none` (sains) | — | `n/a` | `none` \| `benign_silence` \| `benign_exporter_restart` \| `benign_spike` \| `benign_jitter` \| `benign_brief_spike` \| `benign_signal_gap` \| `benign_resolve` \| `benign_settle` \| `benign_noise` \| `benign_correlated` |
+| `route_blackhole` | l'alerte de sécurité active mais reroutée vers un récepteur trou-noir, notification avalée (MITRE T1562.006) — **détectable (blocage d'indicateur)** | `silence_or_routing_api` | `route_blackhole` / `{rate}` |
+| `none` (sains) | — | `n/a` | `none` \| `benign_silence` \| `benign_exporter_restart` \| `benign_spike` \| `benign_jitter` \| `benign_brief_spike` \| `benign_signal_gap` \| `benign_resolve` \| `benign_settle` \| `benign_noise` \| `benign_correlated` \| `benign_route_mute` |
 
 Niveaux d'accès : `metric_or_am_api`, `threshold_knowledge`, `silence_or_routing_api`,
 `exporter_host_or_network`, `n/a`.

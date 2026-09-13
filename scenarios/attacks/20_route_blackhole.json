@@ -1,0 +1,12 @@
+{
+  "id": "ATT-ROUTE-BLACKHOLE-20",
+  "kind": "attack",
+  "vector": "route_blackhole",
+  "title": "Blocage d'indicateur au routage : alerte de sécurité reroutée vers un récepteur trou-noir",
+  "description": "L'attaquant, avec un accès à la configuration de routage d'Alertmanager, ajoute une route qui envoie la classe d'alertes du firewall vers un récepteur « trou noir » (sans destination de notification) — ou mute la route. L'attaque de taux est réelle et soutenue : HighAttackRate FIRE et reste active dans Alertmanager, mais sa notification n'atteint JAMAIS le récepteur. C'est un 4e levier de suppression, distinct de l'inhibition, du silence et du groupement (aucun silence, aucune source inhibitrice) : le chien aboie, mais quelqu'un a débranché le fil avant le récepteur (MITRE T1562.006 Indicator Blocking — « stopper le processus qui transmet la télémétrie / router hors de l'agrégateur »). Comme une alerte à taux EST active, low_and_slow, phantom_clear et le flapping s'abstiennent : seule une corrélation métrique ↔ livraison (notification_blackhole) rattrape le masquage. Déterministe dans les deux backends : le routage ne dépend pas d'une fenêtre temporelle.",
+  "access_level": "silence_or_routing_api",
+  "ground_truth": {"alarm_expected": true, "expected_alert": "HighAttackRate", "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": false, "severity": "warning"},
+  "masking": {"type": "route_blackhole", "params": {"rate": 120.0}},
+  "tags": ["indicator-blocking", "T1562.006", "routage", "recepteur-trou-noir", "chien-fil-debranche", "notification"]
+}

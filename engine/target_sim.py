@@ -23,6 +23,7 @@ from engine.types import (
     VEC_SILENCE_REGEX_ALERTNAME, VEC_GROUPING_REPEAT_ABUSE, VEC_EXPORTER_CUTOFF,
     VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING, VEC_FALSE_RESOLVED,
     VEC_STALE_REPLAY, VEC_STATISTICAL_REPLAY, VEC_CONSTRAINED_REPLAY,
+    VEC_ROUTE_BLACKHOLE,
 )
 
 H = model.HORIZON
@@ -310,6 +311,24 @@ class SimTarget(Target):
             metrics[model.series_key("blocked_rate", lset)] = _const(blocked_hi)
             trace.add(0, "constrained_replay_injected", attack=attack_lo, blocked=blocked_hi)
 
+        elif v == VEC_ROUTE_BLACKHOLE:
+            # MITRE T1562.006 Indicator Blocking. L'alerte de sécurité FIRE (menace
+            # réelle : le signal reste soutenu au-dessus du seuil), mais l'attaquant,
+            # avec un accès au routage d'Alertmanager, a reroutré sa classe d'alertes
+            # vers un récepteur « trou noir » (ou muté la route) : la notification n'atteint
+            # JAMAIS le récepteur, SANS silence ni inhibiteur pour l'expliquer. C'est le
+            # 4e levier de suppression (ni inhibition, ni silence, ni groupement) : on
+            # marque l'alerte `route_muted` -> son `notified` est faux -> masquée. low_and_slow,
+            # phantom_clear et flapping s'abstiennent (une alerte à taux EST active) : seul
+            # `notification_blackhole` la rattrape (corrélation métrique <-> livraison).
+            lset = labels or {"job": job, "instance": instance}
+            high = float(params.get("rate", (expected_thr or model.ATTACK_RATE_THRESHOLD) + 70.0))
+            if expected_signal:
+                metrics[model.series_key(expected_signal, lset)] = _const(high)
+            alerts.append(Alert(name=gt.expected_alert or "HighAttackRate",
+                                labels=lset, route_muted=True))
+            trace.add(2, "route_blackholed", alert=gt.expected_alert, receiver="blackhole")
+
         elif v == "none":
             # scénario sain : action bénigne éventuelle (ressemble de loin à un vecteur)
             bk = sc.masking.get("type") if sc.masking else None
@@ -418,6 +437,19 @@ class SimTarget(Target):
                     [max(0.0, lvl + _NOISE[t % len(_NOISE)]) for t in range(H)]
                 metrics[model.series_key("blocked_rate", {"job": job, "instance": instance})] = _const(lvl)
                 trace.add(1, "licit_correlated", level=lvl)
+            elif bk == "benign_route_mute":
+                # maintenance légitime : une alerte NON-sécurité (PostgreSQLHighConnections)
+                # est routée vers le trou noir pendant une fenêtre de maintenance planifiée
+                # de la base. Réellement non délivrée (route_muted) MAIS ce n'est pas une
+                # menace de sécurité -> notification_blackhole ne doit PAS crier (garde de
+                # classe sécurité). Vrai négatif de route_blackhole : sans le garde de
+                # classe, un détecteur naïf flaguerait cette maintenance -> faux positif.
+                pg = float(params.get("pg_conns", model.PG_CONN_THRESHOLD + 60.0))
+                metrics[model.series_key("pg_conns", {"job": "postgresql", "instance": instance})] = _const(pg)
+                alerts.append(Alert(name="PostgreSQLHighConnections",
+                                    labels={"job": "postgresql", "instance": instance},
+                                    route_muted=True))
+                trace.add(2, "route_blackholed", alert="PostgreSQLHighConnections", legit_maintenance=True)
 
         # --- 3) inhibiteurs qui firent RÉELLEMENT (ex. coupure -> InstanceDown)
         up_key = model.series_key("up", {"instance": instance, "job": job})
@@ -452,7 +484,7 @@ class SimTarget(Target):
             notified_alerts=[{"name": a.name, "labels": a.labels} for a in notified],
             fired_alerts=[{"name": a.name, "labels": a.labels,
                            "inhibited_by": a.inhibited_by, "silenced_by": a.silenced_by,
-                           "delayed": a.delayed} for a in alerts],
+                           "delayed": a.delayed, "route_muted": a.route_muted} for a in alerts],
         )
         state = SupervisionState(alerts=alerts, silences=silences, metric_history=metrics, horizon=H)
         return raw, state, trace

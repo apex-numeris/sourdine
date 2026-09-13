@@ -34,7 +34,14 @@ from engine.types import (
     VEC_SILENCE_REGEX_ALERTNAME, VEC_GROUPING_REPEAT_ABUSE, VEC_EXPORTER_CUTOFF,
     VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING, VEC_FALSE_RESOLVED,
     VEC_STALE_REPLAY, VEC_STATISTICAL_REPLAY, VEC_CONSTRAINED_REPLAY,
+    VEC_ROUTE_BLACKHOLE,
 )
+
+# Label de routage qui envoie une alerte vers le récepteur « trou noir » (route baked
+# dans alertmanager.yml). Représente la route qu'un attaquant avec accès au routage
+# ajoute pour avaler une classe d'alertes (T1562.006). Le détecteur ne lit pas ce label
+# mais `Alert.route_muted`, que `_snapshot` en dérive (résolution de la route observée).
+_BLACKHOLE_LABEL = ("route_target", "blackhole")
 
 # Déviations déterministes (bruit réaliste) pour les signaux à distribution préservée
 # (statistical_replay, benign_noise) — posées point par point sur l'exporter.
@@ -382,6 +389,20 @@ class DockerTarget(Target):
                 time.sleep(STEP)
             settle = STEP * 2
             trace.add(0, "constrained_replay_injected")
+        elif v == VEC_ROUTE_BLACKHOLE:
+            # T1562.006 Indicator Blocking. L'alerte de sécurité fire (menace réelle,
+            # signal soutenu au-dessus du seuil) mais l'attaquant a reroutré sa classe
+            # d'alertes vers un récepteur « trou noir » : le firing porte le label de
+            # routage `route_target=blackhole` -> AM l'envoie au receiver `blackhole`
+            # (sans webhook), la notification n'atteint JAMAIS le sink -> masquée, SANS
+            # silence ni inhibiteur. Déterministe : le routage ne dépend pas du timing (le
+            # récepteur trou-noir est baked dans alertmanager.yml, actif dès le démarrage).
+            sig = expected_signal or "attack_rate"
+            lset = dict(labels or {"job": job, "instance": instance})
+            lset[_BLACKHOLE_LABEL[0]] = _BLACKHOLE_LABEL[1]
+            self._set_metric(sig, lset, expected_thr + max(70.0, expected_thr))
+            settle = STEP * 8          # laisser l'alerte firer (for: 6s) et rester active
+            trace.add(2, "route_blackholed", alert=gt.expected_alert, receiver="blackhole")
         elif v == "none":
             bk = sc.masking.get("type") if sc.masking else None
             if bk == "benign_silence":
@@ -457,6 +478,16 @@ class DockerTarget(Target):
                                      max(0.0, lvl + dev))
                     time.sleep(STEP)
                 settle = STEP * 2
+            elif bk == "benign_route_mute":
+                # maintenance legitime : PostgreSQLHighConnections (NON-securite) routee vers
+                # le trou noir pendant une maintenance de la base. Reellement non delivree
+                # mais pas une menace de securite -> notification_blackhole doit rester muet
+                # (garde de classe securite). Vrai negatif de route_blackhole.
+                self._set_metric("pg_conns",
+                                 {"job": "postgresql", "instance": instance,
+                                  _BLACKHOLE_LABEL[0]: _BLACKHOLE_LABEL[1]},
+                                 float(params.get("pg_conns", model.PG_CONN_THRESHOLD + 60.0)))
+                settle = STEP * 8
 
         time.sleep(settle)
 
@@ -469,7 +500,8 @@ class DockerTarget(Target):
                                for n in notified)
         raw = RawResult(alarm_raised=alarm_raised, notified_alerts=notified,
                         fired_alerts=[{"name": a.name, "labels": a.labels,
-                                       "inhibited_by": a.inhibited_by, "silenced_by": a.silenced_by}
+                                       "inhibited_by": a.inhibited_by, "silenced_by": a.silenced_by,
+                                       "route_muted": a.route_muted}
                                       for a in state.alerts])
         return raw, state, trace
 
@@ -491,11 +523,17 @@ class DockerTarget(Target):
         for a in amalerts:
             lbls = dict(a.get("labels", {}))
             name = lbls.pop("alertname", "")
+            # route_muted : l'alerte porte le label de routage qui l'envoie au récepteur
+            # trou-noir -> sa notification est avalée (résolution de la route observée, ce
+            # qu'une plateforme d'observabilité lit dans la config AM). On retire le label
+            # des labels rapportés pour rester aligné avec la cible sim.
+            route_muted = lbls.pop(_BLACKHOLE_LABEL[0], None) == _BLACKHOLE_LABEL[1]
             st = a.get("status", {})
             alerts.append(Alert(
                 name=name, labels=lbls,
                 inhibited_by=[fp_to_name.get(fp, fp) for fp in st.get("inhibitedBy", [])],
                 silenced_by=list(st.get("silencedBy", [])),
+                route_muted=route_muted,
             ))
         # silences
         silences: list[Silence] = []

@@ -34,6 +34,7 @@ VEC_FALSE_RESOLVED = "false_resolved"
 VEC_STALE_REPLAY = "stale_replay"
 VEC_STATISTICAL_REPLAY = "statistical_replay"
 VEC_CONSTRAINED_REPLAY = "constrained_replay"
+VEC_ROUTE_BLACKHOLE = "route_blackhole"
 VEC_NONE = "none"
 
 ATTACK_VECTORS = {
@@ -42,6 +43,7 @@ ATTACK_VECTORS = {
     VEC_SILENCE_REGEX_ALERTNAME, VEC_GROUPING_REPEAT_ABUSE, VEC_EXPORTER_CUTOFF,
     VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING, VEC_FALSE_RESOLVED,
     VEC_STALE_REPLAY, VEC_STATISTICAL_REPLAY, VEC_CONSTRAINED_REPLAY,
+    VEC_ROUTE_BLACKHOLE,
 }
 
 
@@ -80,10 +82,14 @@ class Alert:
     inhibited_by: list[str] = field(default_factory=list)   # noms des alertes source inhibitrices
     silenced_by: list[str] = field(default_factory=list)    # ids de silence
     delayed: bool = False                                    # noyée par le groupement / repeat_interval
+    route_muted: bool = False                                # notification avalée au routage (récepteur
+                                                             # trou-noir / mute de route) — 4e levier de
+                                                             # suppression, distinct d'inhibition/silence/groupement
 
     @property
     def notified(self) -> bool:
-        return not self.inhibited_by and not self.silenced_by and not self.delayed
+        return (not self.inhibited_by and not self.silenced_by
+                and not self.delayed and not self.route_muted)
 
     def matches(self, name: str, labels: dict[str, str]) -> bool:
         if self.name != name:

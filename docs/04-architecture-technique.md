@@ -20,7 +20,7 @@
 | `target_base.py` | Interface `Target` (setup / execute / teardown) |
 | `target_sim.py` | Cible **sim** : interprète l'intention du scénario → état final déterministe |
 | `target_docker.py` | Cible **docker** : pilote de vrais Prometheus/Alertmanager via leurs API |
-| `detector.py` | Interface `MaskingDetector` + `BaselineDetector` (4 heuristiques) |
+| `detector.py` | Interface `MaskingDetector` + `BaselineDetector` (10 heuristiques, une par famille de vecteurs) |
 | `runner.py` | Moteur deux passes (`run_campaign`) |
 | `metrics.py` | Calcul des 4 taux + cohérence + ventilation par accès |
 | `report.py` | Rapport JSON versionné + résumé lisible |
@@ -184,6 +184,12 @@ liste complète des alertes en [doc 05](05-specifications.md).
    non garanti** : la métrique figée à un palier bas empêche l'alerte de firer partout
    (masquage déterministe), mais le RATTRAPAGE par `frozen_replay` suppose que le pic de
    franchissement bref a été scrapé (visibilité timing-dépendante) → classé TIMING_SENSITIVE.
+6. **Route black-hole (`route_blackhole`, MITRE T1562.006) — AUCUN écart** : le firing porte un
+   label de routage qui l'envoie au récepteur trou-noir (baked dans `alertmanager.yml`, actif dès
+   le démarrage), donc la notification est avalée **quel que soit le timing**. Masqué ET rattrapé
+   (`notification_blackhole`) de façon déterministe dans les deux backends → classé STRONG_MASK,
+   pas TIMING_SENSITIVE. Mentionné ici pour l'exhaustivité : contrairement aux cinq précédents,
+   sim et docker concordent.
 
 Ces écarts sont **réels** et précieux : ils ne sont visibles qu'en exécutant la
 vraie cible, et justifient l'existence du backend docker à côté de la sim.

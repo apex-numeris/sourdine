@@ -13,12 +13,25 @@ route:
   group_interval: 5s
   repeat_interval: 1h
   receiver: sourdine-sink
+  routes:
+    # Route "trou noir" : toute alerte portant le label route_target="blackhole" est
+    # envoyée au récepteur `blackhole` (sans destination) -> sa notification est AVALÉE.
+    # Reproduit la manœuvre d'un attaquant avec accès au routage (T1562.006 Indicator
+    # Blocking) qui reroute une classe d'alertes hors du récepteur légitime. Inerte pour
+    # tout autre scénario : seules les alertes portant ce label la matchent.
+    - matchers: ['route_target="blackhole"']
+      receiver: blackhole
+      continue: false
 
 receivers:
   - name: sourdine-sink
     webhook_configs:
       - url: http://sourdine-sink:9099/
         send_resolved: false
+  # Récepteur « trou noir » : aucune destination de notification. Une alerte routée ici
+  # est active dans Alertmanager mais n'est jamais notifiée (le fil est débranché avant
+  # le récepteur) — ni silence, ni inhibition. Support du vecteur route_blackhole.
+  - name: blackhole
 
 inhibit_rules:
   - source_matchers: ['alertname="InstanceDown"']

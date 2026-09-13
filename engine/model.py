@@ -68,6 +68,12 @@ ALERT_RULES: dict[str, dict] = {
 # Alertes « source inhibitrice » : leur seule présence masque d'autres alertes.
 INHIBITOR_SOURCES = {"InstanceDown", "FirewallDown", "PostgreSQLDown"}
 
+# Alertes de SÉCURITÉ (menace côté firewall) : leur non-livraison alors que la
+# menace est réelle est un blocage d'indicateur (T1562.006), là où la non-livraison
+# d'une alerte opérationnelle (ex. PostgreSQLHighConnections) peut être une
+# maintenance légitime. Discriminant du détecteur `notification_blackhole`.
+SECURITY_RATE_ALERTS = {"HighAttackRate", "CriticalAttacksDetected", "JailbreakSurge"}
+
 # Règles d'inhibition (source masque les cibles si les labels `equal` coïncident).
 INHIBIT_RULES: list[dict] = [
     {"source": "InstanceDown",   "target_re": r".+",                                              "equal": ["instance"]},

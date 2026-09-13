@@ -339,9 +339,44 @@ class BaselineDetector(MaskingDetector):
                                    f"divergent, le compteur d'attaques a été masqué (constrained replay)."))
         return None
 
+    def _h_notification_blackhole(self, state) -> Optional[Verdict]:
+        """Blocage d'indicateur au ROUTAGE (MITRE T1562.006 Indicator Blocking). Une
+        alerte de sécurité est ACTIVE (la menace est réelle : son signal reste soutenu
+        au-dessus du seuil, l'alerte à taux a donc dû firer), mais sa notification n'a
+        JAMAIS atteint le récepteur — reroutée vers un récepteur « trou noir » ou mutée
+        au niveau de la route (`route_muted`) — SANS silence ni inhibiteur pour
+        l'expliquer. C'est un 4e levier de suppression, distinct de l'inhibition, du
+        silence et du groupement : l'alerte aboie, mais quelqu'un a débranché le fil
+        avant le récepteur. La détection est une corrélation métrique <-> livraison,
+        comme recommandé pour T1562.006 (« détecter l'absence de report d'un capteur
+        alors que l'activité est réelle »). Le discriminant est la CLASSE de l'alerte :
+        la non-livraison d'une alerte opérationnelle (ex. PostgreSQLHighConnections
+        pendant une maintenance) peut être légitime ; celle d'une alerte de sécurité
+        pendant une menace soutenue ne l'est pas."""
+        for a in state.alerts:
+            if a.name not in model.SECURITY_RATE_ALERTS:
+                continue                      # discriminant : seule une alerte de sécurité compte
+            if not a.route_muted or a.silenced_by or a.inhibited_by:
+                continue                      # silence/inhibition -> qualifiés par leurs heuristiques
+            signal = model.ALERT_RULES.get(a.name, {}).get("signal")
+            thr = model.ALERT_RULES.get(a.name, {}).get("threshold", 0.0)
+            if not signal:
+                continue
+            # corroboration : la menace est RÉELLE et SOUTENUE (l'alerte aurait dû notifier).
+            for _lbls, series in self._series(state, signal):
+                if self._sustained_above(series[-_RECENT:], thr):
+                    return Verdict(True, scope=f"{a.name}{{job={a.labels.get('job')}}}",
+                                   heuristic="notification_blackhole",
+                                   reason=(f"Alerte de sécurité {a.name} active et menace soutenue "
+                                           f"(> {thr:.0f}) mais notification non délivrée (route mutée / "
+                                           f"récepteur trou-noir), sans silence ni inhibiteur : blocage "
+                                           f"d'indicateur au routage (T1562.006)."))
+        return None
+
     # -- interface ------------------------------------------------------------
     def detect(self, state: SupervisionState, trace: Trace) -> Verdict:
-        for h in (self._h_inhibitor_isolation, self._h_flapping, self._h_phantom_clear,
+        for h in (self._h_inhibitor_isolation, self._h_notification_blackhole,
+                  self._h_flapping, self._h_phantom_clear,
                   self._h_low_and_slow, self._h_silence_abuse, self._h_signal_blackout,
                   self._h_exporter_cutoff, self._h_frozen_replay, self._h_spatial_incoherence):
             verdict = h(state)

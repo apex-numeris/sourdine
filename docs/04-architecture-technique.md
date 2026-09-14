@@ -20,7 +20,7 @@
 | `target_base.py` | Interface `Target` (setup / execute / teardown) |
 | `target_sim.py` | Cible **sim** : interprète l'intention du scénario → état final déterministe |
 | `target_docker.py` | Cible **docker** : pilote de vrais Prometheus/Alertmanager via leurs API |
-| `detector.py` | Interface `MaskingDetector` + `BaselineDetector` (14 heuristiques, une par famille de vecteurs) |
+| `detector.py` | Interface `MaskingDetector` + `BaselineDetector` (15 heuristiques, une par famille de vecteurs) |
 | `runner.py` | Moteur deux passes (`run_campaign`) |
 | `metrics.py` | Calcul des 4 taux + cohérence + ventilation par accès |
 | `report.py` | Rapport JSON versionné + résumé lisible |
@@ -217,6 +217,17 @@ liste complète des alertes en [doc 05](05-specifications.md).
     (`guard_down_under_threat`) dans les deux backends → STRONG_MASK. Le pendant sain
     (`benign_guard_maintenance`) porte une panne **identique en tout point**, sans menace : il reste non
     signalé, et c'est ce qui prouve que le discriminant est la **concomitance**, pas la panne.
+
+11. **Périmètre d'inhibition élargi (`inhibition_scope_creep`, MITRE T1562.001) — AUCUN écart** :
+    la règle privée de son `equal` est baked dans `alertmanager.yml` et reste **inerte** tant
+    qu'aucune `InstanceDown` sur l'instance leurre n'existe. Le vrai Alertmanager applique alors
+    l'inhibition **globalement**, conformément à l'avertissement de sa propre documentation
+    (« if all label names listed in `equal` are missing from both the source and target alerts,
+    the inhibition rule will apply! ») : c'est le comportement RÉEL du produit, pas une
+    convention du banc. Masquage préventif (panne du leurre établie et confirmée avant le fire)
+    → masqué ET rattrapé (`inhibition_scope_creep`) dans les deux backends → STRONG_MASK. Le
+    pendant sain (`benign_scoped_inhibition`) porte une inhibition **parfaitement bornée** et
+    reste non signalé : il ne se distingue de l'attaque QUE par le périmètre.
 
 Ces écarts sont **réels** et précieux : ils ne sont visibles qu'en exécutant la
 vraie cible, et justifient l'existence du backend docker à côté de la sim.

@@ -24,7 +24,7 @@ from engine.types import (
     VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING, VEC_FALSE_RESOLVED,
     VEC_STALE_REPLAY, VEC_STATISTICAL_REPLAY, VEC_CONSTRAINED_REPLAY,
     VEC_ROUTE_BLACKHOLE, VEC_WATCHDOG_SUPPRESSION, VEC_CARDINALITY_FLOOD,
-    VEC_ROGUE_INHIBITOR, VEC_GUARD_OUTAGE_COVER,
+    VEC_ROGUE_INHIBITOR, VEC_GUARD_OUTAGE_COVER, VEC_INHIBITION_SCOPE_CREEP,
 )
 
 H = model.HORIZON
@@ -411,6 +411,32 @@ class SimTarget(Target):
             trace.add(outage_at, "guard_disabled", signal="fw_up", job=job)
             trace.add(attack_from, "attack_started_under_cover", rate=rate)
 
+        elif v == VEC_INHIBITION_SCOPE_CREEP:
+            # T1562.001 — élargissement du PÉRIMÈTRE d'une règle sanctionnée. L'attaquant
+            # retire les labels `equal` de la règle InstanceDown, puis fait tomber POUR DE
+            # BON une instance de recette anodine (stg-9). L'alerte source est réelle,
+            # corroborée et sanctionnée ; la règle n'étant plus bornée, elle inhibe la classe
+            # sécurité de fw-1, avec laquelle elle n'a aucun rapport. Comme au round
+            # précédent, l'attaque ne démarre qu'APRÈS la panne : la fenêtre qu'inspecte
+            # `exporter_cutoff` juste avant le trou reste vide.
+            decoy_i = params.get("decoy_instance", "stg-9")
+            decoy_j = params.get("decoy_job", "staging")
+            outage_at = int(params.get("outage_at", 4))
+            attack_from = int(params.get("attack_from", 10))
+            rate = float(params.get("rate", (expected_thr or model.ATTACK_RATE_THRESHOLD) + 70.0))
+            up_decoy = _const(UP)
+            for t in range(max(0, outage_at), H):
+                up_decoy[t] = DOWN        # panne RÉELLE de l'instance anodine -> corroborée
+            metrics[model.series_key("up", {"instance": decoy_i, "job": decoy_j})] = up_decoy
+            alerts.append(Alert(name="InstanceDown", labels={"instance": decoy_i, "job": decoy_j}))
+            if expected_signal:
+                ar: list[Optional[float]] = _const(0.0)
+                for t in range(max(0, attack_from), H):
+                    ar[t] = rate
+                metrics[model.series_key(expected_signal, labels or {"job": job, "instance": instance})] = ar
+            trace.add(outage_at, "decoy_instance_down", instance=decoy_i, job=decoy_j)
+            trace.add(attack_from, "attack_started_under_cover", rate=rate)
+
         elif v == "none":
             # scénario sain : action bénigne éventuelle (ressemble de loin à un vecteur)
             bk = sc.masking.get("type") if sc.masking else None
@@ -586,6 +612,25 @@ class SimTarget(Target):
                 metrics[model.series_key("fw_up", {"job": job})] = fw
                 alerts.append(Alert(name="FirewallDown", labels={"job": job}))
                 trace.add(outage_at, "guard_maintenance", planned=True)
+            elif bk == "benign_scoped_inhibition":
+                # inhibition NOMINALE, correctement bornée : pg-1 tombe réellement et son
+                # InstanceDown (ajoutée à l'étape 3) inhibe PostgreSQLHighConnections sur
+                # CETTE MÊME instance — label `equal` = instance, pg-1 des deux côtés. C'est
+                # le mécanisme normal de réduction de bruit. `inhibition_scope_creep` ne doit
+                # PAS crier : son discriminant est le FRANCHISSEMENT d'une frontière de
+                # labels, jamais l'inhibition ; `inhibitor_isolation` non plus (corroborée).
+                # Vrai négatif : sans ce garde, toute inhibition légitime serait un FP et
+                # l'heuristique serait désactivée dès la première semaine.
+                outage_at = int(params.get("outage_at", 4))
+                pg = float(params.get("pg_conns", model.PG_CONN_THRESHOLD + 60.0))
+                up_pg = _const(UP)
+                for t in range(max(0, outage_at), H):
+                    up_pg[t] = DOWN
+                metrics[model.series_key("up", {"instance": instance, "job": job})] = up_pg
+                metrics[model.series_key("pg_conns", {"job": job, "instance": instance})] = _const(pg)
+                alerts.append(Alert(name="PostgreSQLHighConnections",
+                                    labels={"job": job, "instance": instance}))
+                trace.add(outage_at, "scoped_inhibition", source="InstanceDown", instance=instance)
 
         # --- 3) inhibiteurs qui firent RÉELLEMENT (ex. coupure -> InstanceDown)
         up_key = model.series_key("up", {"instance": instance, "job": job})
@@ -611,6 +656,12 @@ class SimTarget(Target):
         # ici car apply_inhibitions n'emploie que les règles sanctionnées de la baseline.
         if v == VEC_ROGUE_INHIBITOR and expected_alert_obj is not None:
             expected_alert_obj.inhibited_by.append("RogueMuter")
+        # inhibition dont le PÉRIMÈTRE a été élargi (labels `equal` retirés) : appliquée ici
+        # car `apply_inhibitions` respecte `equal` et ne franchirait JAMAIS cette frontière.
+        # C'est exactement ce que produit un Alertmanager dont la règle a perdu son `equal`.
+        if v == VEC_INHIBITION_SCOPE_CREEP and expected_alert_obj is not None:
+            expected_alert_obj.inhibited_by.append(
+                f"InstanceDown[instance={params.get('decoy_instance', 'stg-9')}]")
 
         notified = [a for a in alerts if a.notified]
 

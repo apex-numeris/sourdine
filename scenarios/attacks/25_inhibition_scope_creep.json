@@ -1,0 +1,12 @@
+{
+  "id": "ATT-INHIBITION-SCOPE-CREEP-25",
+  "kind": "attack",
+  "vector": "inhibition_scope_creep",
+  "title": "Périmètre d'inhibition élargi : une panne anodine ailleurs étouffe la classe sécurité",
+  "description": "L'attaquant n'ajoute pas de règle et n'en falsifie aucune source : il ÉLARGIT le périmètre d'une règle d'inhibition SANCTIONNÉE en lui retirant ses labels `equal`. La documentation officielle d'Alertmanager porte l'avertissement exact : « If all label names listed in `equal` are missing from both the source and target alerts, the inhibition rule will apply! » — sans `equal`, une seule alerte source étouffe toute la classe cible, PARTOUT (tickets upstream prometheus/alertmanager #507 et #1727). Il fait alors tomber une instance de recette parfaitement anodine (`stg-9`, job `staging`) : l'`InstanceDown` qui en résulte est RÉELLE, CORROBORÉE et SANCTIONNÉE — et, la règle n'étant plus bornée, elle inhibe `HighAttackRate` sur `fw-1`, une instance avec laquelle elle n'a aucun rapport. Les quatre heuristiques d'inhibition s'abstiennent par construction : `inhibitor_isolation` exige la NON-corroboration (la panne de stg-9 est vraie), `rogue_inhibitor` une source NON sanctionnée (`InstanceDown` l'est), `guard_down_under_threat` une panne du GARDE (la source n'est pas `FirewallDown`), et les heuristiques métriques s'abstiennent dès qu'une alerte à taux est présente — elle l'est, inhibée. L'ordre panne-puis-attaque vide enfin la fenêtre d'activité qu'inspecte `exporter_cutoff`. Seul `inhibition_scope_creep` la rattrape : l'inhibition a FRANCHI une frontière de labels qu'elle n'avait pas le droit de franchir.",
+  "access_level": "silence_or_routing_api",
+  "ground_truth": {"alarm_expected": true, "expected_alert": "HighAttackRate", "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": true, "severity": "warning"},
+  "masking": {"type": "inhibition_scope_creep", "params": {"decoy_instance": "stg-9", "decoy_job": "staging", "outage_at": 4, "attack_from": 10, "rate": 120}},
+  "tags": ["scope-creep", "T1562.001", "equal-labels-retires", "over-inhibition", "suppression-globale"]
+}

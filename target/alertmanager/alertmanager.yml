@@ -57,3 +57,14 @@ inhibit_rules:
   - source_matchers: ['alertname="DBMaintenance"']
     target_matchers: ['alertname=~"PostgreSQL.*"']
     equal: ['job']
+  # Regle d'inhibition dont le PERIMETRE a ete elargi : le champ `equal` a ete RETIRE
+  # (support du vecteur inhibition_scope_creep, MITRE T1562.001). La doc officielle
+  # d'Alertmanager previent explicitement : « If all label names listed in `equal` are
+  # missing from both the source and target alerts, the inhibition rule will apply! » —
+  # sans `equal`, une SEULE alerte source etouffe toute la classe cible, PARTOUT, quels que
+  # soient ses labels (tickets upstream #507 et #1727). Ici la source est une InstanceDown
+  # sur une instance de recette anodine (stg-9) sans aucun rapport avec le firewall, et elle
+  # suffit a etouffer la classe securite de fw-1. INERTE pour tout autre scenario : aucun
+  # autre ne fait tomber stg-9.
+  - source_matchers: ['alertname="InstanceDown"', 'instance="stg-9"']
+    target_matchers: ['alertname=~"HighAttackRate|CriticalAttacksDetected|JailbreakSurge"']

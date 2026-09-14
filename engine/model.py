@@ -125,6 +125,14 @@ INHIBIT_RULES: list[dict] = [
 # corrélation côté détecteur).
 INHIBITOR_TARGET_RE = {r["source"]: re.compile(r["target_re"]) for r in INHIBIT_RULES}
 
+# Labels `equal` SANCTIONNÉS de chaque règle : le périmètre dans lequel une source a le
+# droit d'inhiber. DÉRIVÉ de INHIBIT_RULES (jamais recopié) — la baseline reste l'unique
+# endroit où le périmètre est déclaré. La doc Alertmanager prévient que si les labels
+# `equal` sont absents des DEUX alertes, la règle s'applique quand même : retirer `equal`
+# transforme donc une inhibition ciblée en suppression GLOBALE, ce qu'exploite le vecteur
+# `inhibition_scope_creep` (MITRE T1562.001, élargissement de périmètre).
+INHIBITOR_EQUAL = {r["source"]: tuple(r["equal"]) for r in INHIBIT_RULES}
+
 
 def series_key(signal: str, labels: dict[str, str]) -> str:
     inner = ",".join(f"{k}={labels[k]}" for k in sorted(labels))

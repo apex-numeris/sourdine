@@ -35,7 +35,7 @@ from engine.types import (
     VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING, VEC_FALSE_RESOLVED,
     VEC_STALE_REPLAY, VEC_STATISTICAL_REPLAY, VEC_CONSTRAINED_REPLAY,
     VEC_ROUTE_BLACKHOLE, VEC_WATCHDOG_SUPPRESSION, VEC_CARDINALITY_FLOOD,
-    VEC_ROGUE_INHIBITOR, VEC_GUARD_OUTAGE_COVER,
+    VEC_ROGUE_INHIBITOR, VEC_GUARD_OUTAGE_COVER, VEC_INHIBITION_SCOPE_CREEP,
 )
 
 # Label de routage qui envoie une alerte vers le récepteur « trou noir » (route baked
@@ -202,7 +202,8 @@ class DockerTarget(Target):
     # -- exécution (retry déterministe pour les masquages préventifs) ----------
     _PREVENTIVE = (VEC_FIREWALL_DOWN_SPOOF, VEC_INSTANCE_DOWN_SPOOF, VEC_POSTGRES_DOWN_SPOOF,
                    VEC_SILENCE_ABUSE, VEC_SILENCE_SHARED_LABEL, VEC_SILENCE_REGEX_ALERTNAME,
-                   VEC_ROGUE_INHIBITOR, VEC_GUARD_OUTAGE_COVER)
+                   VEC_ROGUE_INHIBITOR, VEC_GUARD_OUTAGE_COVER,
+                   VEC_INHIBITION_SCOPE_CREEP)
 
     def execute(self, sc: Scenario) -> tuple[RawResult, SupervisionState, Trace]:
         # Un masquage préventif (inhibition/silence) DOIT masquer (vecteur STRONG). Une
@@ -302,6 +303,18 @@ class DockerTarget(Target):
             self._set_metric("fw_up", {"job": job}, 0.0)
             self._await_alert_active("FirewallDown", timeout=25.0)
             trace.add(0, "guard_disabled", signal="fw_up", job=job)
+        elif v == VEC_INHIBITION_SCOPE_CREEP:
+            # T1562.001 : la regle d'inhibition dont `equal` a ete RETIRE est baked dans
+            # alertmanager.yml, et reste INERTE tant qu'aucune InstanceDown sur stg-9
+            # n'existe. On fait tomber POUR DE BON l'instance de recette anodine
+            # (inst_up{stg-9}=0) : la vraie regle InstanceDown fire d'elle-meme, source
+            # reelle et sanctionnee — et la regle non bornee etouffe alors la classe
+            # securite de fw-1, sans aucun rapport. Preventif : l'inhibition doit etre
+            # active avant que la cible fire.
+            self._set_metric("inst_up", {"job": params.get("decoy_job", "staging"),
+                                         "instance": params.get("decoy_instance", "stg-9")}, 0.0)
+            self._await_alert_active("InstanceDown", timeout=25.0)
+            trace.add(0, "decoy_instance_down", instance=params.get("decoy_instance", "stg-9"))
 
         if preventive:
             # stabilisation ample (> 2× group_interval de 5 s) : laisse AM indexer le
@@ -453,6 +466,10 @@ class DockerTarget(Target):
             # corroboration qu'exige `guard_down_under_threat`, sans laquelle le rattrapage
             # serait impossible alors même que le masquage a réussi.
             settle = STEP * 8
+        elif v == VEC_INHIBITION_SCOPE_CREEP:
+            # meme raison qu'au vecteur precedent : la menace doit etre SOUTENUE au-dessus du
+            # seuil dans la fenetre recente pour que le rattrapage soit possible.
+            settle = STEP * 8
         elif v == "none":
             bk = sc.masking.get("type") if sc.masking else None
             if bk == "benign_silence":
@@ -575,6 +592,15 @@ class DockerTarget(Target):
                 # `exporter_cutoff` aussi (aucune activité avant le trou). Vrai négatif :
                 # sans ce garde, toute maintenance de firewall serait criée comme masquage.
                 self._set_metric("fw_up", {"job": job}, 0.0)
+                settle = STEP * 8
+            elif bk == "benign_scoped_inhibition":
+                # inhibition NOMINALE bornee : pg-1 tombe reellement (inst_up=0 -> InstanceDown)
+                # et inhibe PostgreSQLHighConnections sur la MEME instance (equal: instance,
+                # pg-1 des deux cotes). Aucune frontiere franchie -> inhibition_scope_creep
+                # doit rester muet, inhibitor_isolation aussi (panne corroboree). Vrai negatif.
+                self._set_metric("inst_up", {"job": job, "instance": instance}, 0.0)
+                self._set_metric("pg_conns", {"job": job, "instance": instance},
+                                 float(params.get("pg_conns", model.PG_CONN_THRESHOLD + 60.0)))
                 settle = STEP * 8
 
         time.sleep(settle)

@@ -41,7 +41,7 @@ from engine.detector import BaselineDetector  # noqa: E402
 from engine.scenarios import load_scenarios    # noqa: E402
 from run_campaign import build_report          # noqa: E402
 
-SAMPLE_DOCKER = os.path.join(_ROOT, "samples", "example-0.12.0-docker.json")
+SAMPLE_DOCKER = os.path.join(_ROOT, "samples", "example-0.13.0-docker.json")
 SCENARIOS = os.path.join(_ROOT, "scenarios")
 
 BASELINE_NAME = BaselineDetector.name
@@ -53,6 +53,7 @@ STRONG_MASK_VECTORS = {
     "exporter_cutoff", "silence_abuse", "silence_shared_label",
     "silence_regex_alertname", "route_blackhole", "watchdog_suppression",
     "cardinality_flood", "rogue_inhibitor", "guard_outage_cover",
+    "inhibition_scope_creep",
 }
 # Vecteurs dont le RATTRAPAGE ou même le MASQUAGE peut varier ou différer en docker —
 # fenêtre longue, ou écart de fidélité sim/docker. `selective_metric_drop` : un vrai
@@ -82,9 +83,9 @@ def invariant_problems(report: dict) -> list[str]:
         p.append(f"target_backend = {report.get('target_backend')!r}, attendu 'docker'")
     if report.get("detector") != BASELINE_NAME:
         p.append(f"detector = {report.get('detector')!r}, attendu {BASELINE_NAME!r}")
-    if (agg.get("n_scenarios"), agg.get("n_attaques"), agg.get("n_sains")) != (43, 24, 19):
+    if (agg.get("n_scenarios"), agg.get("n_attaques"), agg.get("n_sains")) != (45, 25, 20):
         p.append(f"comptes = {agg.get('n_scenarios')}/{agg.get('n_attaques')}/{agg.get('n_sains')}, "
-                 f"attendu 43/24/19")
+                 f"attendu 45/25/20")
     if agg.get("controle_coherence") != 1.0:
         p.append(f"controle_coherence = {agg.get('controle_coherence')}, attendu 1.0 (cible cassée ?)")
 
@@ -139,7 +140,7 @@ class DockerCheckLogic(unittest.TestCase):
 
     def test_frozen_sample_wellformed(self) -> None:
         a = self.sample["aggregate"]
-        self.assertEqual((a["n_scenarios"], a["n_attaques"], a["n_sains"]), (43, 24, 19))
+        self.assertEqual((a["n_scenarios"], a["n_attaques"], a["n_sains"]), (45, 25, 20))
         self.assertEqual(self.sample["target_backend"], "docker")
 
     # -- preuve par mutation : les contrôles doivent SAVOIR échouer -----------

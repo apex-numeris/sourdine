@@ -1,0 +1,12 @@
+{
+  "id": "HLT-BENIGN-SCOPED-INHIBITION-20",
+  "kind": "healthy",
+  "vector": "none",
+  "title": "Inhibition correctement bornée par ses labels `equal` (piège à faux positif du scope creep)",
+  "description": "Une instance de base de données tombe réellement (`pg-1`) : l'`InstanceDown` qui en résulte inhibe `PostgreSQLHighConnections` sur CETTE MÊME instance. C'est le fonctionnement nominal et souhaitable de l'inhibition — inutile de réveiller quelqu'un pour des connexions élevées sur une instance qu'on sait tombée. La source est sanctionnée, corroborée, et surtout elle s'accorde avec sa cible sur le label `equal` de la règle (`instance` : pg-1 des deux côtés) : l'inhibition reste DANS son périmètre. C'est exactement le discriminant de `inhibition_scope_creep`, qui ne doit PAS crier ici : ce n'est pas l'inhibition qui est suspecte, c'est le FRANCHISSEMENT d'une frontière de labels. Sans ce garde, toute inhibition légitime — le mécanisme même que la supervision utilise en permanence pour réduire le bruit — serait signalée comme masquage, et l'heuristique serait désactivée dès la première semaine d'exploitation. `inhibitor_isolation` doit rester muet aussi (panne corroborée) et `exporter_cutoff` également (aucune activité d'attaque avant le trou). Vrai négatif.",
+  "access_level": "n/a",
+  "ground_truth": {"alarm_expected": false, "expected_alert": null, "labels": {"job": "postgresql", "instance": "pg-1"}},
+  "event": {"make_fire": false},
+  "masking": {"type": "benign_scoped_inhibition", "params": {"outage_at": 4, "pg_conns": 240}},
+  "tags": ["sain", "vrai-negatif", "inhibition-bornee", "equal-respecte", "anti-faux-positif"]
+}

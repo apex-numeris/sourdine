@@ -488,10 +488,65 @@ class BaselineDetector(MaskingDetector):
                                                f"sanctionnée sert de couverture (T1562.001)."))
         return None
 
+    def _h_inhibition_scope_creep(self, state) -> Optional[Verdict]:
+        """Inhibition DÉBORDANT de son périmètre (MITRE T1562.001 — élargissement de la
+        config d'alerte). L'attaquant ne falsifie aucune source et n'ajoute aucune règle :
+        il RETIRE les labels `equal` d'une règle sanctionnée. La documentation d'Alertmanager
+        prévient explicitement que la règle s'applique alors quels que soient les labels —
+        une seule alerte source suffit à étouffer toute la classe cible, PARTOUT. Il fait
+        ensuite tomber pour de bon une instance anodine : la source est RÉELLE, CORROBORÉE
+        et SANCTIONNÉE, et pourtant elle inhibe une alerte de sécurité qui n'a aucun rapport
+        avec elle.
+
+        Les trois autres heuristiques d'inhibition s'abstiennent par construction :
+        `inhibitor_isolation` exige la NON-corroboration, `rogue_inhibitor` une source non
+        sanctionnée, `guard_down_under_threat` une panne du garde lui-même. Le tell n'est
+        donc ni le mensonge, ni l'illégitimité, ni la nature de la panne : c'est le
+        FRANCHISSEMENT d'une frontière de labels. On vérifie que toute inhibition observée
+        est couverte par une source ACTIVE qui s'accorde avec sa cible sur les labels
+        `equal` de la règle sanctionnée ; sinon le périmètre a été élargi.
+
+        Le discriminant est le franchissement SEUL — délibérément pas la classe de l'alerte,
+        contrairement à `notification_blackhole` et `rogue_inhibitor`. Une inhibition qui
+        déborde de son périmètre est une dérive de configuration quelle que soit sa cible,
+        et c'est ce qui rend le garde vérifiable : le pendant sain (une inhibition
+        parfaitement bornée) ne s'en distingue QUE par le périmètre. On exige en revanche
+        que l'alerte étouffée fût réellement justifiée — son propre signal au-dessus de son
+        seuil — pour ne crier que lorsqu'une alarme méritée a bien été supprimée. Une
+        inhibition correctement bornée est le mécanisme NORMAL de réduction de bruit : la
+        signaler rendrait l'heuristique inutilisable dès la première semaine d'exploitation."""
+        for tgt in state.alerts:
+            if model.ALERT_RULES.get(tgt.name, {}).get("type") != "threshold":
+                continue                  # seules les alertes à seuil ont une menace mesurable
+            for ib in tgt.inhibited_by:
+                src_name = next((s for s in model.INHIBITOR_SOURCES if ib.startswith(s)), None)
+                if src_name is None:
+                    continue              # source non sanctionnée -> rogue_inhibitor qualifie
+                equal = model.INHIBITOR_EQUAL.get(src_name, ())
+                if not equal:
+                    continue
+                in_scope = any(
+                    a.name == src_name
+                    and all(a.labels.get(l) == tgt.labels.get(l) for l in equal)
+                    for a in state.alerts)
+                if in_scope:
+                    continue              # inhibition DANS son périmètre : légitime
+                signal = model.ALERT_RULES.get(tgt.name, {}).get("signal")
+                thr = model.ALERT_RULES.get(tgt.name, {}).get("threshold", 0.0)
+                if signal and self._recent_max(state, signal) > thr:
+                    return Verdict(True, scope=f"{src_name}->{tgt.name}",
+                                   heuristic="inhibition_scope_creep",
+                                   reason=(f"{tgt.name} est inhibée par {src_name}, mais aucune "
+                                           f"source {src_name} active ne s'accorde avec elle sur "
+                                           f"{'/'.join(equal)} : l'inhibition a franchi son périmètre "
+                                           f"sanctionné (labels `equal` retirés -> suppression "
+                                           f"globale, T1562.001) alors que la menace est réelle."))
+        return None
+
     # -- interface ------------------------------------------------------------
     def detect(self, state: SupervisionState, trace: Trace) -> Verdict:
         for h in (self._h_inhibitor_isolation, self._h_rogue_inhibitor,
-                  self._h_guard_down_under_threat,
+                  self._h_guard_down_under_threat, self._h_inhibition_scope_creep,
                   self._h_notification_blackhole,
                   self._h_flapping, self._h_phantom_clear,
                   self._h_low_and_slow, self._h_silence_abuse, self._h_signal_blackout,

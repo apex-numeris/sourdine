@@ -132,6 +132,7 @@ les taux par niveau d'accès — c'est ce qui rend le banc défendable).
 | Bombe de cardinalité (DoS d'ingestion, MITRE Impair Defenses) | flot de séries à haute cardinalité → `sample_limit` dépassé → scrape rejeté (`up`=0), vrai signal jamais ingéré ; le pic de `scrape_samples` la trahit | ingestion métrique |
 | Règle d'inhibition rogue (MITRE T1562.001) | l'attaquant ajoute une règle d'inhibition à source NON sanctionnée qui étouffe la classe sécurité ; dérive de config vs baseline | API / config de routage Alertmanager |
 | Panne induite du garde (MITRE T1562.001) | l'attaquant coupe **réellement** le firewall puis attaque : l'inhibition **sanctionnée** `FirewallDown → classe sécurité` étouffe l'alerte en fonctionnant exactement comme prévu | hôte du firewall / réseau |
+| Périmètre d'inhibition élargi (MITRE T1562.001) | les labels `equal` d'une règle sanctionnée sont retirés : une panne **réelle** sur une instance anodine étouffe alors la classe sécurité d'une autre instance | API / config de routage Alertmanager |
 | **Sains** (obligatoires) | — | mesurent faux positifs + cohérence |
 
 Les **sains** incluent un cas grave sans attaque (l'alarme doit sortir) et des
@@ -160,6 +161,7 @@ l'absence anormale de signal est elle-même le signal.* Une heuristique par fami
 - **Bombe de cardinalité** (`cardinality_flood`) : le nombre d'échantillons du scrape (`scrape_samples`) **explose** au-delà de `CARDINALITY_FLOOD_THRESHOLD`. Un attaquant qui injecte un flot de séries à haute cardinalité fait dépasser le `sample_limit` de Prometheus, qui **rejette le scrape entier** — `up` passe à 0 « comme si la cible était tombée » et le vrai signal n'est jamais ingéré. La fausse panne est **indiscernable** d'une vraie coupure pour les heuristiques d'absence ; c'est le **pic de `scrape_samples`**, bien au-delà de toute croissance légitime (un déploiement n'ajoute que quelques dizaines de séries), qui distingue la bombe d'ingestion — DoS de la supervision à des fins d'évasion (MITRE Impair Defenses / T1499). Alerte standard : `prometheus_target_scrapes_exceeded_sample_limit_total`.
 - **Règle d'inhibition rogue** (`rogue_inhibitor`) : une alerte de **sécurité** est inhibée par une source d'inhibition qui n'appartient **pas** à l'ensemble sanctionné de la baseline (`INHIBITOR_SOURCES`). L'attaquant a ajouté une règle d'inhibition dont la source est une alerte bénigne qu'il contrôle, pour étouffer la classe sécurité (MITRE T1562.001 Disable or Modify Tools — altération de la config d'alerte). C'est **distinct des spoofs** (qui falsifient une source *sanctionnée* et sont rattrapés par non-corroboration) : ici la source est *illégitime*, donc l'heuristique d'inhibition — qui ne regarde que les sources sanctionnées — ne l'examine même pas. Détection par **dérive de config**. Le discriminant combine **source non sanctionnée ET cible de sécurité** : une source non sanctionnée qui inhibe une alerte *opérationnelle* (ex. maintenance DB) reste légitime.
 - **Panne induite du garde** (`guard_down_under_threat`) : une source d'inhibition **sanctionnée et corroborée** — `FirewallDown` avec `fw_up` réellement à 0 — inhibe une alerte de **sécurité** alors que la menace est **réelle et soutenue** au-dessus du seuil *pendant la panne*. L'attaquant ne falsifie rien : il **désactive vraiment** le contrôle de sécurité, puis attaque, et la règle de réduction de bruit (« ne pas crier au débordement quand le firewall est tombé ») devient sa couverture. C'est le complément exact de l'**inhibition isolée**, sur le même motif de corroboration lu à l'envers : là-bas la source ment (panne non corroborée = spoof), ici elle dit vrai — et c'est précisément ce qui la rend invisible à la corroboration. C'est le motif documenté des *EDR killers* (MITRE T1562.001 : désactiver le contrôle, puis opérer dans l'angle mort). Le **discriminant est la concomitance**, pas la panne : une maintenance de firewall est une opération banale — sans ce garde, chacune deviendrait un faux positif.
+- **Périmètre d'inhibition élargi** (`inhibition_scope_creep`) : une alerte justifiée (son propre signal au-dessus de son seuil) est inhibée par une source **sanctionnée**, mais **aucune source active de ce nom ne s'accorde avec elle sur les labels `equal`** de la règle — l'inhibition a franchi une frontière qu'elle n'avait pas le droit de franchir. La documentation d'Alertmanager prévient que si les labels `equal` sont absents des deux alertes, *la règle s'applique quand même* : les retirer transforme une inhibition ciblée en **suppression globale**, et une panne réelle sur une instance anodine suffit alors à étouffer la classe sécurité d'une autre. C'est la quatrième heuristique de la famille inhibition, et la seule dont le tell n'est ni le mensonge de la source (`inhibitor_isolation`), ni son illégitimité (`rogue_inhibitor`), ni la nature de la panne (`guard_down_under_threat`), mais le **périmètre**. Discriminant délibérément indépendant de la classe de l'alerte : le pendant sain — une inhibition parfaitement bornée, mécanisme normal de réduction de bruit — ne s'en distingue QUE par là.
 
 Ces heuristiques sont **volontairement imparfaites** pour que les faux positifs
 et la suppression résiduelle soient non nuls et crédibles. Le **full statistical concealment**
@@ -189,8 +191,8 @@ scripts/target_down.sh        # le runner détruit déjà la cible ; ceci force 
 
 Le rapport JSON est écrit sous `reports/` (+ `reports/latest.json`, runtime,
 git-ignoré) et un résumé lisible s'affiche. Des exemples d'exécution sont
-versionnés (citables) : `samples/example-0.12.0.json` (dernier) et ses
-prédécesseurs (`example-0.{1..11}.0.json`), conservés comme historique.
+versionnés (citables) : `samples/example-0.13.0.json` (dernier) et ses
+prédécesseurs (`example-0.{1..12}.0.json`), conservés comme historique.
 
 > **sim vs docker** — la cible **sim** est la **référence déterministe** (taux
 > reproductibles). La cible **docker** apporte la fidélité des vrais
@@ -199,7 +201,7 @@ prédécesseurs (`example-0.{1..11}.0.json`), conservés comme historique.
 > décantation et sont moins déterministes. Le **détecteur est identique** dans les
 > deux cas.
 >
-> **Constats de fidélité (run docker v0.12.0)** — surfacés en exécutant la vraie
+> **Constats de fidélité (run docker v0.13.0)** — surfacés en exécutant la vraie
 > cible : (1) le vrai Alertmanager **refuse** un silence dont un matcher matche la
 > chaîne vide (`instance=~.*`, garde-fou « tout silencer ») — le vecteur utilise
 > donc `~.+` ; (2) contre un `group_wait` court, la **noyade par groupement** ne
@@ -238,9 +240,16 @@ prédécesseurs (`example-0.{1..11}.0.json`), conservés comme historique.
 > ce qui en fait un trou réel plutôt qu'un artifice de banc. Masquage préventif (panne établie et
 > confirmée active avant le fire) → **déterministe dans les deux backends**, **rattrapé par
 > `guard_down_under_threat`** — masqueur fort (STRONG), aucun écart de fidélité.
-> Bilan docker : **87,5 / 81,0 / 10,5 / 16,7 / 100 %** (suppression / rattrapage / FP /
-> résiduel / cohérence) vs sim **100 / 83,3 / 10,5 / 16,7 / 100 %**. Exemple :
-> `samples/example-0.12.0-docker.json`. Le **flapping** (dont sur `jailbreak_rate`)
+> Le **périmètre d'inhibition élargi** (`inhibition_scope_creep`, MITRE T1562.001) s'appuie sur une
+> règle privée de son `equal`, **bakée** dans `alertmanager.yml` et **inerte** tant que l'instance
+> leurre ne tombe pas. Le vrai Alertmanager applique alors l'inhibition **globalement**, conformément
+> à l'avertissement de sa propre documentation (« if all label names listed in `equal` are missing
+> from both the source and target alerts, the inhibition rule will apply! ») : c'est le comportement
+> **réel du produit**, pas une convention du banc. Masquage préventif → **déterministe dans les deux
+> backends**, **rattrapé par `inhibition_scope_creep`** — masqueur fort (STRONG), aucun écart de fidélité.
+> Bilan docker : **88,0 / 81,8 / 10,0 / 16,0 / 100 %** (suppression / rattrapage / FP /
+> résiduel / cohérence) vs sim **100 / 84,0 / 10,0 / 16,0 / 100 %**. Exemple :
+> `samples/example-0.13.0-docker.json`. Le **flapping** (dont sur `jailbreak_rate`)
 > se comporte comme en sim.
 >
 > **Robustesse des masquages préventifs (durcissement v0.4.0).** L'inhibition (spoofs)
@@ -257,7 +266,7 @@ prédécesseurs (`example-0.{1..11}.0.json`), conservés comme historique.
 
 Le run **sim** est déterministe : il sert de garde-fou de non-régression.
 `tests/test_sim_regression.py` rejoue une campagne sim et la compare à
-l'échantillon gelé `samples/example-0.12.0.json` (agrégat **et** chaque scénario ;
+l'échantillon gelé `samples/example-0.13.0.json` (agrégat **et** chaque scénario ;
 les horodatages sont ignorés). Stdlib `unittest`, aucune dépendance tierce.
 
 ```bash
@@ -268,7 +277,7 @@ Le backend **docker** est non déterministe (temps réel) : `tests/test_docker_r
 ne fait donc **pas** d'égalité stricte mais vérifie des **invariants** (cohérence à
 100 %, masqueurs déterministes toujours masqués + rattrapés, contrôles de cohérence
 jamais signalés) et des garde-fous **directionnels à tolérance** autour de
-`samples/example-0.12.0-docker.json`. Il monte une vraie cible éphémère (~6-18 min) et
+`samples/example-0.13.0-docker.json`. Il monte une vraie cible éphémère (~6-18 min) et
 n'est donc **pas** dans `make test` :
 
 ```bash
@@ -282,8 +291,8 @@ Un changement de comportement **voulu** se re-gèle d'un geste délibéré, diff
 l'appui — pour la version courante, les deux échantillons :
 
 ```bash
-python3 run_campaign.py --backend sim    --out samples/example-0.12.0.json --quiet
-python3 run_campaign.py --backend docker --out samples/example-0.12.0-docker.json --quiet   # ~6-18 min
+python3 run_campaign.py --backend sim    --out samples/example-0.13.0.json --quiet
+python3 run_campaign.py --backend docker --out samples/example-0.13.0-docker.json --quiet   # ~6-18 min
 git diff samples/
 ```
 
@@ -357,8 +366,8 @@ sourdine/
 │   ├── runner.py  metrics.py  report.py  scenarios.py
 ├── scenarios/                   # artefact ouvert, étiqueté
 │   ├── SCHEMA.md
-│   ├── attacks/*.json           # 20 vecteurs (24 scénarios d'attaque)
-│   └── healthy/*.json           # cohérence + pièges à faux positif (19 sains)
+│   ├── attacks/*.json           # 21 vecteurs (25 scénarios d'attaque)
+│   └── healthy/*.json           # cohérence + pièges à faux positif (20 sains)
 ├── target/                      # cible éphémère conteneurisée
 │   ├── docker-compose.yml
 │   ├── prometheus/{prometheus.yml,alerts.yml}
@@ -368,5 +377,5 @@ sourdine/
 ├── scripts/{target_up.sh,target_down.sh}
 ├── tests/                       # non-régression sim (strict) + docker (invariants/tolérance)
 ├── reports/                     # sorties JSON de campagne (runtime, git-ignoré)
-└── samples/                     # exemples versionnés cumulés : example-0.{1..12}.0.json (sim) + *-docker.json
+└── samples/                     # exemples versionnés cumulés : example-0.{1..13}.0.json (sim) + *-docker.json
 ```

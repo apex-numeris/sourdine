@@ -20,7 +20,7 @@
 | `target_base.py` | Interface `Target` (setup / execute / teardown) |
 | `target_sim.py` | Cible **sim** : interprète l'intention du scénario → état final déterministe |
 | `target_docker.py` | Cible **docker** : pilote de vrais Prometheus/Alertmanager via leurs API |
-| `detector.py` | Interface `MaskingDetector` + `BaselineDetector` (13 heuristiques, une par famille de vecteurs) |
+| `detector.py` | Interface `MaskingDetector` + `BaselineDetector` (14 heuristiques, une par famille de vecteurs) |
 | `runner.py` | Moteur deux passes (`run_campaign`) |
 | `metrics.py` | Calcul des 4 taux + cohérence + ventilation par accès |
 | `report.py` | Rapport JSON versionné + résumé lisible |
@@ -208,6 +208,15 @@ liste complète des alertes en [doc 05](05-specifications.md).
    `inhibitor_isolation` ne l'examine pas (source non sanctionnée), seul `rogue_inhibitor` la rattrape
    → STRONG_MASK. Le pendant sain (`benign_maintenance_inhibition`) — source non sanctionnée inhibant
    une alerte OPÉRATIONNELLE — reste non signalé (discriminant de classe).
+10. **Panne induite du garde (`guard_outage_cover`, MITRE T1562.001) — AUCUN écart** : c'est le seul
+    vecteur qui n'ajoute **rien** à la cible — ni règle, ni label, ni alerte postée. Il coupe `fw_up`, et
+    la règle `FirewallDown` (`fw_up == 0`, for: 6s) fire d'elle-même, puis l'inhibition **sanctionnée**
+    `FirewallDown → classe sécurité` (equal: `job`) étouffe l'alerte. La chaîne est prise **telle
+    qu'elle est** : c'est ce qui en fait un trou réel plutôt qu'un artifice de banc. Masquage préventif
+    (panne établie et confirmée active avant le fire, retry déterministe) → masqué ET rattrapé
+    (`guard_down_under_threat`) dans les deux backends → STRONG_MASK. Le pendant sain
+    (`benign_guard_maintenance`) porte une panne **identique en tout point**, sans menace : il reste non
+    signalé, et c'est ce qui prouve que le discriminant est la **concomitance**, pas la panne.
 
 Ces écarts sont **réels** et précieux : ils ne sont visibles qu'en exécutant la
 vraie cible, et justifient l'existence du backend docker à côté de la sim.

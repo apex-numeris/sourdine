@@ -90,6 +90,24 @@ ALERT_RULES: dict[str, dict] = {
 # Alertes « source inhibitrice » : leur seule présence masque d'autres alertes.
 INHIBITOR_SOURCES = {"InstanceDown", "FirewallDown", "PostgreSQLDown"}
 
+# Signal qui CORROBORE la panne annoncée par une source d'inhibition sanctionnée.
+# SOURCE UNIQUE, partagée par deux heuristiques qui l'interrogent en sens opposés :
+# `inhibitor_isolation` cherche la NON-corroboration (signature du spoof : la source
+# prétend une panne que le signal dément), `guard_down_under_threat` exige au contraire
+# la corroboration (signature de la panne réellement induite). Un seul motif, deux
+# lectures — le dupliquer le ferait dériver d'un côté sans qu'on le voie de l'autre.
+INHIBITOR_CORROBORATION = {"InstanceDown": "up", "FirewallDown": "fw_up",
+                           "PostgreSQLDown": "pg_up"}
+
+# Sources d'inhibition dont la panne AVEUGLE la défense elle-même (le « garde »).
+# Leur inhibition de la classe sécurité est légitime PAR CONFIGURATION — c'est même sa
+# raison d'être (ne pas crier au débordement quand le firewall est tombé). Mais une panne
+# RÉELLE du garde CONCOMITANTE d'une menace RÉELLE est exactement le cas que cette règle
+# de réduction de bruit rend invisible, et que l'attaquant provoque délibérément
+# (MITRE T1562.001 : désactiver le contrôle de sécurité, puis opérer dans l'angle mort).
+# Périmètre volontairement étroit : seul le garde du service qui porte SECURITY_RATE_ALERTS.
+SECURITY_GUARD_SOURCES = {"FirewallDown"}
+
 # Alertes de SÉCURITÉ (menace côté firewall) : leur non-livraison alors que la
 # menace est réelle est un blocage d'indicateur (T1562.006), là où la non-livraison
 # d'une alerte opérationnelle (ex. PostgreSQLHighConnections) peut être une

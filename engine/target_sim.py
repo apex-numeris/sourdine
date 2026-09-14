@@ -24,7 +24,7 @@ from engine.types import (
     VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING, VEC_FALSE_RESOLVED,
     VEC_STALE_REPLAY, VEC_STATISTICAL_REPLAY, VEC_CONSTRAINED_REPLAY,
     VEC_ROUTE_BLACKHOLE, VEC_WATCHDOG_SUPPRESSION, VEC_CARDINALITY_FLOOD,
-    VEC_ROGUE_INHIBITOR,
+    VEC_ROGUE_INHIBITOR, VEC_GUARD_OUTAGE_COVER,
 )
 
 H = model.HORIZON
@@ -382,6 +382,35 @@ class SimTarget(Target):
             alerts.append(Alert(name="RogueMuter", labels={"job": job}))
             trace.add(2, "rogue_inhibit_rule", source="RogueMuter", target=gt.expected_alert)
 
+        elif v == VEC_GUARD_OUTAGE_COVER:
+            # T1562.001 Disable or Modify Tools — panne INDUITE du garde. L'attaquant ne
+            # falsifie rien : il met RÉELLEMENT le firewall hors service (fw_up=0, donc
+            # CORROBORÉ — à l'inverse du spoof, qui laisse fw_up à 1), puis n'attaque
+            # qu'ENSUITE. FirewallDown fire légitimement et son inhibition SANCTIONNÉE
+            # (equal: job) étouffe l'alerte de sécurité : la règle de réduction de bruit
+            # devient l'outil du masquage. `inhibitor_isolation` s'abstient (panne
+            # corroborée), `rogue_inhibitor` aussi (source sanctionnée), et les
+            # heuristiques métriques s'abstiennent dès qu'une alerte à taux est présente
+            # (elle l'est, inhibée). L'ORDRE de la manœuvre achève l'évasion : en coupant
+            # le garde AVANT d'attaquer, la fenêtre d'activité que `exporter_cutoff`
+            # inspecte juste avant le trou reste vide. Seul `guard_down_under_threat`
+            # la rattrape (panne du garde CONCOMITANTE d'une menace réelle et soutenue).
+            outage_at = int(params.get("outage_at", 4))
+            attack_from = int(params.get("attack_from", 10))
+            rate = float(params.get("rate", (expected_thr or model.ATTACK_RATE_THRESHOLD) + 70.0))
+            fw = _const(UP)
+            for t in range(max(0, outage_at), H):
+                fw[t] = DOWN                  # le garde tombe POUR DE BON -> corroboration
+            metrics[model.series_key("fw_up", {"job": job})] = fw
+            alerts.append(Alert(name="FirewallDown", labels={"job": job}))
+            if expected_signal:
+                ar: list[Optional[float]] = _const(0.0)
+                for t in range(max(0, attack_from), H):
+                    ar[t] = rate              # l'attaque ne démarre QU'APRÈS la panne
+                metrics[model.series_key(expected_signal, labels or {"job": job, "instance": instance})] = ar
+            trace.add(outage_at, "guard_disabled", signal="fw_up", job=job)
+            trace.add(attack_from, "attack_started_under_cover", rate=rate)
+
         elif v == "none":
             # scénario sain : action bénigne éventuelle (ressemble de loin à un vecteur)
             bk = sc.masking.get("type") if sc.masking else None
@@ -540,6 +569,23 @@ class SimTarget(Target):
                 alerts.append(Alert(name="PostgreSQLHighConnections", labels={"job": "postgresql", "instance": instance},
                                     inhibited_by=["DBMaintenance"]))
                 trace.add(2, "maintenance_inhibition", source="DBMaintenance", target="PostgreSQLHighConnections")
+            elif bk == "benign_guard_maintenance":
+                # maintenance PLANIFIÉE du firewall : il est réellement arrêté (fw_up=0),
+                # FirewallDown fire légitimement et inhibe la classe sécurité — la panne est
+                # IDENTIQUE EN TOUT POINT à celle du vecteur guard_outage_cover (même signal,
+                # même alerte source, même inhibition sanctionnée). Le SEUL écart : aucune
+                # menace ne court pendant la fenêtre. C'est exactement le discriminant de
+                # `guard_down_under_threat` — ce n'est pas la panne du garde qui est suspecte,
+                # c'est sa CONCOMITANCE avec une menace réelle et soutenue. `exporter_cutoff`
+                # doit rester muet aussi (aucune activité avant le trou). Vrai négatif : sans
+                # ce garde, toute maintenance de firewall — opération banale — serait un FP.
+                outage_at = int(params.get("outage_at", 4))
+                fw = _const(UP)
+                for t in range(max(0, outage_at), H):
+                    fw[t] = DOWN
+                metrics[model.series_key("fw_up", {"job": job})] = fw
+                alerts.append(Alert(name="FirewallDown", labels={"job": job}))
+                trace.add(outage_at, "guard_maintenance", planned=True)
 
         # --- 3) inhibiteurs qui firent RÉELLEMENT (ex. coupure -> InstanceDown)
         up_key = model.series_key("up", {"instance": instance, "job": job})

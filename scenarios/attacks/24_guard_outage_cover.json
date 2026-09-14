@@ -1,0 +1,12 @@
+{
+  "id": "ATT-GUARD-OUTAGE-COVER-24",
+  "kind": "attack",
+  "vector": "guard_outage_cover",
+  "title": "Panne INDUITE du garde : l'attaquant coupe le firewall d'abord, l'inhibition légitime lui sert de couverture",
+  "description": "L'attaquant ne FALSIFIE rien : il met RÉELLEMENT le firewall hors service (`fw_up`=0), puis attaque une fois la panne établie. La règle d'inhibition sanctionnée `FirewallDown -> {HighAttackRate, CriticalAttacksDetected, JailbreakSurge}` (equal: job) — posée pour éviter le bruit quand le firewall est tombé — fonctionne alors exactement comme prévu et étouffe l'alerte de sécurité. C'est le motif documenté des EDR killers (MITRE T1562.001 Disable or Modify Tools) : « désactiver le contrôle de sécurité d'abord, opérer ensuite dans l'angle mort ». Toutes les heuristiques d'inhibition existantes s'abstiennent par CONSTRUCTION : `inhibitor_isolation` exige une source NON corroborée, or la panne est vraie (`fw_up` est bien à 0) ; `rogue_inhibitor` exige une source NON sanctionnée, or `FirewallDown` est parfaitement sanctionnée ; `phantom_clear`, `low_and_slow`, `threshold_flapping` et `spatial_incoherence` s'abstiennent dès qu'une alerte à taux est présente (elle l'est — elle a fire, mais inhibée). L'ORDRE de la manœuvre est ce qui achève l'évasion : `exporter_cutoff` ne crie que s'il y a eu de l'activité d'attaque AVANT le trou de collecte ; en coupant le garde AVANT d'attaquer, l'attaquant vide cette fenêtre. La règle de réduction de bruit devient ainsi l'outil du masquage. Seul `guard_down_under_threat` la rattrape : la panne d'un composant de SÉCURITÉ concomitante d'une menace RÉELLE et SOUTENUE doit alerter, quelle que soit la légitimité de l'inhibition.",
+  "access_level": "exporter_host_or_network",
+  "ground_truth": {"alarm_expected": true, "expected_alert": "HighAttackRate", "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": true, "severity": "warning"},
+  "masking": {"type": "guard_outage_cover", "params": {"outage_at": 4, "attack_from": 10, "rate": 120}},
+  "tags": ["panne-induite", "T1562.001", "disable-modify-tools", "inhibition-legitime", "angle-mort", "edr-killer"]
+}

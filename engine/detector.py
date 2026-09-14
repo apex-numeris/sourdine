@@ -87,7 +87,7 @@ class BaselineDetector(MaskingDetector):
         for src in state.alerts:
             if src.name not in model.INHIBITOR_SOURCES:
                 continue
-            corr = {"InstanceDown": "up", "FirewallDown": "fw_up", "PostgreSQLDown": "pg_up"}[src.name]
+            corr = model.INHIBITOR_CORROBORATION[src.name]   # source unique (cf. model.py)
             corr_filter = {"instance": src.labels["instance"]} if (corr == "up" and "instance" in src.labels) \
                 else ({"job": src.labels.get("job", "")} if src.labels.get("job") else None)
             corroborated = self._is_recently_down(state, corr, corr_filter)
@@ -439,9 +439,59 @@ class BaselineDetector(MaskingDetector):
                                    f"(sample_limit -> up=0) et masquant le vrai signal — DoS d'ingestion."))
         return None
 
+    def _h_guard_down_under_threat(self, state) -> Optional[Verdict]:
+        """Panne INDUITE du garde (MITRE T1562.001 Disable or Modify Tools). L'attaquant
+        ne falsifie rien : il met RÉELLEMENT le composant de sécurité hors service, puis
+        attaque une fois la panne établie. La règle d'inhibition sanctionnée
+        `FirewallDown -> classe sécurité` fonctionne alors exactement comme prévu et
+        étouffe l'alerte — la règle de réduction de bruit devient l'outil du masquage.
+
+        C'est le complément EXACT de `inhibitor_isolation`, sur le même motif de
+        corroboration lu en sens inverse : là-bas la source ment (panne non corroborée =
+        spoof), ici elle dit vrai (panne corroborée) et c'est précisément ce qui la rend
+        indétectable par corroboration. `rogue_inhibitor` ne la voit pas non plus — la
+        source est parfaitement sanctionnée. Et les heuristiques métriques s'abstiennent
+        toutes dès qu'une alerte à taux est présente : elle l'est, ayant fire puis été
+        inhibée. Enfin l'ORDRE de la manœuvre neutralise `exporter_cutoff`, qui exige de
+        l'activité AVANT le trou de collecte : couper le garde d'abord vide cette fenêtre.
+
+        Le discriminant n'est PAS la panne du garde — une maintenance de firewall est une
+        opération banale et planifiée — mais sa CONCOMITANCE avec une menace réelle et
+        SOUTENUE au-dessus du seuil. Sans ce garde, toute maintenance deviendrait un faux
+        positif et l'heuristique serait désactivée en exploitation (alert fatigue)."""
+        for src in state.alerts:
+            if src.name not in model.SECURITY_GUARD_SOURCES:
+                continue
+            corr = model.INHIBITOR_CORROBORATION.get(src.name)
+            if not corr:
+                continue
+            corr_filter = {"job": src.labels["job"]} if src.labels.get("job") else None
+            if not self._is_recently_down(state, corr, corr_filter):
+                continue          # panne NON corroborée -> spoof, qualifié par inhibitor_isolation
+            for tgt in state.alerts:
+                if tgt.name not in model.SECURITY_RATE_ALERTS:
+                    continue      # seule la classe sécurité compte : le garde protège ça
+                if not any(ib.startswith(src.name) for ib in tgt.inhibited_by):
+                    continue
+                signal = model.ALERT_RULES.get(tgt.name, {}).get("signal")
+                thr = model.ALERT_RULES.get(tgt.name, {}).get("threshold", 0.0)
+                if not signal:
+                    continue
+                for _lbls, series in self._series(state, signal):
+                    if self._sustained_above(series[-_RECENT:], thr):
+                        return Verdict(True, scope=f"{src.name}->{tgt.name}",
+                                       heuristic="guard_down_under_threat",
+                                       reason=(f"{src.name} corroborée ({corr}=0) inhibe légitimement "
+                                               f"{tgt.name}, mais la menace est RÉELLE et soutenue "
+                                               f"(> {thr:.0f}) pendant la panne : le garde a été mis "
+                                               f"hors service puis l'attaque a suivi — l'inhibition "
+                                               f"sanctionnée sert de couverture (T1562.001)."))
+        return None
+
     # -- interface ------------------------------------------------------------
     def detect(self, state: SupervisionState, trace: Trace) -> Verdict:
         for h in (self._h_inhibitor_isolation, self._h_rogue_inhibitor,
+                  self._h_guard_down_under_threat,
                   self._h_notification_blackhole,
                   self._h_flapping, self._h_phantom_clear,
                   self._h_low_and_slow, self._h_silence_abuse, self._h_signal_blackout,

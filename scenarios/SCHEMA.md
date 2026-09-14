@@ -31,7 +31,7 @@ les cibles (sim / docker) l'instancient.
 `silence_regex_alertname`, `grouping_repeat_abuse`, `exporter_cutoff`,
 `selective_metric_drop`, `false_resolved`, `stale_replay`, `statistical_replay`,
 `constrained_replay`, `route_blackhole`, `watchdog_suppression`, `cardinality_flood`,
-`rogue_inhibitor`, `none`.
+`rogue_inhibitor`, `guard_outage_cover`, `none`.
 
 ## Niveaux d'accès (`access_level`)
 
@@ -62,6 +62,7 @@ les cibles (sim / docker) l'instancient.
 - `watchdog_suppression` — `params.silent_from` (tick à partir duquel le heartbeat s'éteint). La chaîne d'alerte est désactivée et le signal d'attaque aveuglé : rien n'est observable, seul le heartbeat `watchdog` (toujours à 1 sinon) tombe à 0 de façon soutenue (dead man's switch, MITRE T1562 Impair Defenses). **Déterministe** dans les deux backends, rattrapé par `watchdog_gap` (silence soutenu du heartbeat).
 - `cardinality_flood` — `params.samples` (nombre d'échantillons du scrape floodé), `pre_ticks` (début du flood). Une bombe de cardinalité fait dépasser `sample_limit` : le scrape est rejeté (`up`=0, fausse panne) et le vrai signal n'est jamais ingéré ; seul le pic de `scrape_samples` la distingue d'une vraie coupure (MITRE Impair Defenses / T1499 épuisement de ressources). **Déterministe** dans les deux backends, rattrapé par `cardinality_flood` (magnitude de `scrape_samples`).
 - `rogue_inhibitor` — `params` : {} (l'alerte fire via `event.make_fire`). L'attaquant ajoute une règle d'inhibition dont la source (`RogueMuter`) n'est pas sanctionnée et étouffe la classe sécurité. `inhibitor_isolation` ne regarde que les sources sanctionnées → ne l'examine pas ; seul `rogue_inhibitor` (source non sanctionnée inhibant une alerte de SÉCURITÉ) la rattrape (MITRE T1562.001, dérive de config). **Déterministe** (préventif : règle baked + source postée avant le fire, confirmation+retry).
+- `guard_outage_cover` — `params.outage_at` (tick où le garde tombe), `attack_from` (tick où l'attaque démarre, **après** la panne), `rate` (taux soutenu au-dessus du seuil). L'attaquant ne falsifie rien : il met **réellement** le firewall hors service (`fw_up`=0, donc corroboré), puis attaque. L'inhibition **sanctionnée** `FirewallDown → classe sécurité` fonctionne comme prévu et étouffe l'alerte — la règle de réduction de bruit devient l'outil du masquage (MITRE T1562.001, motif des *EDR killers* : désactiver le contrôle, puis opérer dans l'angle mort). `inhibitor_isolation` s'abstient (panne corroborée), `rogue_inhibitor` aussi (source sanctionnée), et l'**ordre** de la manœuvre neutralise `exporter_cutoff` (qui exige de l'activité *avant* le trou). **Déterministe** dans les deux backends (préventif : panne établie et confirmée avant le fire), rattrapé par `guard_down_under_threat` — discriminant : **concomitance** d'une menace réelle et soutenue, pas la panne elle-même.
 - `none` (sains) — `type` bénin : `benign_silence` (`broad`, `alertname`, `at`, `minor_activity`),
   `benign_exporter_restart` (`pre_ticks`, `gap`), `benign_spike` (`rate`),
   `benign_jitter` (`high`, `low`), `benign_brief_spike` (`spike`, `at`, `dur`, `baseline`),
@@ -78,7 +79,11 @@ les cibles (sim / docker) l'instancient.
   `benign_cardinality_bump` (`samples` : croissance de cardinalité légitime, sous
   `sample_limit`, scrape réussi — pas une bombe),
   `benign_maintenance_inhibition` (`pg_conns` : une source non sanctionnée inhibe une alerte
-  OPÉRATIONNELLE pendant une maintenance — légitime, car la cible n'est pas de sécurité), ou `none`.
+  OPÉRATIONNELLE pendant une maintenance — légitime, car la cible n'est pas de sécurité),
+  `benign_guard_maintenance` (`outage_at` : maintenance planifiée du firewall — panne **réelle**
+  du garde, `FirewallDown` inhibant légitimement la classe sécurité, mais **aucune menace** en
+  cours ; piège à faux positif de `guard_outage_cover`, dont la panne est identique en tout point),
+  ou `none`.
 
 ## Règle de cotation (normative)
 

@@ -35,7 +35,7 @@ from engine.types import (
     VEC_SELECTIVE_METRIC_DROP, VEC_THRESHOLD_FLAPPING, VEC_FALSE_RESOLVED,
     VEC_STALE_REPLAY, VEC_STATISTICAL_REPLAY, VEC_CONSTRAINED_REPLAY,
     VEC_ROUTE_BLACKHOLE, VEC_WATCHDOG_SUPPRESSION, VEC_CARDINALITY_FLOOD,
-    VEC_ROGUE_INHIBITOR,
+    VEC_ROGUE_INHIBITOR, VEC_GUARD_OUTAGE_COVER,
 )
 
 # Label de routage qui envoie une alerte vers le récepteur « trou noir » (route baked
@@ -202,7 +202,7 @@ class DockerTarget(Target):
     # -- exécution (retry déterministe pour les masquages préventifs) ----------
     _PREVENTIVE = (VEC_FIREWALL_DOWN_SPOOF, VEC_INSTANCE_DOWN_SPOOF, VEC_POSTGRES_DOWN_SPOOF,
                    VEC_SILENCE_ABUSE, VEC_SILENCE_SHARED_LABEL, VEC_SILENCE_REGEX_ALERTNAME,
-                   VEC_ROGUE_INHIBITOR)
+                   VEC_ROGUE_INHIBITOR, VEC_GUARD_OUTAGE_COVER)
 
     def execute(self, sc: Scenario) -> tuple[RawResult, SupervisionState, Trace]:
         # Un masquage préventif (inhibition/silence) DOIT masquer (vecteur STRONG). Une
@@ -250,9 +250,10 @@ class DockerTarget(Target):
         #     l'inhibiteur/silence était pourtant actif). Poser le masquage d'abord et le
         #     confirmer garantit qu'il est dans le muting index d'AM quand l'alerte fire,
         #     rendant le masquage DÉTERMINISTE sans toucher aux seuils ni au `for:`. ===
-        preventive = v in (VEC_FIREWALL_DOWN_SPOOF, VEC_INSTANCE_DOWN_SPOOF, VEC_POSTGRES_DOWN_SPOOF,
-                           VEC_SILENCE_ABUSE, VEC_SILENCE_SHARED_LABEL, VEC_SILENCE_REGEX_ALERTNAME,
-                           VEC_ROGUE_INHIBITOR)
+        # SOURCE UNIQUE : la même liste pilotait le retry (`_PREVENTIVE`) et ce test, en
+        # deux exemplaires — un vecteur ajouté à l'un et oublié dans l'autre aurait été
+        # établi sans stabilisation, ou stabilisé sans retry, en silence.
+        preventive = v in self._PREVENTIVE
         if v in (VEC_FIREWALL_DOWN_SPOOF, VEC_INSTANCE_DOWN_SPOOF, VEC_POSTGRES_DOWN_SPOOF):
             src = {
                 VEC_FIREWALL_DOWN_SPOOF: ("FirewallDown", {"job": job}),
@@ -289,6 +290,18 @@ class DockerTarget(Target):
             self._post_alert("RogueMuter", {"job": job})
             self._await_alert_active("RogueMuter")
             trace.add(2, "rogue_inhibit_rule", source="RogueMuter")
+        elif v == VEC_GUARD_OUTAGE_COVER:
+            # T1562.001 : panne RÉELLE du garde, établie AVANT l'attaque. On coupe fw_up —
+            # le firewall est hors service pour de bon — et la règle FirewallDown
+            # (`fw_up == 0`, for: 6s) fire D'ELLE-MÊME : rien n'est posté à l'API AM, rien
+            # n'est ajouté à la config. La chaîne est prise TELLE QU'ELLE EST, et c'est ce
+            # qui fait de ce vecteur un vrai trou plutôt qu'un artifice : l'inhibition
+            # sanctionnée `FirewallDown -> classe sécurité` (equal: job) étouffera
+            # HighAttackRate quand l'attaque suivra. Préventif par nature, pas par
+            # commodité de test : l'ordre « garde d'abord, attaque ensuite » EST la manœuvre.
+            self._set_metric("fw_up", {"job": job}, 0.0)
+            self._await_alert_active("FirewallDown", timeout=25.0)
+            trace.add(0, "guard_disabled", signal="fw_up", job=job)
 
         if preventive:
             # stabilisation ample (> 2× group_interval de 5 s) : laisse AM indexer le
@@ -433,6 +446,13 @@ class DockerTarget(Target):
             self._set_metric("inst_up", {"job": job, "instance": instance}, 0.0)
             settle = STEP * 8          # laisser InstanceDown firer + scraper le pic de cardinalite
             trace.add(0, "cardinality_flood", scrape_samples=params.get("samples", 50000.0))
+        elif v == VEC_GUARD_OUTAGE_COVER:
+            # la panne du garde est déjà établie (bloc préventif) et l'attaque vient d'être
+            # posée par `_fire_event`. Il faut assez de scrapes APRÈS le fire pour que la
+            # menace soit SOUTENUE au-dessus du seuil dans la fenêtre récente : c'est la
+            # corroboration qu'exige `guard_down_under_threat`, sans laquelle le rattrapage
+            # serait impossible alors même que le masquage a réussi.
+            settle = STEP * 8
         elif v == "none":
             bk = sc.masking.get("type") if sc.masking else None
             if bk == "benign_silence":
@@ -546,6 +566,16 @@ class DockerTarget(Target):
                 self._set_metric("pg_conns", {"job": "postgresql", "instance": instance},
                                  float(params.get("pg_conns", model.PG_CONN_THRESHOLD + 60.0)))
                 settle = STEP * 8   # laisser PostgreSQLHighConnections firer et l'inhibition maintenance s'appliquer
+            elif bk == "benign_guard_maintenance":
+                # maintenance PLANIFIÉE : le firewall est réellement arrêté (fw_up=0), donc la
+                # règle FirewallDown fire légitimement et inhibe la classe sécurité — panne
+                # IDENTIQUE à celle de guard_outage_cover. Mais AUCUNE menace ne court :
+                # `guard_down_under_threat` doit rester muet (son discriminant est la
+                # concomitance d'une menace réelle, pas la panne elle-même) et
+                # `exporter_cutoff` aussi (aucune activité avant le trou). Vrai négatif :
+                # sans ce garde, toute maintenance de firewall serait criée comme masquage.
+                self._set_metric("fw_up", {"job": job}, 0.0)
+                settle = STEP * 8
 
         time.sleep(settle)
 

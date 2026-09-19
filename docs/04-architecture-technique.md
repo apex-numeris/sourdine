@@ -20,7 +20,7 @@
 | `target_base.py` | Interface `Target` (setup / execute / teardown) |
 | `target_sim.py` | Cible **sim** : interprète l'intention du scénario → état final déterministe |
 | `target_docker.py` | Cible **docker** : pilote de vrais Prometheus/Alertmanager via leurs API |
-| `detector.py` | Interface `MaskingDetector` + `BaselineDetector` (15 heuristiques, une par famille de vecteurs) |
+| `detector.py` | Interface `MaskingDetector` + `BaselineDetector` (16 heuristiques, une par famille de vecteurs) |
 | `runner.py` | Moteur deux passes (`run_campaign`) |
 | `metrics.py` | Calcul des 4 taux + cohérence + ventilation par accès |
 | `report.py` | Rapport JSON versionné + résumé lisible |
@@ -228,6 +228,15 @@ liste complète des alertes en [doc 05](05-specifications.md).
     → masqué ET rattrapé (`inhibition_scope_creep`) dans les deux backends → STRONG_MASK. Le
     pendant sain (`benign_scoped_inhibition`) porte une inhibition **parfaitement bornée** et
     reste non signalé : il ne se distingue de l'attaque QUE par le périmètre.
+
+12. **Silence pré-positionné (`preloaded_silence`, MITRE T1562.001) — AUCUN écart** : le silence est
+    posté via l'API d'Alertmanager et **confirmé actif** avant que l'alerte cible fire (masquage
+    préventif, comme les autres suppressions). Rien n'est ajouté à la configuration : c'est un
+    silence parfaitement ordinaire, et c'est précisément le point — au moment de sa pose il est
+    indiscernable d'une maintenance. Masqué ET rattrapé (`silenced_under_threat`) dans les deux
+    backends → STRONG_MASK. Le pendant sain (`benign_maintenance_silence_op`) produit le **même
+    effet observable** — une alerte justifiée étouffée par un silence étroit — et n'en diffère que
+    par la **classe** de la cible : il reste non signalé.
 
 Ces écarts sont **réels** et précieux : ils ne sont visibles qu'en exécutant la
 vraie cible, et justifient l'existence du backend docker à côté de la sim.

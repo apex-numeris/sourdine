@@ -1,0 +1,12 @@
+{
+  "id": "HLT-BENIGN-MAINT-SILENCE-OP-21",
+  "kind": "healthy",
+  "vector": "none",
+  "title": "Silence de maintenance étouffant une alerte opérationnelle justifiée (piège à faux positif du silence pré-positionné)",
+  "description": "Pendant une maintenance planifiée de la base, l'ops pose un silence étroit et exactement ciblé sur `PostgreSQLHighConnections`, et les connexions sont effectivement au-dessus du seuil — c'est attendu, on redémarre la base. Le silence produit donc le MÊME effet observable que le vecteur `preloaded_silence` : une alerte parfaitement justifiée est étouffée. Les deux scénarios ne diffèrent QUE par la CLASSE de la cible. C'est le discriminant de `silenced_under_threat`, qui ne doit pas crier ici : silencer une alerte OPÉRATIONNELLE pendant une maintenance est le geste d'exploitation le plus banal qui soit, et le signaler rendrait l'heuristique inutilisable dès la première semaine — c'est précisément ainsi qu'un contrôle finit désactivé. `silence_abuse` doit rester muet aussi (silence étroit, `alertname` littéral, posé hors de toute montée d'activité). Vrai négatif.",
+  "access_level": "n/a",
+  "ground_truth": {"alarm_expected": false, "expected_alert": null, "labels": {"job": "postgresql", "instance": "pg-1"}},
+  "event": {"make_fire": false},
+  "masking": {"type": "benign_maintenance_silence_op", "params": {"at": 2, "pg_conns": 240}},
+  "tags": ["sain", "vrai-negatif", "silence-maintenance", "cible-operationnelle", "anti-faux-positif"]
+}

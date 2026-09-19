@@ -36,6 +36,7 @@ from engine.types import (
     VEC_STALE_REPLAY, VEC_STATISTICAL_REPLAY, VEC_CONSTRAINED_REPLAY,
     VEC_ROUTE_BLACKHOLE, VEC_WATCHDOG_SUPPRESSION, VEC_CARDINALITY_FLOOD,
     VEC_ROGUE_INHIBITOR, VEC_GUARD_OUTAGE_COVER, VEC_INHIBITION_SCOPE_CREEP,
+    VEC_PRELOADED_SILENCE,
 )
 
 # Label de routage qui envoie une alerte vers le récepteur « trou noir » (route baked
@@ -203,7 +204,7 @@ class DockerTarget(Target):
     _PREVENTIVE = (VEC_FIREWALL_DOWN_SPOOF, VEC_INSTANCE_DOWN_SPOOF, VEC_POSTGRES_DOWN_SPOOF,
                    VEC_SILENCE_ABUSE, VEC_SILENCE_SHARED_LABEL, VEC_SILENCE_REGEX_ALERTNAME,
                    VEC_ROGUE_INHIBITOR, VEC_GUARD_OUTAGE_COVER,
-                   VEC_INHIBITION_SCOPE_CREEP)
+                   VEC_INHIBITION_SCOPE_CREEP, VEC_PRELOADED_SILENCE)
 
     def execute(self, sc: Scenario) -> tuple[RawResult, SupervisionState, Trace]:
         # Un masquage préventif (inhibition/silence) DOIT masquer (vecteur STRONG). Une
@@ -315,6 +316,28 @@ class DockerTarget(Target):
                                          "instance": params.get("decoy_instance", "stg-9")}, 0.0)
             self._await_alert_active("InstanceDown", timeout=25.0)
             trace.add(0, "decoy_instance_down", instance=params.get("decoy_instance", "stg-9"))
+        elif v == VEC_PRELOADED_SILENCE:
+            # T1562.001 : silence PRE-POSITIONNE. Etroit, `alertname` litteral, perimetre
+            # irreprochable — au moment de sa pose il est indiscernable d'une maintenance
+            # planifiee, et aucune activite ne l'entoure. C'est le DECALAGE dans le temps
+            # entre la pose et l'usage qui fait le masquage : l'attaque ne vient qu'ensuite,
+            # dans la fenetre ainsi ouverte. Preventif par nature (le silence doit etre actif
+            # avant que l'alerte cible fire), comme les autres suppressions preventives.
+            self._post_silence({"alertname": gt.expected_alert or "HighAttackRate", "job": job},
+                               broad=False)
+            self._await_silence_active()
+            # FIDELITE (constat du smoke round 13) : sans cette ligne, docker rattrapait le
+            # vecteur par `silence_abuse` au lieu de `silenced_under_threat`. Motif : `_snapshot`
+            # rapporte TOUT silence avec `created_tick=0`, et la serie `attack_rate` ne COMMENCE
+            # qu'au moment ou `_fire_event` la pose — deja a 120. La fenetre inspectee autour de
+            # la creation ne contenait donc que des valeurs hautes, et le silence paraissait pose
+            # « pendant une montee d'activite ». Le DECALAGE temporel, qui est tout le vecteur,
+            # n'etait pas represente. On pose donc explicitement le trafic de fond calme qui
+            # regne au moment de la pose, comme le fait la cible sim.
+            self._set_metric(expected_signal or "attack_rate",
+                             labels or {"job": job, "instance": instance},
+                             float(params.get("calm", 3.0)))
+            trace.add(0, "silence_preloaded", alertname=gt.expected_alert)
 
         if preventive:
             # stabilisation ample (> 2× group_interval de 5 s) : laisse AM indexer le
@@ -470,6 +493,10 @@ class DockerTarget(Target):
             # meme raison qu'au vecteur precedent : la menace doit etre SOUTENUE au-dessus du
             # seuil dans la fenetre recente pour que le rattrapage soit possible.
             settle = STEP * 8
+        elif v == VEC_PRELOADED_SILENCE:
+            # la menace doit etre SOUTENUE au-dessus du seuil dans la fenetre recente pour que
+            # `silenced_under_threat` puisse la corroborer : assez de scrapes apres le fire.
+            settle = STEP * 8
         elif v == "none":
             bk = sc.masking.get("type") if sc.masking else None
             if bk == "benign_silence":
@@ -599,6 +626,18 @@ class DockerTarget(Target):
                 # pg-1 des deux cotes). Aucune frontiere franchie -> inhibition_scope_creep
                 # doit rester muet, inhibitor_isolation aussi (panne corroboree). Vrai negatif.
                 self._set_metric("inst_up", {"job": job, "instance": instance}, 0.0)
+                self._set_metric("pg_conns", {"job": job, "instance": instance},
+                                 float(params.get("pg_conns", model.PG_CONN_THRESHOLD + 60.0)))
+                settle = STEP * 8
+            elif bk == "benign_maintenance_silence_op":
+                # maintenance de base planifiee : silence etroit et exactement cible sur
+                # PostgreSQLHighConnections pendant que les connexions sont REELLEMENT elevees.
+                # Meme effet observable que preloaded_silence (une alerte justifiee etouffee),
+                # ne differant QUE par la classe de la cible -> silenced_under_threat doit
+                # rester muet. Vrai negatif : sans le garde de classe, toute maintenance serait
+                # criee comme masquage.
+                self._post_silence({"alertname": "PostgreSQLHighConnections", "job": job}, broad=False)
+                self._await_silence_active()
                 self._set_metric("pg_conns", {"job": job, "instance": instance},
                                  float(params.get("pg_conns", model.PG_CONN_THRESHOLD + 60.0)))
                 settle = STEP * 8

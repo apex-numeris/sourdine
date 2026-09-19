@@ -543,13 +543,55 @@ class BaselineDetector(MaskingDetector):
                                            f"globale, T1562.001) alors que la menace est réelle."))
         return None
 
+    def _h_silenced_under_threat(self, state) -> Optional[Verdict]:
+        """Silence PRÉ-POSITIONNÉ (T1562.001 — abus de suppression). L'attaquant pose son
+        silence AU CALME, bien AVANT de frapper : étroit, `alertname` littéral, périmètre
+        irréprochable — il est en tout point indiscernable d'une maintenance planifiée au
+        moment où il est créé. Puis il attend, et attaque dans sa fenêtre.
+
+        `silence_abuse` ne peut pas le voir : il juge le silence sur sa FORME (sur-périmétré)
+        et sur l'activité AU MOMENT DE SA CRÉATION — ici la forme est parfaite et le moment
+        est calme. Et `phantom_clear` s'abstient dès qu'un silence existe, considérant qu'il
+        explique l'absence d'alerte. La manœuvre tient donc entièrement au DÉCALAGE dans le
+        temps entre la pose et l'usage.
+
+        Le tell n'est ni la forme du silence ni sa date, mais son EFFET OBSERVÉ : une alerte
+        de sécurité est effectivement étouffée pendant que sa menace est réelle et soutenue
+        au-dessus du seuil. C'est exactement la contre-mesure que la littérature recommande —
+        une suppression doit être re-vérifiée PENDANT sa fenêtre, pas seulement approuvée à
+        son ouverture. Le discriminant est la CLASSE de l'alerte, comme pour
+        `notification_blackhole` : silencer une alerte OPÉRATIONNELLE pendant une maintenance
+        est le geste d'exploitation le plus banal qui soit, et le signaler rendrait
+        l'heuristique inutilisable ; silencer une alerte de SÉCURITÉ pendant une attaque
+        soutenue ne l'est jamais."""
+        for a in state.alerts:
+            if a.name not in model.SECURITY_RATE_ALERTS:
+                continue              # discriminant : silencer une alerte op. est banal
+            if not a.silenced_by:
+                continue
+            signal = model.ALERT_RULES.get(a.name, {}).get("signal")
+            thr = model.ALERT_RULES.get(a.name, {}).get("threshold", 0.0)
+            if not signal:
+                continue
+            for _lbls, series in self._series(state, signal):
+                if self._sustained_above(series[-_RECENT:], thr):
+                    return Verdict(True, scope=f"{a.name}<-{a.silenced_by[0]}",
+                                   heuristic="silenced_under_threat",
+                                   reason=(f"Alerte de sécurité {a.name} étouffée par un silence "
+                                           f"alors que la menace est RÉELLE et soutenue (> {thr:.0f}) : "
+                                           f"le silence a beau être étroit et posé au calme, il couvre "
+                                           f"une attaque en cours — suppression à re-vérifier PENDANT "
+                                           f"sa fenêtre, pas seulement à son ouverture (T1562.001)."))
+        return None
+
     # -- interface ------------------------------------------------------------
     def detect(self, state: SupervisionState, trace: Trace) -> Verdict:
         for h in (self._h_inhibitor_isolation, self._h_rogue_inhibitor,
                   self._h_guard_down_under_threat, self._h_inhibition_scope_creep,
                   self._h_notification_blackhole,
                   self._h_flapping, self._h_phantom_clear,
-                  self._h_low_and_slow, self._h_silence_abuse, self._h_signal_blackout,
+                  self._h_low_and_slow, self._h_silence_abuse,
+                  self._h_silenced_under_threat, self._h_signal_blackout,
                   self._h_cardinality_flood, self._h_exporter_cutoff,
                   self._h_frozen_replay, self._h_spatial_incoherence,
                   self._h_watchdog_gap):

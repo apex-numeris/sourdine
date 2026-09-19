@@ -31,7 +31,7 @@ les cibles (sim / docker) l'instancient.
 `silence_regex_alertname`, `grouping_repeat_abuse`, `exporter_cutoff`,
 `selective_metric_drop`, `false_resolved`, `stale_replay`, `statistical_replay`,
 `constrained_replay`, `route_blackhole`, `watchdog_suppression`, `cardinality_flood`,
-`rogue_inhibitor`, `guard_outage_cover`, `inhibition_scope_creep`, `none`.
+`rogue_inhibitor`, `guard_outage_cover`, `inhibition_scope_creep`, `preloaded_silence`, `none`.
 
 ## Niveaux d'accès (`access_level`)
 
@@ -64,6 +64,7 @@ les cibles (sim / docker) l'instancient.
 - `rogue_inhibitor` — `params` : {} (l'alerte fire via `event.make_fire`). L'attaquant ajoute une règle d'inhibition dont la source (`RogueMuter`) n'est pas sanctionnée et étouffe la classe sécurité. `inhibitor_isolation` ne regarde que les sources sanctionnées → ne l'examine pas ; seul `rogue_inhibitor` (source non sanctionnée inhibant une alerte de SÉCURITÉ) la rattrape (MITRE T1562.001, dérive de config). **Déterministe** (préventif : règle baked + source postée avant le fire, confirmation+retry).
 - `guard_outage_cover` — `params.outage_at` (tick où le garde tombe), `attack_from` (tick où l'attaque démarre, **après** la panne), `rate` (taux soutenu au-dessus du seuil). L'attaquant ne falsifie rien : il met **réellement** le firewall hors service (`fw_up`=0, donc corroboré), puis attaque. L'inhibition **sanctionnée** `FirewallDown → classe sécurité` fonctionne comme prévu et étouffe l'alerte — la règle de réduction de bruit devient l'outil du masquage (MITRE T1562.001, motif des *EDR killers* : désactiver le contrôle, puis opérer dans l'angle mort). `inhibitor_isolation` s'abstient (panne corroborée), `rogue_inhibitor` aussi (source sanctionnée), et l'**ordre** de la manœuvre neutralise `exporter_cutoff` (qui exige de l'activité *avant* le trou). **Déterministe** dans les deux backends (préventif : panne établie et confirmée avant le fire), rattrapé par `guard_down_under_threat` — discriminant : **concomitance** d'une menace réelle et soutenue, pas la panne elle-même.
 - `inhibition_scope_creep` — `params.decoy_instance`/`decoy_job` (l'instance anodine qu'on fait tomber), `outage_at`, `attack_from` (**après** la panne), `rate`. L'attaquant n'ajoute aucune règle et ne falsifie aucune source : il **retire les labels `equal`** d'une règle sanctionnée. La doc Alertmanager prévient que la règle s'applique alors quels que soient les labels — une seule source étouffe toute la classe cible, partout (tickets upstream #507 et #1727). Il fait ensuite tomber pour de bon une instance de recette (`stg-9`) : l'`InstanceDown` est **réelle, corroborée et sanctionnée**, et pourtant elle inhibe `HighAttackRate` sur `fw-1`. **Déterministe** dans les deux backends (préventif : règle baked sans `equal`, inerte sans la panne du leurre), rattrapé par `inhibition_scope_creep` — discriminant : le **franchissement d'une frontière de labels**, jamais l'inhibition elle-même.
+- `preloaded_silence` — `params.at` (tick de pose, **au calme**), `attack_from` (tick de l'attaque, **bien après**), `rate`. L'attaquant pose un silence **étroit, à `alertname` littéral, au périmètre irréprochable** — indiscernable d'une maintenance planifiée au moment de sa création — puis attend et attaque dans la fenêtre ainsi ouverte. `silence_abuse` juge la **forme** et l'activité **au moment de la pose** : les deux sont parfaites ici. `phantom_clear` s'abstient dès qu'un silence existe. Tout tient au **décalage temporel** entre pose et usage. **Déterministe** dans les deux backends (préventif : silence posté et confirmé actif avant le fire), rattrapé par `silenced_under_threat` — discriminant : une alerte de **sécurité** étouffée pendant que sa menace est réelle et soutenue.
 - `none` (sains) — `type` bénin : `benign_silence` (`broad`, `alertname`, `at`, `minor_activity`),
   `benign_exporter_restart` (`pre_ticks`, `gap`), `benign_spike` (`rate`),
   `benign_jitter` (`high`, `low`), `benign_brief_spike` (`spike`, `at`, `dur`, `baseline`),
@@ -87,7 +88,11 @@ les cibles (sim / docker) l'instancient.
   `benign_scoped_inhibition` (`outage_at`, `pg_conns` : une instance tombe réellement et son
   `InstanceDown` inhibe une alerte de la **même** instance — labels `equal` respectés des deux
   côtés, inhibition parfaitement bornée ; piège à faux positif de `inhibition_scope_creep`, dont
-  elle ne se distingue QUE par le périmètre), ou `none`.
+  elle ne se distingue QUE par le périmètre),
+  `benign_maintenance_silence_op` (`at`, `pg_conns` : un silence étroit et exactement ciblé étouffe
+  `PostgreSQLHighConnections` pendant une maintenance de base, alors que les connexions sont
+  **réellement** au-dessus du seuil — même effet observable que `preloaded_silence`, dont il ne se
+  distingue QUE par la **classe** de la cible), ou `none`.
 
 ## Règle de cotation (normative)
 

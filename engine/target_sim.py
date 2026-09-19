@@ -25,6 +25,7 @@ from engine.types import (
     VEC_STALE_REPLAY, VEC_STATISTICAL_REPLAY, VEC_CONSTRAINED_REPLAY,
     VEC_ROUTE_BLACKHOLE, VEC_WATCHDOG_SUPPRESSION, VEC_CARDINALITY_FLOOD,
     VEC_ROGUE_INHIBITOR, VEC_GUARD_OUTAGE_COVER, VEC_INHIBITION_SCOPE_CREEP,
+    VEC_PRELOADED_SILENCE,
 )
 
 H = model.HORIZON
@@ -437,6 +438,36 @@ class SimTarget(Target):
             trace.add(outage_at, "decoy_instance_down", instance=decoy_i, job=decoy_j)
             trace.add(attack_from, "attack_started_under_cover", rate=rate)
 
+        elif v == VEC_PRELOADED_SILENCE:
+            # T1562.001 — silence PRÉ-POSITIONNÉ. L'attaquant pose son silence AU CALME et
+            # bien AVANT de frapper : étroit, `alertname` littéral, périmètre irréprochable —
+            # indiscernable d'une maintenance planifiée au moment de sa création. Puis il
+            # attend et attaque dans sa fenêtre. `silence_abuse` juge la FORME (sur-périmétré)
+            # et l'activité AU MOMENT DE LA POSE : ici la forme est parfaite et le moment est
+            # calme, il s'abstient. `phantom_clear` s'abstient aussi dès qu'un silence existe.
+            # Tout tient au DÉCALAGE entre la pose et l'usage ; seul `silenced_under_threat`
+            # le rattrape, en regardant l'EFFET observé plutôt que la forme ou la date.
+            at = int(params.get("at", 2))
+            attack_from = int(params.get("attack_from", 15))
+            rate = float(params.get("rate", (expected_thr or model.ATTACK_RATE_THRESHOLD) + 70.0))
+            silences.append(Silence(id="sil-preload",
+                                    matchers={"alertname": gt.expected_alert or "HighAttackRate",
+                                              "job": job},
+                                    created_tick=at, comment=params.get("comment", "maintenance planifiee"),
+                                    broad=False))
+            # Trafic licite de fond AU MOMENT DE LA POSE. Il porte tout le sens du vecteur :
+            # le silence est posé au CALME. Valeur sous toute barre d'alerte (seuil 50, barre
+            # d'activité de `silence_abuse` 5, barre d'activité-avant-trou 25), de sorte que
+            # la fenêtre inspectée autour de la création soit réellement calme.
+            calm = float(params.get("calm", 3.0))
+            if expected_signal:
+                ar: list[Optional[float]] = _const(calm)
+                for t in range(max(0, attack_from), H):
+                    ar[t] = rate      # l'attaque ne démarre que BIEN APRÈS la pose du silence
+                metrics[model.series_key(expected_signal, labels or {"job": job, "instance": instance})] = ar
+            trace.add(at, "silence_created", alertname=gt.expected_alert, preloaded=True)
+            trace.add(attack_from, "attack_started_under_silence", rate=rate)
+
         elif v == "none":
             # scénario sain : action bénigne éventuelle (ressemble de loin à un vecteur)
             bk = sc.masking.get("type") if sc.masking else None
@@ -631,6 +662,25 @@ class SimTarget(Target):
                 alerts.append(Alert(name="PostgreSQLHighConnections",
                                     labels={"job": job, "instance": instance}))
                 trace.add(outage_at, "scoped_inhibition", source="InstanceDown", instance=instance)
+            elif bk == "benign_maintenance_silence_op":
+                # maintenance de base planifiée : un silence étroit et exactement ciblé étouffe
+                # PostgreSQLHighConnections pendant que les connexions sont RÉELLEMENT élevées
+                # (c'est attendu : on redémarre la base). Le silence produit donc le MÊME effet
+                # observable que le vecteur `preloaded_silence` — une alerte justifiée étouffée —
+                # et n'en diffère que par la CLASSE de la cible. `silenced_under_threat` ne doit
+                # PAS crier : silencer une alerte opérationnelle pendant une maintenance est le
+                # geste d'exploitation le plus banal qui soit, et le signaler rendrait
+                # l'heuristique inutilisable dès la première semaine. Vrai négatif.
+                at = int(params.get("at", 2))
+                pg = float(params.get("pg_conns", model.PG_CONN_THRESHOLD + 60.0))
+                silences.append(Silence(id="sil-db-maint",
+                                        matchers={"alertname": "PostgreSQLHighConnections", "job": job},
+                                        created_tick=at, comment="maintenance base planifiee",
+                                        broad=False))
+                metrics[model.series_key("pg_conns", {"job": job, "instance": instance})] = _const(pg)
+                alerts.append(Alert(name="PostgreSQLHighConnections",
+                                    labels={"job": job, "instance": instance}))
+                trace.add(at, "silence_created", alertname="PostgreSQLHighConnections", maintenance=True)
 
         # --- 3) inhibiteurs qui firent RÉELLEMENT (ex. coupure -> InstanceDown)
         up_key = model.series_key("up", {"instance": instance, "job": job})

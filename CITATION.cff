@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+title: "Sourdine : banc d'attaques de masquage d'alarme pour la supervision d'agents IA"
+message: "Si vous utilisez ce banc, citez-le à l'aide des métadonnées ci-dessous."
+type: software
+authors:
+  - given-names: Quoc-Nam
+    family-names: Nguyen
+    affiliation: "Apex Numeris SAS, Lyon, France"
+    # orcid: "https://orcid.org/0000-0000-0000-0000"   # à compléter si un ORCID est ouvert
+abstract: >-
+  Sourdine mesure la détection, à l'exécution, du masquage d'alarme par un agent
+  logiciel autonome : abus des primitives d'alerting (inhibition, silence,
+  regroupement, rejeu) sur une chaîne Prometheus/Alertmanager éphémère. Le banc
+  fournit une taxonomie de vecteurs, un protocole de mesure en deux passes
+  (sans puis avec détecteur) et quatre taux (suppression réussie, rattrapage,
+  faux positifs, suppression résiduelle), avec contrôle de cohérence sur
+  plusieurs backends.
+keywords:
+  - alarm masking
+  - alert suppression
+  - agentic AI security
+  - Prometheus
+  - Alertmanager
+  - runtime monitoring
+  - benchmark
+# Code sous Apache-2.0, données et rapport sous CC-BY-4.0 (double licence documentée
+# dans NOTICE et README). Le champ ci-dessous porte la licence du dépôt archivé.
+license: Apache-2.0
+repository-code: "https://github.com/apex-numeris/sourdine"
+url: "https://sourdine.org"
+version: 1.0.0
+# Date du tag v1.0.0 : à régler le jour de la publication, juste avant de taguer.
+date-released: "2026-09-17"

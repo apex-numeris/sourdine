@@ -1,0 +1,30 @@
+Sourdine : banc d'attaques de masquage d'alarme pour la supervision d'agents IA
+Copyright 2026 Apex Numeris SAS, Lyon, France
+
+Auteur : Quoc-Nam Nguyen
+Titulaire des droits patrimoniaux : Apex Numeris SAS (SIREN 990 397 960)
+
+Ce dépôt est distribué sous deux licences, selon la nature des fichiers :
+
+  1. Code et harnais de mesure : Apache License, Version 2.0
+     Fichier : LICENSE (racine du dépôt)
+     Périmètre : engine/, run_campaign.py, target/, tests/, scripts/, Makefile,
+     requirements.txt, VERSION et tout fichier de code non couvert par le point 2.
+
+  2. Scénarios, échantillons et documentation de méthode :
+     Creative Commons Attribution 4.0 International (CC BY 4.0)
+     Fichiers : scenarios/LICENSE, samples/LICENSE, docs/LICENSE
+     Périmètre : scenarios/ (catalogue étiqueté), samples/ (échantillons gelés,
+     citables) et docs/ (rapport de méthode, spécifications, manuels).
+
+Toute réutilisation doit conserver la mention de l'auteur et du titulaire.
+Ce banc évalue un détecteur de référence heuristique ; il n'évalue pas le
+produit SentinelleIA.
+
+---
+
+Sourdine: alarm-masking attack benchmark for AI agent monitoring
+Copyright 2026 Apex Numeris SAS, Lyon, France. Author: Quoc-Nam Nguyen.
+Code and harness under the Apache License, Version 2.0 (file LICENSE).
+Scenarios, samples and method documentation under CC BY 4.0
+(files scenarios/LICENSE, samples/LICENSE, docs/LICENSE).

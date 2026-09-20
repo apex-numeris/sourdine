@@ -1,4 +1,4 @@
-# Sourdine — CIBLE ÉPHÉMÈRE ET JETABLE (projet compose `sourdine`).
+# Sourdine : CIBLE ÉPHÉMÈRE ET JETABLE (projet compose `sourdine`).
 #
 # SÉCURITÉ : cette cible n'est JAMAIS l'Alertmanager/Prometheus de production.
 # Le banc la monte et la détruit lui-même (`down -v`). Ports liés à 127.0.0.1 sur

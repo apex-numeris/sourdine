@@ -1,4 +1,4 @@
-"""Sourdine — interface de cible.
+"""Sourdine : interface de cible.
 
 Une *cible* est un environnement de supervision jetable que le banc monte et
 détruit lui-même. Deux implémentations :

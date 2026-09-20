@@ -1,4 +1,4 @@
-"""Sourdine — chargeur du jeu de scénarios étiquetés.
+"""Sourdine : chargeur du jeu de scénarios étiquetés.
 
 Le jeu de scénarios est un artefact ouvert (JSON), séparé du code du runner, pour
 pouvoir être publié et cité indépendamment. Un scénario décrit une INTENTION

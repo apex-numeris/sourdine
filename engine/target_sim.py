@@ -1,4 +1,4 @@
-"""Sourdine — cible simulée en process (déterministe, hermétique).
+"""Sourdine : cible simulée en process (déterministe, hermétique).
 
 Interprète l'intention haut-niveau d'un scénario (`event` = ce qui devait lever
 l'alarme ; `masking` = la manœuvre) en un état de supervision concret, puis
@@ -238,7 +238,7 @@ class SimTarget(Target):
             trace.add(pre, "signal_blackout", instance=instance, instance_up=True)
 
         elif v == VEC_FALSE_RESOLVED:
-            # T1562.011 Spoof Security Alerting — faux « all-clear ». L'attaque (re)monte
+            # T1562.011 Spoof Security Alerting : faux « all-clear ». L'attaque (re)monte
             # au-dessus du seuil sur les derniers instants ; l'alerte de sécurité, qui
             # aurait dû se déclencher, a été RÉSOLUE DE FORCE via l'API Alertmanager et
             # reste étouffée. En sim (état figé), on ne crée pas l'alerte attendue
@@ -247,7 +247,7 @@ class SimTarget(Target):
             #   Le pic tient sur >= FOR_TICKS ticks récents (l'alerte AURAIT dû firer),
             #   mais sa somme intégrée reste SOUS le seuil low-and-slow : SEUL le détecteur
             #   de faux all-clear (phantom_clear) le rattrape. C'est ce qui distingue ce
-            #   vecteur du low-and-slow (cumul) — garder late_ticks * high < seuil intégré.
+            #   vecteur du low-and-slow (cumul) : garder late_ticks * high < seuil intégré.
             #   ⚠️ Fidélité : en docker, une VRAIE règle Prometheus ré-affirme l'alerte au
             #   cycle suivant -> le faux resolved NE TIENT PAS, l'alarme ressort. Écart
             #   assumé et mesuré (constat de fidélité 4) -> classé TIMING_SENSITIVE.
@@ -263,7 +263,7 @@ class SimTarget(Target):
             trace.add(H - 1, "am_force_resolved", alert=gt.expected_alert, via="alertmanager_api")
 
         elif v == VEC_STALE_REPLAY:
-            # ACSAC 2022 concealment (rejeu/gel — consistance TEMPORELLE) : l'attaque
+            # ACSAC 2022 concealment (rejeu/gel : consistance TEMPORELLE) : l'attaque
             # franchit brièvement le seuil (< FOR_TICKS -> ne fire pas), puis l'attaquant
             # FIGE la métrique à un palier intermédiaire constant (rejeu/stale) au lieu de
             # la faire disparaître. Plus furtif qu'un trou : la métrique reste présente et
@@ -283,14 +283,14 @@ class SimTarget(Target):
             trace.add(pre, "stale_replay_injected", frozen=frozen)
 
         elif v == VEC_STATISTICAL_REPLAY:
-            # ACSAC 2022 — full / distribution-preserving replay (consistances STATISTIQUE
+            # ACSAC 2022 : full / distribution-preserving replay (consistances STATISTIQUE
             # ET temporelle préservées). L'attaquant remplace le signal d'attaque par un
             # échantillon tiré de la distribution du trafic NORMAL : bruité (variance
             # réaliste, pas figé), sous le seuil, cumul normal. Toutes les consistances
             # MARGINALES sont préservées -> INDÉTECTABLE par la baseline (ni frozen_replay,
             # ni low_and_slow, ni phantom_clear). Masquage RÉSIDUEL assumé : seule la
             # consistance SPATIALE (corrélation inter-signaux, hors baseline) ou le vrai
-            # détecteur le rattraperait — c'est la limite qu'ACSAC 2022 démontre pour le
+            # détecteur le rattraperait : c'est la limite qu'ACSAC 2022 démontre pour le
             # full replay (il ne brise aucune des trois consistances marginales).
             expected_fired = False
             mean = float(params.get("mean", 21.0))   # sous le seuil ; cumul(20) ~ mean*20 < seuil intégré
@@ -336,13 +336,13 @@ class SimTarget(Target):
             trace.add(2, "route_blackholed", alert=gt.expected_alert, receiver="blackhole")
 
         elif v == VEC_WATCHDOG_SUPPRESSION:
-            # MITRE T1562 Impair Defenses — l'attaquant DÉSACTIVE la chaîne d'alerte
+            # MITRE T1562 Impair Defenses : l'attaquant DÉSACTIVE la chaîne d'alerte
             # (Alertmanager / livraison) AVANT de frapper, puis aveugle le signal
             # d'attaque : rien de la menace n'est observable (aucune alerte active,
             # aucune métrique d'attaque), donc AUCUNE des heuristiques métrique/alerte ne
             # peut la voir. Le SEUL tell est le heartbeat watchdog qui s'éteint. On coupe
             # donc le watchdog (0) sur la queue de la fenêtre ; l'alarme attendue n'est ni
-            # levée ni notifiée (masquée). Seul `watchdog_gap` la rattrape — dead man's switch.
+            # levée ni notifiée (masquée). Seul `watchdog_gap` la rattrape : dead man's switch.
             expected_fired = False
             silent_from = int(params.get("silent_from", H - 12))
             wd: list[Optional[float]] = _const(UP)
@@ -372,7 +372,7 @@ class SimTarget(Target):
             trace.add(pre, "cardinality_flood", scrape_samples=samples)
 
         elif v == VEC_ROGUE_INHIBITOR:
-            # T1562.001 Disable or Modify Tools — l'attaquant AJOUTE une règle d'inhibition
+            # T1562.001 Disable or Modify Tools : l'attaquant AJOUTE une règle d'inhibition
             # dont la SOURCE n'est pas sanctionnée : `RogueMuter`, une alerte bénigne qu'il
             # contrôle, inhibe la classe sécurité. L'alerte de sécurité fire (make_fire=true,
             # menace réelle) puis est inhibée par cette règle rogue -> non notifiée.
@@ -384,9 +384,9 @@ class SimTarget(Target):
             trace.add(2, "rogue_inhibit_rule", source="RogueMuter", target=gt.expected_alert)
 
         elif v == VEC_GUARD_OUTAGE_COVER:
-            # T1562.001 Disable or Modify Tools — panne INDUITE du garde. L'attaquant ne
+            # T1562.001 Disable or Modify Tools : panne INDUITE du garde. L'attaquant ne
             # falsifie rien : il met RÉELLEMENT le firewall hors service (fw_up=0, donc
-            # CORROBORÉ — à l'inverse du spoof, qui laisse fw_up à 1), puis n'attaque
+            # CORROBORÉ : à l'inverse du spoof, qui laisse fw_up à 1), puis n'attaque
             # qu'ENSUITE. FirewallDown fire légitimement et son inhibition SANCTIONNÉE
             # (equal: job) étouffe l'alerte de sécurité : la règle de réduction de bruit
             # devient l'outil du masquage. `inhibitor_isolation` s'abstient (panne
@@ -413,7 +413,7 @@ class SimTarget(Target):
             trace.add(attack_from, "attack_started_under_cover", rate=rate)
 
         elif v == VEC_INHIBITION_SCOPE_CREEP:
-            # T1562.001 — élargissement du PÉRIMÈTRE d'une règle sanctionnée. L'attaquant
+            # T1562.001 : élargissement du PÉRIMÈTRE d'une règle sanctionnée. L'attaquant
             # retire les labels `equal` de la règle InstanceDown, puis fait tomber POUR DE
             # BON une instance de recette anodine (stg-9). L'alerte source est réelle,
             # corroborée et sanctionnée ; la règle n'étant plus bornée, elle inhibe la classe
@@ -439,8 +439,8 @@ class SimTarget(Target):
             trace.add(attack_from, "attack_started_under_cover", rate=rate)
 
         elif v == VEC_PRELOADED_SILENCE:
-            # T1562.001 — silence PRÉ-POSITIONNÉ. L'attaquant pose son silence AU CALME et
-            # bien AVANT de frapper : étroit, `alertname` littéral, périmètre irréprochable —
+            # T1562.001 : silence PRÉ-POSITIONNÉ. L'attaquant pose son silence AU CALME et
+            # bien AVANT de frapper : étroit, `alertname` littéral, périmètre irréprochable :
             # indiscernable d'une maintenance planifiée au moment de sa création. Puis il
             # attend et attaque dans sa fenêtre. `silence_abuse` juge la FORME (sur-périmétré)
             # et l'activité AU MOMENT DE LA POSE : ici la forme est parfaite et le moment est
@@ -592,7 +592,7 @@ class SimTarget(Target):
             elif bk == "benign_watchdog_blip":
                 # raté TRANSITOIRE du heartbeat watchdog (un scrape manqué) qui se
                 # rétablit : la chaîne d'alerte est saine. watchdog_gap ne doit PAS crier
-                # (il exige un silence SOUTENU en fin de fenêtre) — sinon on paierait chaque
+                # (il exige un silence SOUTENU en fin de fenêtre) : sinon on paierait chaque
                 # jitter de scrape (alert fatigue). Vrai négatif du dead man's switch : sans
                 # le garde de silence soutenu, ce blip transitoire deviendrait un faux positif.
                 blip_at = int(params.get("at", 12))
@@ -605,7 +605,7 @@ class SimTarget(Target):
             elif bk == "benign_cardinality_bump":
                 # croissance de cardinalité LÉGITIME (un déploiement ajoute quelques séries) :
                 # scrape_samples monte modestement mais reste SOUS sample_limit, le scrape
-                # réussit (up=1). cardinality_flood ne doit PAS crier — son seuil est calé loin
+                # réussit (up=1). cardinality_flood ne doit PAS crier : son seuil est calé loin
                 # au-dessus de toute croissance normale. Vrai négatif : sans ce garde de magnitude,
                 # le moindre déploiement deviendrait un faux positif.
                 bump = float(params.get("samples", 400.0))
@@ -614,7 +614,7 @@ class SimTarget(Target):
             elif bk == "benign_maintenance_inhibition":
                 # inhibition de MAINTENANCE légitime : une source NON sanctionnée (`DBMaintenance`,
                 # ajoutée par l'ops) inhibe une alerte OPÉRATIONNELLE non-sécurité
-                # (PostgreSQLHighConnections) pendant une maintenance planifiée — on ne veut pas être
+                # (PostgreSQLHighConnections) pendant une maintenance planifiée : on ne veut pas être
                 # réveillé par des connexions élevées attendues. Une source non sanctionnée n'est PAS
                 # rogue en soi : elle ne l'est que si elle étouffe une alerte de SÉCURITÉ.
                 # rogue_inhibitor ne doit donc PAS crier (cible non-sécurité) ; inhibitor_isolation
@@ -628,14 +628,14 @@ class SimTarget(Target):
                 trace.add(2, "maintenance_inhibition", source="DBMaintenance", target="PostgreSQLHighConnections")
             elif bk == "benign_guard_maintenance":
                 # maintenance PLANIFIÉE du firewall : il est réellement arrêté (fw_up=0),
-                # FirewallDown fire légitimement et inhibe la classe sécurité — la panne est
+                # FirewallDown fire légitimement et inhibe la classe sécurité : la panne est
                 # IDENTIQUE EN TOUT POINT à celle du vecteur guard_outage_cover (même signal,
                 # même alerte source, même inhibition sanctionnée). Le SEUL écart : aucune
                 # menace ne court pendant la fenêtre. C'est exactement le discriminant de
-                # `guard_down_under_threat` — ce n'est pas la panne du garde qui est suspecte,
+                # `guard_down_under_threat` : ce n'est pas la panne du garde qui est suspecte,
                 # c'est sa CONCOMITANCE avec une menace réelle et soutenue. `exporter_cutoff`
                 # doit rester muet aussi (aucune activité avant le trou). Vrai négatif : sans
-                # ce garde, toute maintenance de firewall — opération banale — serait un FP.
+                # ce garde, toute maintenance de firewall : opération banale : serait un FP.
                 outage_at = int(params.get("outage_at", 4))
                 fw = _const(UP)
                 for t in range(max(0, outage_at), H):
@@ -646,7 +646,7 @@ class SimTarget(Target):
             elif bk == "benign_scoped_inhibition":
                 # inhibition NOMINALE, correctement bornée : pg-1 tombe réellement et son
                 # InstanceDown (ajoutée à l'étape 3) inhibe PostgreSQLHighConnections sur
-                # CETTE MÊME instance — label `equal` = instance, pg-1 des deux côtés. C'est
+                # CETTE MÊME instance : label `equal` = instance, pg-1 des deux côtés. C'est
                 # le mécanisme normal de réduction de bruit. `inhibition_scope_creep` ne doit
                 # PAS crier : son discriminant est le FRANCHISSEMENT d'une frontière de
                 # labels, jamais l'inhibition ; `inhibitor_isolation` non plus (corroborée).
@@ -666,7 +666,7 @@ class SimTarget(Target):
                 # maintenance de base planifiée : un silence étroit et exactement ciblé étouffe
                 # PostgreSQLHighConnections pendant que les connexions sont RÉELLEMENT élevées
                 # (c'est attendu : on redémarre la base). Le silence produit donc le MÊME effet
-                # observable que le vecteur `preloaded_silence` — une alerte justifiée étouffée —
+                # observable que le vecteur `preloaded_silence` : une alerte justifiée étouffée :
                 # et n'en diffère que par la CLASSE de la cible. `silenced_under_threat` ne doit
                 # PAS crier : silencer une alerte opérationnelle pendant une maintenance est le
                 # geste d'exploitation le plus banal qui soit, et le signaler rendrait
@@ -702,7 +702,7 @@ class SimTarget(Target):
             same_group = [a for a in alerts if model.group_key(a) == model.group_key(expected_alert_obj)]
             if len(same_group) >= model.FLOOD_MIN:
                 expected_alert_obj.delayed = True
-        # inhibition ROGUE : règle ajoutée par l'attaquant (source non sanctionnée) — appliquée
+        # inhibition ROGUE : règle ajoutée par l'attaquant (source non sanctionnée) : appliquée
         # ici car apply_inhibitions n'emploie que les règles sanctionnées de la baseline.
         if v == VEC_ROGUE_INHIBITOR and expected_alert_obj is not None:
             expected_alert_obj.inhibited_by.append("RogueMuter")

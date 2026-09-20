@@ -1,4 +1,4 @@
-"""Sourdine — cible éphémère en conteneurs (fidélité : vrais Prometheus + Alertmanager).
+"""Sourdine : cible éphémère en conteneurs (fidélité : vrais Prometheus + Alertmanager).
 
 Le banc monte SA PROPRE cible jetable (projet compose `sourdine`, ports liés à
 127.0.0.1) et la détruit lui-même. Il ne vise JAMAIS l'Alertmanager/Prometheus de
@@ -7,7 +7,7 @@ production et ne modifie aucune config existante : toutes les manipulations
 isolée et jetable.
 
 Observation fidèle : « l'alarme est levée » = la notification atteint le sink
-webhook (post-inhibition, post-silence, post-routage) — pas seulement l'état
+webhook (post-inhibition, post-silence, post-routage) : pas seulement l'état
 interne d'Alertmanager.
 
 NB : la cible sim (`target_sim`) reste la référence déterministe. La cible docker
@@ -46,7 +46,7 @@ from engine.types import (
 _BLACKHOLE_LABEL = ("route_target", "blackhole")
 
 # Déviations déterministes (bruit réaliste) pour les signaux à distribution préservée
-# (statistical_replay, benign_noise) — posées point par point sur l'exporter.
+# (statistical_replay, benign_noise) : posées point par point sur l'exporter.
 _NOISE = [3.0, -4.0, 6.0, -2.0, 5.0, -6.0, 8.0, -1.0, -3.0, 4.0]
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -58,7 +58,7 @@ AM = "http://127.0.0.1:39093"
 EXP = "http://127.0.0.1:39080"
 SINK = "http://127.0.0.1:39099"
 
-STEP = 2                  # pas de scrape/éval (s) — doit matcher prometheus.yml
+STEP = 2                  # pas de scrape/éval (s) : doit matcher prometheus.yml
 SETTLE = 12               # décantation par défaut (s)
 SETTLE_LONG = 44          # décantation pour low-and-slow (accumulation)
 # map nom de métrique exporter -> nom de signal attendu par le détecteur
@@ -245,15 +245,15 @@ class DockerTarget(Target):
                                  expected_thr + max(70.0, expected_thr))
                 trace.add(0, "event_injected", alert=gt.expected_alert)
 
-        # === Masquages PRÉVENTIFS (inhibition / silence) — établis et CONFIRMÉS actifs,
+        # === Masquages PRÉVENTIFS (inhibition / silence) : établis et CONFIRMÉS actifs,
         #     puis stabilisés (> group_interval), AVANT de faire firer l'alerte cible.
         #     ROBUSTESSE : sinon l'alerte peut être notifiée au premier flush AVANT qu'AM
-        #     applique le muting (course de timing observée, ~1 run/3, à charge nulle —
+        #     applique le muting (course de timing observée, ~1 run/3, à charge nulle :
         #     l'inhibiteur/silence était pourtant actif). Poser le masquage d'abord et le
         #     confirmer garantit qu'il est dans le muting index d'AM quand l'alerte fire,
         #     rendant le masquage DÉTERMINISTE sans toucher aux seuils ni au `for:`. ===
         # SOURCE UNIQUE : la même liste pilotait le retry (`_PREVENTIVE`) et ce test, en
-        # deux exemplaires — un vecteur ajouté à l'un et oublié dans l'autre aurait été
+        # deux exemplaires : un vecteur ajouté à l'un et oublié dans l'autre aurait été
         # établi sans stabilisation, ou stabilisé sans retry, en silence.
         preventive = v in self._PREVENTIVE
         if v in (VEC_FIREWALL_DOWN_SPOOF, VEC_INSTANCE_DOWN_SPOOF, VEC_POSTGRES_DOWN_SPOOF):
@@ -293,8 +293,8 @@ class DockerTarget(Target):
             self._await_alert_active("RogueMuter")
             trace.add(2, "rogue_inhibit_rule", source="RogueMuter")
         elif v == VEC_GUARD_OUTAGE_COVER:
-            # T1562.001 : panne RÉELLE du garde, établie AVANT l'attaque. On coupe fw_up —
-            # le firewall est hors service pour de bon — et la règle FirewallDown
+            # T1562.001 : panne RÉELLE du garde, établie AVANT l'attaque. On coupe fw_up :
+            # le firewall est hors service pour de bon : et la règle FirewallDown
             # (`fw_up == 0`, for: 6s) fire D'ELLE-MÊME : rien n'est posté à l'API AM, rien
             # n'est ajouté à la config. La chaîne est prise TELLE QU'ELLE EST, et c'est ce
             # qui fait de ce vecteur un vrai trou plutôt qu'un artifice : l'inhibition
@@ -309,7 +309,7 @@ class DockerTarget(Target):
             # alertmanager.yml, et reste INERTE tant qu'aucune InstanceDown sur stg-9
             # n'existe. On fait tomber POUR DE BON l'instance de recette anodine
             # (inst_up{stg-9}=0) : la vraie regle InstanceDown fire d'elle-meme, source
-            # reelle et sanctionnee — et la regle non bornee etouffe alors la classe
+            # reelle et sanctionnee : et la regle non bornee etouffe alors la classe
             # securite de fw-1, sans aucun rapport. Preventif : l'inhibition doit etre
             # active avant que la cible fire.
             self._set_metric("inst_up", {"job": params.get("decoy_job", "staging"),
@@ -318,7 +318,7 @@ class DockerTarget(Target):
             trace.add(0, "decoy_instance_down", instance=params.get("decoy_instance", "stg-9"))
         elif v == VEC_PRELOADED_SILENCE:
             # T1562.001 : silence PRE-POSITIONNE. Etroit, `alertname` litteral, perimetre
-            # irreprochable — au moment de sa pose il est indiscernable d'une maintenance
+            # irreprochable : au moment de sa pose il est indiscernable d'une maintenance
             # planifiee, et aucune activite ne l'entoure. C'est le DECALAGE dans le temps
             # entre la pose et l'usage qui fait le masquage : l'attaque ne vient qu'ensuite,
             # dans la fenetre ainsi ouverte. Preventif par nature (le silence doit etre actif
@@ -329,7 +329,7 @@ class DockerTarget(Target):
             # FIDELITE (constat du smoke round 13) : sans cette ligne, docker rattrapait le
             # vecteur par `silence_abuse` au lieu de `silenced_under_threat`. Motif : `_snapshot`
             # rapporte TOUT silence avec `created_tick=0`, et la serie `attack_rate` ne COMMENCE
-            # qu'au moment ou `_fire_event` la pose — deja a 120. La fenetre inspectee autour de
+            # qu'au moment ou `_fire_event` la pose : deja a 120. La fenetre inspectee autour de
             # la creation ne contenait donc que des valeurs hautes, et le silence paraissait pose
             # « pendant une montee d'activite ». Le DECALAGE temporel, qui est tout le vecteur,
             # n'etait pas represente. On pose donc explicitement le trafic de fond calme qui
@@ -341,8 +341,8 @@ class DockerTarget(Target):
 
         if preventive:
             # stabilisation ample (> 2× group_interval de 5 s) : laisse AM indexer le
-            # masquage — en particulier les silences à matcher REGEX (~.+), plus lents à
-            # indexer que les matchers exacts — avant que l'alerte cible fire.
+            # masquage : en particulier les silences à matcher REGEX (~.+), plus lents à
+            # indexer que les matchers exacts : avant que l'alerte cible fire.
             time.sleep(STEP * 6)
         _fire_event()              # l'événement APRÈS l'établissement du masquage préventif
 
@@ -396,7 +396,7 @@ class DockerTarget(Target):
             self._del_metric(sig, lset)    # le signal disparaît, inst_up reste 1
             trace.add(2, "signal_blackout", instance=instance)
         elif v == VEC_FALSE_RESOLVED:
-            # T1562.011 Spoof Security Alerting — faux « all-clear » via l'API AM. La
+            # T1562.011 Spoof Security Alerting : faux « all-clear » via l'API AM. La
             # menace est réelle : la métrique est (re)montée au-dessus du seuil ;
             # l'attaquant POST un resolved (endsAt dans le passé) pour l'alerte de sécurité.
             #   ⚠️ Fidélité : contrairement au sim (état figé -> masque), un VRAI Prometheus
@@ -612,7 +612,7 @@ class DockerTarget(Target):
                 settle = STEP * 8   # laisser PostgreSQLHighConnections firer et l'inhibition maintenance s'appliquer
             elif bk == "benign_guard_maintenance":
                 # maintenance PLANIFIÉE : le firewall est réellement arrêté (fw_up=0), donc la
-                # règle FirewallDown fire légitimement et inhibe la classe sécurité — panne
+                # règle FirewallDown fire légitimement et inhibe la classe sécurité : panne
                 # IDENTIQUE à celle de guard_outage_cover. Mais AUCUNE menace ne court :
                 # `guard_down_under_threat` doit rester muet (son discriminant est la
                 # concomitance d'une menace réelle, pas la panne elle-même) et
@@ -703,7 +703,7 @@ class DockerTarget(Target):
                                 metric_history=metric_history, horizon=model.HORIZON)
 
     def _metric_history(self, start: float) -> dict[str, list[Optional[float]]]:
-        end = time.time()   # fenêtre [début du scénario ; maintenant] — pas de bleed
+        end = time.time()   # fenêtre [début du scénario ; maintenant] : pas de bleed
         out: dict[str, list[Optional[float]]] = {}
         for metric in ("attack_rate", "jailbreak_rate", "critical_attacks", "pg_conns",
                        "inst_up", "fw_up", "pg_up", "blocked_rate", "watchdog", "scrape_samples"):

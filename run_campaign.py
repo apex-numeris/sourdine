@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sourdine — lancer une campagne du banc de masquage d'alarme.
+"""Sourdine : lancer une campagne du banc de masquage d'alarme.
 
 Exemples :
     python run_campaign.py                      # cible sim (défaut), détecteur baseline
@@ -73,7 +73,7 @@ def build_report(backend: str = "sim", scenarios_root: str | None = None,
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description="Banc Sourdine — masquage d'alarme")
+    p = argparse.ArgumentParser(description="Banc Sourdine : masquage d'alarme")
     p.add_argument("--backend", default="sim", choices=["sim", "docker"],
                    help="cible éphémère : sim (défaut, hermétique) ou docker (vrais conteneurs)")
     p.add_argument("--scenarios", default=os.path.join(HERE, "scenarios"),

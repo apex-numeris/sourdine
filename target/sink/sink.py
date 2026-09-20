@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sourdine — sink webhook de la cible éphémère (stdlib uniquement).
+"""Sourdine : sink webhook de la cible éphémère (stdlib uniquement).
 
 Reçoit les notifications d'Alertmanager (POST /) et les mémorise. C'est l'organe
 d'observation fidèle : « l'alarme est levée » = sa notification est arrivée ici

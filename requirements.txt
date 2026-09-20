@@ -1,4 +1,4 @@
-# Sourdine — aucune dépendance tierce.
+# Sourdine : aucune dépendance tierce.
 #
 # Le moteur (scénarios, cible sim, détecteur baseline, runner, métriques, rapport)
 # et la cible docker (pilotée via urllib) n'utilisent que la bibliothèque standard

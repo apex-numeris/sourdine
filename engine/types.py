@@ -1,4 +1,4 @@
-"""Sourdine — types partagés du banc de masquage d'alarme.
+"""Sourdine : types partagés du banc de masquage d'alarme.
 
 Aucune dépendance tierce : stdlib uniquement (dataclasses, typing).
 Ces types sont communs aux deux cibles (sim en process, docker éphémère) et au
@@ -91,7 +91,7 @@ class Alert:
     silenced_by: list[str] = field(default_factory=list)    # ids de silence
     delayed: bool = False                                    # noyée par le groupement / repeat_interval
     route_muted: bool = False                                # notification avalée au routage (récepteur
-                                                             # trou-noir / mute de route) — 4e levier de
+                                                             # trou-noir / mute de route) : 4e levier de
                                                              # suppression, distinct d'inhibition/silence/groupement
 
     @property
@@ -110,7 +110,7 @@ class Silence:
     id: str
     matchers: dict[str, str]       # label -> valeur (préfixe "~" = regex)
     created_tick: int
-    comment: str = ""              # champ fourni par le créateur — NON fiable (peut être attaquant)
+    comment: str = ""              # champ fourni par le créateur : NON fiable (peut être attaquant)
     broad: bool = False            # périmètre anormalement large (pas de matcher d'instance/alertname précis)
 
 

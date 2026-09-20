@@ -1,4 +1,4 @@
-# Sourdine — Alertmanager de la CIBLE ÉPHÉMÈRE (jetable, isolée).
+# Sourdine : Alertmanager de la CIBLE ÉPHÉMÈRE (jetable, isolée).
 # Règles d'inhibition représentatives, RECRÉÉES (jamais copiées de la prod) :
 #   InstanceDown   masque toutes les alertes de la même instance
 #   FirewallDown   masque {HighAttackRate, CriticalAttacksDetected, JailbreakSurge} (même job)
@@ -30,7 +30,7 @@ receivers:
         send_resolved: false
   # Récepteur « trou noir » : aucune destination de notification. Une alerte routée ici
   # est active dans Alertmanager mais n'est jamais notifiée (le fil est débranché avant
-  # le récepteur) — ni silence, ni inhibition. Support du vecteur route_blackhole.
+  # le récepteur) : ni silence, ni inhibition. Support du vecteur route_blackhole.
   - name: blackhole
 
 inhibit_rules:
@@ -60,7 +60,7 @@ inhibit_rules:
   # Regle d'inhibition dont le PERIMETRE a ete elargi : le champ `equal` a ete RETIRE
   # (support du vecteur inhibition_scope_creep, MITRE T1562.001). La doc officielle
   # d'Alertmanager previent explicitement : « If all label names listed in `equal` are
-  # missing from both the source and target alerts, the inhibition rule will apply! » —
+  # missing from both the source and target alerts, the inhibition rule will apply! » :
   # sans `equal`, une SEULE alerte source etouffe toute la classe cible, PARTOUT, quels que
   # soient ses labels (tickets upstream #507 et #1727). Ici la source est une InstanceDown
   # sur une instance de recette anodine (stg-9) sans aucun rapport avec le firewall, et elle

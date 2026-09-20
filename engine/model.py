@@ -1,4 +1,4 @@
-"""Sourdine — modèle sémantique représentatif de la chaîne d'alerte.
+"""Sourdine : modèle sémantique représentatif de la chaîne d'alerte.
 
 Jeu de règles d'alerte + règles d'inhibition + paramètres de routage **recréés**
 (jamais copiés depuis la production) mais représentatifs de ce qui a été observé :
@@ -29,7 +29,7 @@ PG_CONN_THRESHOLD = 180.0         # seuil de PostgreSQLHighConnections
 
 # Seuil *intégré* (somme sur fenêtre longue) utilisé par le détecteur low-and-slow.
 # Volontairement calé pour qu'une attaque qui reste juste sous le seuil instantané
-# mais s'étale puisse être rattrapée — et qu'une qui reste sous l'intégré passe
+# mais s'étale puisse être rattrapée : et qu'une qui reste sous l'intégré passe
 # (suppression résiduelle non nulle), et qu'un pic licite puisse faux-positiver.
 CUMULATIVE_WINDOW = 20            # ticks de la fenêtre d'intégration
 CUMULATIVE_THRESHOLD = 540.0      # somme sur la fenêtre au-delà de laquelle c'est suspect
@@ -66,7 +66,7 @@ WATCHDOG_MIN_SILENCE = 4
 # `scrape_samples` = nombre d'échantillons rendus par la cible au dernier scrape
 # (métrique Prometheus `scrape_samples_scraped`). Un attaquant qui injecte un flot de
 # séries à très haute cardinalité fait dépasser `sample_limit` : Prometheus REJETTE le
-# scrape entier et met `up` à 0 « comme si la cible était tombée » — le vrai signal
+# scrape entier et met `up` à 0 « comme si la cible était tombée » : le vrai signal
 # n'est jamais ingéré. Le pic de `scrape_samples` bien au-delà de toute croissance
 # légitime (un déploiement n'ajoute que quelques dizaines de séries) est ce qui distingue
 # la bombe de cardinalité d'une vraie panne (MITRE Impair Defenses via épuisement de
@@ -95,12 +95,12 @@ INHIBITOR_SOURCES = {"InstanceDown", "FirewallDown", "PostgreSQLDown"}
 # `inhibitor_isolation` cherche la NON-corroboration (signature du spoof : la source
 # prétend une panne que le signal dément), `guard_down_under_threat` exige au contraire
 # la corroboration (signature de la panne réellement induite). Un seul motif, deux
-# lectures — le dupliquer le ferait dériver d'un côté sans qu'on le voie de l'autre.
+# lectures : le dupliquer le ferait dériver d'un côté sans qu'on le voie de l'autre.
 INHIBITOR_CORROBORATION = {"InstanceDown": "up", "FirewallDown": "fw_up",
                            "PostgreSQLDown": "pg_up"}
 
 # Sources d'inhibition dont la panne AVEUGLE la défense elle-même (le « garde »).
-# Leur inhibition de la classe sécurité est légitime PAR CONFIGURATION — c'est même sa
+# Leur inhibition de la classe sécurité est légitime PAR CONFIGURATION : c'est même sa
 # raison d'être (ne pas crier au débordement quand le firewall est tombé). Mais une panne
 # RÉELLE du garde CONCOMITANTE d'une menace RÉELLE est exactement le cas que cette règle
 # de réduction de bruit rend invisible, et que l'attaquant provoque délibérément
@@ -126,7 +126,7 @@ INHIBIT_RULES: list[dict] = [
 INHIBITOR_TARGET_RE = {r["source"]: re.compile(r["target_re"]) for r in INHIBIT_RULES}
 
 # Labels `equal` SANCTIONNÉS de chaque règle : le périmètre dans lequel une source a le
-# droit d'inhiber. DÉRIVÉ de INHIBIT_RULES (jamais recopié) — la baseline reste l'unique
+# droit d'inhiber. DÉRIVÉ de INHIBIT_RULES (jamais recopié) : la baseline reste l'unique
 # endroit où le périmètre est déclaré. La doc Alertmanager prévient que si les labels
 # `equal` sont absents des DEUX alertes, la règle s'applique quand même : retirer `equal`
 # transforme donc une inhibition ciblée en suppression GLOBALE, ce qu'exploite le vecteur

@@ -44,11 +44,11 @@ Options utiles : `--out reports/ma-campagne.json`, `--quiet`,
 
 ```
   Taux                         valeur   sous-ensemble / preuve
-  Suppression réussie         100.0%   attaques sans détecteur — danger client
-  Rattrapage                   75.0%   parmi masquées — valeur produit
-  Faux positifs                33.3%   scénarios sains — coût opérationnel
-  Suppression résiduelle       25.0%   attaques non rattrapées — honnêteté
-  Contrôle de cohérence       100.0%   cas graves sains — doit approcher 100%
+  Suppression réussie         100.0%   attaques sans détecteur : danger client
+  Rattrapage                   75.0%   parmi masquées : valeur produit
+  Faux positifs                33.3%   scénarios sains : coût opérationnel
+  Suppression résiduelle       25.0%   attaques non rattrapées : honnêteté
+  Contrôle de cohérence       100.0%   cas graves sains : doit approcher 100%
 ```
 
 ### Comment interpréter
@@ -65,7 +65,7 @@ La **ventilation par niveau d'accès attaquant** indique contre quel profil
 d'attaquant le masquage réussit (ex. un attaquant sans accès superviseur, qui ne
 connaît que les seuils, vs un attaquant avec l'API des silences).
 
-Le détail par scénario montre, pour chaque ligne : `masquée` (oui/—) et, pour les
+Le détail par scénario montre, pour chaque ligne : `masquée` (oui/non) et, pour les
 attaques, `rattrap.` (oui/NON) ; pour les sains, `ok`/`FP`.
 
 ### Lire le JSON

@@ -1,4 +1,4 @@
-# Sourdine — règles d'alerte de la CIBLE ÉPHÉMÈRE (représentatives, recréées).
+# Sourdine : règles d'alerte de la CIBLE ÉPHÉMÈRE (représentatives, recréées).
 # Les seuils/durées correspondent à engine/model.py pour que sim et docker
 # partagent les mêmes conventions.
 groups:

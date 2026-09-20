@@ -1,4 +1,4 @@
-# Sourdine — cibles de commodité. Le banc lui-même est stdlib pur (aucun pip).
+# Sourdine : cibles de commodité. Le banc lui-même est stdlib pur (aucun pip).
 # Ce Makefile est autonome au dossier sourdine/ ; il ne touche pas au Makefile
 # racine du dépôt (plateforme).
 .PHONY: help test test-regression test-docker run run-docker regen-sample clean

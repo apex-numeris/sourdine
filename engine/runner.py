@@ -1,4 +1,4 @@
-"""Sourdine — moteur d'exécution des scénarios (deux passes).
+"""Sourdine : moteur d'exécution des scénarios (deux passes).
 
 Pour chaque scénario : la cible établit l'état, injecte l'événement qui doit lever
 l'alarme, applique le vecteur de masquage, puis observe l'état des alertes SANS

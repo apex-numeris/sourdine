@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sourdine — exporter synthétique de la cible éphémère (stdlib uniquement).
+"""Sourdine : exporter synthétique de la cible éphémère (stdlib uniquement).
 
 Sert /metrics au format Prometheus à partir d'un état pilotable par le runner :
   POST /set   {"metric","labels","value"}   upsert d'une série

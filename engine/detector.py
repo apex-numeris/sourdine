@@ -1,13 +1,13 @@
-"""Sourdine — détecteur de masquage (interface stable + baseline heuristique).
+"""Sourdine : détecteur de masquage (interface stable + baseline heuristique).
 
 Le détecteur ne regarde PAS le contenu de l'attaque : il cherche le silence
-suspect et les manipulations de la chaîne d'alerte. Principe directeur — le chien
+suspect et les manipulations de la chaîne d'alerte. Principe directeur : le chien
 qui n'aboie pas : l'absence anormale de signal est elle-même le signal.
 
 `MaskingDetector` est l'interface stable. Le banc fournit `BaselineDetector`
 (volontairement imparfaite). Le vrai détecteur de SentinelleIA viendra
 implémenter la même interface, hors de ce worktree, et se mesurera au même
-protocole — le banc n'importe pas le produit.
+protocole : le banc n'importe pas le produit.
 
 Le détecteur est AVEUGLE au scénario : il ne reçoit que SupervisionState + Trace.
 """
@@ -115,7 +115,7 @@ class BaselineDetector(MaskingDetector):
         la source est une alerte bénigne qu'il contrôle, pour étouffer la classe sécurité. C'est
         distinct des spoofs (round 1-3), qui FALSIFIENT une source SANCTIONNÉE (InstanceDown…) et
         que `inhibitor_isolation` rattrape par non-corroboration : ici la source est ILLÉGITIME,
-        donc `inhibitor_isolation` — qui ne regarde que les sources sanctionnées — ne l'examine
+        donc `inhibitor_isolation` : qui ne regarde que les sources sanctionnées : ne l'examine
         même pas. Détection par dérive de config : l'inhibition ne figure pas dans la baseline
         sanctionnée. Le discriminant est la LÉGITIMITÉ de la source, pas la corroboration."""
         for a in state.alerts:
@@ -152,7 +152,7 @@ class BaselineDetector(MaskingDetector):
     def _h_silence_abuse(self, state) -> Optional[Verdict]:
         for sil in state.silences:
             # Sur-périmétré : matcher `instance` large (broad), OU pas de matcher
-            # `alertname` EXACT (absent, ou regex type `~.+`) — le silence balaie alors
+            # `alertname` EXACT (absent, ou regex type `~.+`) : le silence balaie alors
             # toute une classe d'alertes, y compris des alertes de sécurité. Une
             # maintenance légitime, elle, nomme un `alertname` littéral précis.
             exact_alertname = ("alertname" in sil.matchers
@@ -264,7 +264,7 @@ class BaselineDetector(MaskingDetector):
     def _h_phantom_clear(self, state) -> Optional[Verdict]:
         """Faux all-clear (OWASP LLM-adjacent / MITRE T1562.011 Spoof Security Alerting) :
         un signal à taux reste SOUTENU au-dessus du seuil (>= FOR_TICKS consécutifs dans
-        la fenêtre récente), donc l'alerte à taux AURAIT dû être active — mais aucune ne
+        la fenêtre récente), donc l'alerte à taux AURAIT dû être active : mais aucune ne
         l'est, et aucune cause légitime de suppression n'existe (ni source inhibitrice, ni
         silence). L'alerte a été indûment résolue/étouffée alors que la menace persiste :
         le chien qu'on a fait taire APRÈS qu'il a aboyé, distinct des vecteurs qui
@@ -306,11 +306,11 @@ class BaselineDetector(MaskingDetector):
         return False
 
     def _h_frozen_replay(self, state) -> Optional[Verdict]:
-        """Rejeu / gel de données (ACSAC 2022 « generic concealment » — violation de
+        """Rejeu / gel de données (ACSAC 2022 « generic concealment » : violation de
         consistance TEMPORELLE). Après avoir FRANCHI le seuil (attaque réelle), le signal
         est FIGÉ à une valeur intermédiaire constante (variance nulle) au lieu de
-        disparaître : la métrique reste présente et plausible — plus furtif qu'un trou
-        (`selective_metric_drop`) — mais sa dynamique gelée trahit le rejeu, là où un vrai
+        disparaître : la métrique reste présente et plausible : plus furtif qu'un trou
+        (`selective_metric_drop`) : mais sa dynamique gelée trahit le rejeu, là où un vrai
         signal continuerait de varier. Distinct du low-and-slow (jamais au-dessus du seuil)
         et du pic bénin bref (qui retombe au repos, pas à un palier intermédiaire)."""
         for signal, thr in (("attack_rate", model.ATTACK_RATE_THRESHOLD),
@@ -348,11 +348,11 @@ class BaselineDetector(MaskingDetector):
     def _h_spatial_incoherence(self, state) -> Optional[Verdict]:
         """Consistance SPATIALE (ACSAC 2022, constrained replay). `attack_rate` (attaques
         rapportées) et `blocked_rate` (requêtes bloquées par le firewall) sont normalement
-        corrélés — ils mesurent la même activité malveillante sous deux angles. Un
+        corrélés : ils mesurent la même activité malveillante sous deux angles. Un
         constrained replay rejoue attack_rate bas (masque le compteur d'attaques) mais ne
         masque PAS blocked_rate : le firewall bloque massivement alors qu'il ne rapporte
         quasi aucune attaque. Cette divergence entre deux signaux qui devraient bouger
-        ensemble trahit le masquage — là où le full statistical_replay, qui masque TOUT,
+        ensemble trahit le masquage : là où le full statistical_replay, qui masque TOUT,
         reste indétectable (aucune corrélation à briser)."""
         if any(a.name in ("HighAttackRate", "JailbreakSurge") for a in state.alerts):
             return None                       # une alerte à taux est active : pas de masquage
@@ -370,8 +370,8 @@ class BaselineDetector(MaskingDetector):
         """Blocage d'indicateur au ROUTAGE (MITRE T1562.006 Indicator Blocking). Une
         alerte de sécurité est ACTIVE (la menace est réelle : son signal reste soutenu
         au-dessus du seuil, l'alerte à taux a donc dû firer), mais sa notification n'a
-        JAMAIS atteint le récepteur — reroutée vers un récepteur « trou noir » ou mutée
-        au niveau de la route (`route_muted`) — SANS silence ni inhibiteur pour
+        JAMAIS atteint le récepteur : reroutée vers un récepteur « trou noir » ou mutée
+        au niveau de la route (`route_muted`) : SANS silence ni inhibiteur pour
         l'expliquer. C'est un 4e levier de suppression, distinct de l'inhibition, du
         silence et du groupement : l'alerte aboie, mais quelqu'un a débranché le fil
         avant le récepteur. La détection est une corrélation métrique <-> livraison,
@@ -401,16 +401,16 @@ class BaselineDetector(MaskingDetector):
         return None
 
     def _h_watchdog_gap(self, state) -> Optional[Verdict]:
-        """Dead man's switch (watchdog / heartbeat) déclenché — meta-monitoring. Le
+        """Dead man's switch (watchdog / heartbeat) déclenché : meta-monitoring. Le
         heartbeat `watchdog`, TOUJOURS émis quand la chaîne d'alerte est vivante
         (Prometheus -> Alertmanager -> livraison), a cessé pendant une période SOUTENUE :
         la chaîne elle-même est compromise, et l'ABSENCE d'alertes n'est donc plus une
         preuve d'absence de menace. C'est la dernière ligne de défense : même un
         attaquant qui aveugle parfaitement le signal d'attaque (aucune alerte, aucune
-        métrique visible) est trahi par le heartbeat qui s'éteint (T1562 Impair Defenses —
+        métrique visible) est trahi par le heartbeat qui s'éteint (T1562 Impair Defenses :
         désactivation de la chaîne d'alerte). Un raté transitoire (un scrape manqué) se
         rétablit ; seule une silence d'au moins WATCHDOG_MIN_SILENCE ticks consécutifs
-        en fin de fenêtre trompe le switch — sinon on paierait chaque jitter de scrape."""
+        en fin de fenêtre trompe le switch : sinon on paierait chaque jitter de scrape."""
         n = model.WATCHDOG_MIN_SILENCE
         for _lbls, series in self._series(state, model.WATCHDOG_SIGNAL):
             tail = series[-n:]
@@ -424,10 +424,10 @@ class BaselineDetector(MaskingDetector):
     def _h_cardinality_flood(self, state) -> Optional[Verdict]:
         """DoS d'ingestion par explosion de cardinalité (MITRE Impair Defenses via épuisement
         de ressources). Un attaquant injecte un flot de séries à très haute cardinalité (labels
-        uniques) ; le scrape dépasse `sample_limit` et Prometheus REJETTE le scrape entier —
+        uniques) ; le scrape dépasse `sample_limit` et Prometheus REJETTE le scrape entier :
         `up` passe à 0 « comme si la cible était tombée », et le vrai signal n'est jamais ingéré.
         La panne est donc INDISCERNABLE d'une vraie coupure pour les heuristiques d'absence
-        (exporter_cutoff, inhibitor_isolation) — sauf que le nombre d'échantillons du scrape
+        (exporter_cutoff, inhibitor_isolation) : sauf que le nombre d'échantillons du scrape
         (`scrape_samples`) explose bien au-delà de toute croissance légitime (un déploiement
         n'ajoute que quelques dizaines de séries). C'est ce pic qui distingue la bombe de
         cardinalité d'une vraie panne ; alerte standard `prometheus_target_scrapes_exceeded_sample_limit_total`."""
@@ -444,19 +444,19 @@ class BaselineDetector(MaskingDetector):
         ne falsifie rien : il met RÉELLEMENT le composant de sécurité hors service, puis
         attaque une fois la panne établie. La règle d'inhibition sanctionnée
         `FirewallDown -> classe sécurité` fonctionne alors exactement comme prévu et
-        étouffe l'alerte — la règle de réduction de bruit devient l'outil du masquage.
+        étouffe l'alerte : la règle de réduction de bruit devient l'outil du masquage.
 
         C'est le complément EXACT de `inhibitor_isolation`, sur le même motif de
         corroboration lu en sens inverse : là-bas la source ment (panne non corroborée =
         spoof), ici elle dit vrai (panne corroborée) et c'est précisément ce qui la rend
-        indétectable par corroboration. `rogue_inhibitor` ne la voit pas non plus — la
+        indétectable par corroboration. `rogue_inhibitor` ne la voit pas non plus : la
         source est parfaitement sanctionnée. Et les heuristiques métriques s'abstiennent
         toutes dès qu'une alerte à taux est présente : elle l'est, ayant fire puis été
         inhibée. Enfin l'ORDRE de la manœuvre neutralise `exporter_cutoff`, qui exige de
         l'activité AVANT le trou de collecte : couper le garde d'abord vide cette fenêtre.
 
-        Le discriminant n'est PAS la panne du garde — une maintenance de firewall est une
-        opération banale et planifiée — mais sa CONCOMITANCE avec une menace réelle et
+        Le discriminant n'est PAS la panne du garde : une maintenance de firewall est une
+        opération banale et planifiée : mais sa CONCOMITANCE avec une menace réelle et
         SOUTENUE au-dessus du seuil. Sans ce garde, toute maintenance deviendrait un faux
         positif et l'heuristique serait désactivée en exploitation (alert fatigue)."""
         for src in state.alerts:
@@ -489,10 +489,10 @@ class BaselineDetector(MaskingDetector):
         return None
 
     def _h_inhibition_scope_creep(self, state) -> Optional[Verdict]:
-        """Inhibition DÉBORDANT de son périmètre (MITRE T1562.001 — élargissement de la
+        """Inhibition DÉBORDANT de son périmètre (MITRE T1562.001 : élargissement de la
         config d'alerte). L'attaquant ne falsifie aucune source et n'ajoute aucune règle :
         il RETIRE les labels `equal` d'une règle sanctionnée. La documentation d'Alertmanager
-        prévient explicitement que la règle s'applique alors quels que soient les labels —
+        prévient explicitement que la règle s'applique alors quels que soient les labels :
         une seule alerte source suffit à étouffer toute la classe cible, PARTOUT. Il fait
         ensuite tomber pour de bon une instance anodine : la source est RÉELLE, CORROBORÉE
         et SANCTIONNÉE, et pourtant elle inhibe une alerte de sécurité qui n'a aucun rapport
@@ -506,13 +506,13 @@ class BaselineDetector(MaskingDetector):
         est couverte par une source ACTIVE qui s'accorde avec sa cible sur les labels
         `equal` de la règle sanctionnée ; sinon le périmètre a été élargi.
 
-        Le discriminant est le franchissement SEUL — délibérément pas la classe de l'alerte,
+        Le discriminant est le franchissement SEUL : délibérément pas la classe de l'alerte,
         contrairement à `notification_blackhole` et `rogue_inhibitor`. Une inhibition qui
         déborde de son périmètre est une dérive de configuration quelle que soit sa cible,
         et c'est ce qui rend le garde vérifiable : le pendant sain (une inhibition
         parfaitement bornée) ne s'en distingue QUE par le périmètre. On exige en revanche
-        que l'alerte étouffée fût réellement justifiée — son propre signal au-dessus de son
-        seuil — pour ne crier que lorsqu'une alarme méritée a bien été supprimée. Une
+        que l'alerte étouffée fût réellement justifiée : son propre signal au-dessus de son
+        seuil : pour ne crier que lorsqu'une alarme méritée a bien été supprimée. Une
         inhibition correctement bornée est le mécanisme NORMAL de réduction de bruit : la
         signaler rendrait l'heuristique inutilisable dès la première semaine d'exploitation."""
         for tgt in state.alerts:
@@ -544,20 +544,20 @@ class BaselineDetector(MaskingDetector):
         return None
 
     def _h_silenced_under_threat(self, state) -> Optional[Verdict]:
-        """Silence PRÉ-POSITIONNÉ (T1562.001 — abus de suppression). L'attaquant pose son
+        """Silence PRÉ-POSITIONNÉ (T1562.001 : abus de suppression). L'attaquant pose son
         silence AU CALME, bien AVANT de frapper : étroit, `alertname` littéral, périmètre
-        irréprochable — il est en tout point indiscernable d'une maintenance planifiée au
+        irréprochable : il est en tout point indiscernable d'une maintenance planifiée au
         moment où il est créé. Puis il attend, et attaque dans sa fenêtre.
 
         `silence_abuse` ne peut pas le voir : il juge le silence sur sa FORME (sur-périmétré)
-        et sur l'activité AU MOMENT DE SA CRÉATION — ici la forme est parfaite et le moment
+        et sur l'activité AU MOMENT DE SA CRÉATION : ici la forme est parfaite et le moment
         est calme. Et `phantom_clear` s'abstient dès qu'un silence existe, considérant qu'il
         explique l'absence d'alerte. La manœuvre tient donc entièrement au DÉCALAGE dans le
         temps entre la pose et l'usage.
 
         Le tell n'est ni la forme du silence ni sa date, mais son EFFET OBSERVÉ : une alerte
         de sécurité est effectivement étouffée pendant que sa menace est réelle et soutenue
-        au-dessus du seuil. C'est exactement la contre-mesure que la littérature recommande —
+        au-dessus du seuil. C'est exactement la contre-mesure que la littérature recommande :
         une suppression doit être re-vérifiée PENDANT sa fenêtre, pas seulement approuvée à
         son ouverture. Le discriminant est la CLASSE de l'alerte, comme pour
         `notification_blackhole` : silencer une alerte OPÉRATIONNELLE pendant une maintenance

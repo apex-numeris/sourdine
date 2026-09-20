@@ -1,4 +1,4 @@
-"""Sourdine — calcul des métriques.
+"""Sourdine : calcul des métriques.
 
 Quatre taux + un contrôle de cohérence, plus la ventilation par niveau d'accès
 attaquant. Rappel normatif (spec) : le statut de masquage se lit sur la passe

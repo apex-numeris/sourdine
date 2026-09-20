@@ -69,7 +69,7 @@ class SimRegression(unittest.TestCase):
     def test_aggregate_matches_frozen_sample(self) -> None:
         self.assertEqual(
             self.report["aggregate"], self.sample["aggregate"],
-            "l'agrégat (taux/cohérence/ventilation) diffère de l'échantillon gelé — "
+            "l'agrégat (taux/cohérence/ventilation) diffère de l'échantillon gelé : "
             "régression, ou changement voulu à re-geler via `make regen-sample`.",
         )
 

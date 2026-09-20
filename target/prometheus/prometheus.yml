@@ -1,4 +1,4 @@
-# Sourdine — Prometheus de la CIBLE ÉPHÉMÈRE (jetable, isolée).
+# Sourdine : Prometheus de la CIBLE ÉPHÉMÈRE (jetable, isolée).
 # Recréé, jamais copié depuis la production. Intervalles courts pour un banc rapide.
 global:
   scrape_interval: 2s

@@ -4,7 +4,7 @@ Contrairement au sim (déterministe → égalité stricte, cf. `test_sim_regress
 le backend docker dépend du temps réel (scrape, `group_wait`, décantation). Les
 vecteurs à fenêtre longue (`low_and_slow`, `grouping_repeat_abuse`) peuvent donc
 varier d'un run à l'autre. Une égalité stricte serait *flaky* et donc désactivée
-tôt ou tard — ici on garde plutôt :
+tôt ou tard : ici on garde plutôt :
 
   - des INVARIANTS DURS, vrais quel que soit le timing (cohérence à 100 %, les
     masqueurs déterministes toujours masqués+rattrapés, contrôles de cohérence
@@ -13,10 +13,10 @@ tôt ou tard — ici on garde plutôt :
     (doc 07 §6 : plancher de rattrapage, plancher de suppression, plafond de FP).
 
 Deux classes :
-  - `DockerCheckLogic`      — RAPIDE, sans docker : valide la logique de contrôle
+  - `DockerCheckLogic`      : RAPIDE, sans docker : valide la logique de contrôle
     ET l'échantillon gelé, et prouve PAR MUTATION que les contrôles savent
     échouer. Tourne dans `make test`.
-  - `DockerLiveRegression`  — lance une VRAIE campagne docker (~6-8 min) puis lui
+  - `DockerLiveRegression`  : lance une VRAIE campagne docker (~6-8 min) puis lui
     applique les mêmes contrôles. Opt-in : `SOURDINE_DOCKER_TEST=1` + docker
     disponible. Tourne via `make test-docker`.
 
@@ -55,13 +55,13 @@ STRONG_MASK_VECTORS = {
     "cardinality_flood", "rogue_inhibitor", "guard_outage_cover",
     "inhibition_scope_creep", "preloaded_silence",
 }
-# Vecteurs dont le RATTRAPAGE ou même le MASQUAGE peut varier ou différer en docker —
+# Vecteurs dont le RATTRAPAGE ou même le MASQUAGE peut varier ou différer en docker :
 # fenêtre longue, ou écart de fidélité sim/docker. `selective_metric_drop` : un vrai
 # Prometheus représente une métrique supprimée par une série qui s'arrête (pas par des
 # trous None), donc le détecteur de gap le voit en sim mais le rate en docker.
 # `false_resolved` : le faux resolved posté à l'API AM masque en sim (état figé), mais
 # une vraie règle Prometheus ré-affirme l'alerte au cycle suivant en docker (l'alarme
-# ressort) — donc ni masqué ni rattrapé garanti en docker. Écarts assumés et mesurés.
+# ressort) : donc ni masqué ni rattrapé garanti en docker. Écarts assumés et mesurés.
 TIMING_SENSITIVE_VECTORS = {"low_and_slow", "grouping_repeat_abuse",
                             "threshold_flapping", "selective_metric_drop",
                             "false_resolved", "stale_replay", "constrained_replay"}

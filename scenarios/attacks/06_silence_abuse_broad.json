@@ -4,6 +4,8 @@
   "vector": "silence_abuse",
   "title": "Abus de silence à périmètre large",
   "description": "L'attaquant pose, via l'API des silences, un silence au périmètre anormalement large (matcher instance=~.*) juste avant/pendant l'attaque. L'alarme critique réelle (CriticalAttacksDetected) est mise en sourdine et ne part jamais.",
+  "title_en": "Silence abuse with a broad scope",
+  "description_en": "The attacker places, through the silences API, a silence with an abnormally broad scope (matcher instance=~.*) just before or during the attack. The real critical alarm (CriticalAttacksDetected) is muted and never leaves.",
   "access_level": "silence_or_routing_api",
   "ground_truth": {"alarm_expected": true, "expected_alert": "CriticalAttacksDetected", "labels": {"job": "firewall", "instance": "fw-1"}},
   "event": {"make_fire": true, "severity": "critical"},

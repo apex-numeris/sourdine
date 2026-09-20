@@ -1,6 +1,6 @@
 {
   "upload_type": "software",
-  "title": "Sourdine : banc d'attaques de masquage d'alarme pour la supervision d'agents IA",
+  "title": "Sourdine : banc d'attaques de masquage d'alarme pour la supervision d'agents IA / Sourdine: alarm-masking attack benchmark for AI agent monitoring",
   "description": "<p>Sourdine mesure la détection, à l'exécution, du masquage d'alarme par un agent logiciel autonome : abus des primitives d'alerting (inhibition, silence, regroupement, rejeu) sur une chaîne Prometheus/Alertmanager éphémère. Le banc fournit une taxonomie de vecteurs, un protocole de mesure en deux passes et quatre taux, avec contrôle de cohérence sur plusieurs backends.</p><p>Sourdine measures the runtime detection of alarm masking by an autonomous software agent: abuse of alerting primitives (inhibition, silencing, grouping, replay) on an ephemeral Prometheus/Alertmanager stack. The benchmark provides a taxonomy of attack vectors, a two-pass measurement protocol and four rates, with a consistency check across several backends.</p>",
   "access_right": "open",
   "license": "apache-2.0",

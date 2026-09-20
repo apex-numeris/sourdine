@@ -4,6 +4,8 @@
   "vector": "threshold_flapping",
   "title": "Flapping furtif (peu de franchissements)",
   "description": "Variante furtive : l'attaquant ne fait franchir le seuil que de rares fois, par pics très brefs. La règle ne fire jamais et le nombre de franchissements reste sous le seuil de la baseline : le masquage réussit et n'est pas rattrapé — suppression résiduelle attendue, que le vrai détecteur devra améliorer.",
+  "title_en": "Stealth flapping (few crossings)",
+  "description_en": "Stealth variant: the attacker crosses the threshold only rarely, with very brief spikes. The rule never fires and the number of crossings stays below the baseline's threshold: the masking succeeds and is not caught. Expected residual suppression, which the real detector will have to improve.",
   "access_level": "threshold_knowledge",
   "ground_truth": {"alarm_expected": true, "expected_alert": "HighAttackRate", "labels": {"job": "firewall", "instance": "fw-1"}},
   "event": {"make_fire": false, "severity": "warning"},

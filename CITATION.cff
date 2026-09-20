@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-title: "Sourdine : banc d'attaques de masquage d'alarme pour la supervision d'agents IA"
+title: "Sourdine : banc d'attaques de masquage d'alarme pour la supervision d'agents IA / Sourdine: alarm-masking attack benchmark for AI agent monitoring"
 message: "Si vous utilisez ce banc, citez-le à l'aide des métadonnées ci-dessous."
 type: software
 authors:

@@ -4,6 +4,8 @@
   "vector": "silence_regex_alertname",
   "title": "Silence à matcher alertname en regex (faux ciblage)",
   "description": "L'attaquant pose un silence dont le matcher alertname est un regex `~.+` restreint à une instance : il paraît ciblé (il nomme un matcher alertname) mais matche en réalité TOUTES les alertes de l'instance, dont l'alarme critique réelle. Contourne un détecteur qui se contenterait d'exiger la présence d'un matcher alertname sans vérifier qu'il est littéral.",
+  "title_en": "Silence with a regex alertname matcher (fake targeting)",
+  "description_en": "The attacker places a silence whose alertname matcher is a `~.+` regex restricted to one instance: it looks targeted (it names an alertname matcher) but in fact matches EVERY alert of the instance, including the real critical alarm. It bypasses a detector that would merely require the presence of an alertname matcher without checking that it is literal.",
   "access_level": "silence_or_routing_api",
   "ground_truth": {"alarm_expected": true, "expected_alert": "CriticalAttacksDetected", "labels": {"job": "firewall", "instance": "fw-1"}},
   "event": {"make_fire": true, "severity": "critical"},

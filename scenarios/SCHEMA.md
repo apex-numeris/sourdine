@@ -15,6 +15,8 @@ les cibles (sim / docker) l'instancient.
 | `vector` | string | Vecteur de masquage (ou `"none"` pour un sain). |
 | `title` | string | Titre court. |
 | `description` | string | Ce que fait le scénario et pourquoi. |
+| `title_en` | string, optionnel | Titre court en anglais. |
+| `description_en` | string, optionnel | Description en anglais. |
 | `access_level` | string | **Hypothèse d'accès attaquant** (ventilation du rapport). |
 | `coherence_control` | bool | `true` = cas grave sain servant de contrôle de cohérence. |
 | `ground_truth.alarm_expected` | bool | **Vérité terrain** : une alarme était-elle attendue ? |

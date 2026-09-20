@@ -4,6 +4,8 @@
   "vector": "selective_metric_drop",
   "title": "Blackout sélectif du signal (instance laissée UP)",
   "description": "L'attaquant, avec un accès à l'exporter, cesse d'exporter LA SEULE métrique d'attaque après une brève montée, tout en laissant l'instance signaler qu'elle est vivante (inst_up=1). L'alerte à taux ne part jamais faute de données, et AUCUNE InstanceDown ne vient trahir la panne — plus furtif que la coupure d'exporter complète.",
+  "title_en": "Selective signal blackout (instance left UP)",
+  "description_en": "The attacker, with access to the exporter, stops exporting THE ONLY attack metric after a brief rise, while letting the instance report that it is alive (inst_up=1). The rate alert never leaves for lack of data, and NO InstanceDown comes to give the outage away: stealthier than a full exporter cutoff.",
   "access_level": "exporter_host_or_network",
   "ground_truth": {"alarm_expected": true, "expected_alert": "HighAttackRate", "labels": {"job": "firewall", "instance": "fw-1"}},
   "event": {"make_fire": false, "severity": "warning"},

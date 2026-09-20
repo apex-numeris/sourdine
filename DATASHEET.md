@@ -1,5 +1,7 @@
 # Datasheet : banc Sourdine
 
+*Version de référence. English version: [`DATASHEET.en.md`](DATASHEET.en.md).*
+
 Fiche descriptive du banc, sur le modèle « Datasheets for Datasets » (Gebru et al., 2021).
 Version décrite : 0.14.0. Producteur : Apex Numeris SAS (Lyon, France). Auteur : Quoc-Nam Nguyen.
 
@@ -33,8 +35,9 @@ SentinelleIA ».
 
 Chaque scénario porte les champs `id`, `kind` (attack ou healthy), `vector`, `title`,
 `description`, `access_level`, `ground_truth` (alarme attendue et labels), `event`
-(ce qui se passe sur la cible), `masking` (la manœuvre) et `tags`. Le schéma est
-décrit dans `scenarios/SCHEMA.md`.
+(ce qui se passe sur la cible), `masking` (la manœuvre) et `tags`, plus les champs
+optionnels en anglais `title_en` et `description_en`. Le schéma est décrit dans
+`scenarios/SCHEMA.md`.
 
 Les 22 vecteurs d'attaque : `cardinality_flood`, `constrained_replay`, `exporter_cutoff`,
 `false_resolved`, `firewall_down_spoof`, `grouping_repeat_abuse`, `guard_outage_cover`,

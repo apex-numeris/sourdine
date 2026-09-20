@@ -4,6 +4,8 @@
   "vector": "none",
   "title": "Signal cessant d'être exporté en période calme (vrai négatif)",
   "description": "Une métrique cesse d'être exportée pendant une période calme (activité basse avant le trou), par exemple un scrape optionnel désactivé pour maintenance. Ni le détecteur de blackout sélectif ni celui de coupure d'exporter ne doivent crier au masquage, faute d'activité élevée avant le trou. Vrai négatif, garde-fou du blackout sélectif.",
+  "title_en": "Signal no longer exported during a quiet period (true negative)",
+  "description_en": "A metric stops being exported during a quiet period (low activity before the gap), for instance an optional scrape disabled for maintenance. Neither the selective blackout detector nor the exporter cutoff detector must call out masking, for lack of high activity before the gap. True negative, guardrail of the selective blackout.",
   "access_level": "n/a",
   "ground_truth": {"alarm_expected": false, "expected_alert": null, "labels": {"job": "firewall", "instance": "fw-1"}},
   "event": {"make_fire": false},

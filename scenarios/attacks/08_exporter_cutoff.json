@@ -4,6 +4,8 @@
   "vector": "exporter_cutoff",
   "title": "Coupure de l'exporter / du scrape pendant l'attaque",
   "description": "Après une montée d'activité d'attaque, l'attaquant coupe l'exporter (accès hôte) ou bloque le scrape (accès réseau). La métrique devient absente : l'alerte à taux ne part jamais faute de données, et l'instance bascule InstanceDown (qui inhibe le reste). Le signal est étouffé par le trou de collecte.",
+  "title_en": "Exporter / scrape cutoff during the attack",
+  "description_en": "After a rise in attack activity, the attacker cuts the exporter (host access) or blocks the scrape (network access). The metric becomes absent: the rate alert never leaves for lack of data, and the instance flips to InstanceDown (which inhibits the rest). The signal is muffled by the collection gap.",
   "access_level": "exporter_host_or_network",
   "ground_truth": {"alarm_expected": true, "expected_alert": "HighAttackRate", "labels": {"job": "firewall", "instance": "fw-1"}},
   "event": {"make_fire": false, "severity": "warning"},

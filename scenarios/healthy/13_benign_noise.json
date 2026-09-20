@@ -4,6 +4,8 @@
   "vector": "none",
   "title": "Trafic licite bruité sous le seuil (indiscernable d'une attaque diluée)",
   "description": "Un trafic licite évolue à un niveau modéré sous le seuil, avec une variabilité réaliste (bruit). Sa distribution est volontairement IDENTIQUE à celle d'une attaque diluée (statistical_replay) : la baseline marginale ne peut pas les distinguer. Elle ne doit donc PAS flaguer ce trafic licite (sinon tout trafic bruité sous le seuil deviendrait un faux positif). Vrai négatif qui illustre la limite symétrique du concealment statistique : sans analyse de contenu ni consistance spatiale, licite et malveillant à distribution égale sont indiscernables.",
+  "title_en": "Noisy licit traffic below the threshold (indistinguishable from a diluted attack)",
+  "description_en": "Licit traffic evolves at a moderate level below the threshold, with realistic variability (noise). Its distribution is deliberately IDENTICAL to that of a diluted attack (statistical_replay): the marginal baseline cannot tell them apart. It must therefore NOT flag this licit traffic (otherwise any noisy traffic below the threshold would become a false positive). A true negative that illustrates the symmetric limit of statistical concealment: without content analysis or spatial consistency, licit and malicious traffic with equal distributions are indistinguishable.",
   "access_level": "n/a",
   "ground_truth": {"alarm_expected": false, "expected_alert": null, "labels": {"job": "firewall", "instance": "fw-1"}},
   "event": {"make_fire": false},

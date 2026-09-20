@@ -4,6 +4,8 @@
   "vector": "grouping_repeat_abuse",
   "title": "Noyade par groupement (group_by + repeat_interval)",
   "description": "L'attaquant inonde le groupe de routage de l'alarme réelle (même alertname/service/severity) avec un flot d'alertes frères. Avec un repeat_interval long, la vraie alerte est noyée dans un groupe surchargé et n'est pas notifiée dans la fenêtre utile. Point aveugle connu de la baseline (pas d'heuristique dédiée) -> suppression résiduelle.",
+  "title_en": "Grouping flood (group_by + repeat_interval)",
+  "description_en": "The attacker floods the routing group of the real alarm (same alertname/service/severity) with a stream of sibling alerts. With a long repeat_interval, the real alert is drowned in an overloaded group and is not notified within the useful window. Known blind spot of the baseline (no dedicated heuristic) -> residual suppression.",
   "access_level": "silence_or_routing_api",
   "ground_truth": {"alarm_expected": true, "expected_alert": "HighAttackRate", "labels": {"job": "firewall", "instance": "fw-1"}},
   "event": {"make_fire": true, "severity": "warning"},

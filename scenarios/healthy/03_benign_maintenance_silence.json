@@ -4,6 +4,8 @@
   "vector": "none",
   "title": "Silence de maintenance légitime (piège à faux positif)",
   "description": "Un opérateur pose un silence étroit et annoté pour une maintenance planifiée, pendant une activité licite mineure. Ce n'est PAS une attaque. La baseline, qui se méfie de tout silence posé pendant une activité, va probablement crier au masquage — faux positif honnête qui illustre le coût opérationnel.",
+  "title_en": "Legitimate maintenance silence (false-positive trap)",
+  "description_en": "An operator places a narrow, annotated silence for a planned maintenance, during minor licit activity. This is NOT an attack. The baseline, which distrusts any silence placed during activity, will probably call out masking: an honest false positive that illustrates the operational cost.",
   "access_level": "n/a",
   "ground_truth": {"alarm_expected": false, "expected_alert": null, "labels": {"job": "firewall", "instance": "fw-1"}},
   "event": {"make_fire": false},

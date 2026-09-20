@@ -4,6 +4,8 @@
   "vector": "false_resolved",
   "title": "Faux all-clear sur JailbreakSurge (reprise)",
   "description": "Même manœuvre de resolved forcé, appliquée au signal de jailbreak : après une accalmie, le taux de jailbreak REMONTE au-dessus du seuil sur les derniers instants, mais l'alerte JailbreakSurge reste étouffée par un faux « resolved » posté à l'API Alertmanager. Étend la couverture du faux all-clear au second signal à taux (pendant du contrôle sur attack_rate). Comme pour attack_rate, la reprise reste sous le seuil intégré low-and-slow, donc seul phantom_clear la rattrape. Masqué et rattrapé en sim ; neutralisé par la ré-affirmation de la règle en docker.",
+  "title_en": "False all-clear on JailbreakSurge (resumption)",
+  "description_en": "Same forced-resolved manoeuvre, applied to the jailbreak signal: after a lull, the jailbreak rate CLIMBS back above the threshold over the last moments, but the JailbreakSurge alert stays muffled by a fake “resolved” posted to the Alertmanager API. Extends the false all-clear coverage to the second rate signal (counterpart of the check on attack_rate). As for attack_rate, the resumption stays below the integrated low-and-slow threshold, so only phantom_clear catches it. Masked and caught in sim; neutralised by the rule re-assertion in docker.",
   "access_level": "metric_or_am_api",
   "ground_truth": {"alarm_expected": true, "expected_alert": "JailbreakSurge", "labels": {"job": "firewall", "instance": "fw-1"}},
   "event": {"make_fire": false, "severity": "high"},

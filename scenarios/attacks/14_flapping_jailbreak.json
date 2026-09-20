@@ -4,6 +4,8 @@
   "vector": "threshold_flapping",
   "title": "Flapping autour du seuil de JailbreakSurge",
   "description": "Même technique de flapping, appliquée au signal de jailbreak : l'attaquant fait osciller le taux de jailbreak au-dessus puis en dessous du seuil de JailbreakSurge pour que le `for:` ne se complète jamais. Étend la couverture du flapping au signal jailbreak_rate (le détecteur compte les franchissements sur les deux signaux).",
+  "title_en": "Flapping around the JailbreakSurge threshold",
+  "description_en": "Same flapping technique, applied to the jailbreak signal: the attacker makes the jailbreak rate oscillate above and then below the JailbreakSurge threshold so that the `for:` never completes. Extends the flapping coverage to the jailbreak_rate signal (the detector counts crossings on both signals).",
   "access_level": "threshold_knowledge",
   "ground_truth": {"alarm_expected": true, "expected_alert": "JailbreakSurge", "labels": {"job": "firewall", "instance": "fw-1"}},
   "event": {"make_fire": false, "severity": "high"},

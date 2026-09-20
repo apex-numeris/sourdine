@@ -1,5 +1,7 @@
 # Sourdine : banc d'attaques de masquage d'alarme
 
+*Version de référence. English version: [`README.en.md`](README.en.md).*
+
 Sourdine mesure la résistance d'une chaîne d'alerte au **masquage d'alarme** :
 des attaques qui ne visent pas un agent, mais **l'observateur** : elles
 suppriment ou étouffent un signal qui aurait dû lever une alarme.
@@ -388,7 +390,8 @@ Titulaire des droits : Apex Numeris SAS. Détail dans `NOTICE`.
 Auteur : Quoc-Nam Nguyen (Apex Numeris SAS, Lyon). Titulaire des droits : Apex Numeris SAS.
 Le bouton « Cite this repository » de GitHub lit `CITATION.cff` ; chaque release reçoit un DOI
 Zenodo, et le DOI de concept, commun à toutes les versions, est celui à citer. La fiche
-`DATASHEET.md` décrit le banc sur le modèle des datasheets for datasets.
+`DATASHEET.md` (en anglais : `DATASHEET.en.md`) décrit le banc sur le modèle des
+datasheets for datasets.
 
 ## Arborescence
 
@@ -399,7 +402,8 @@ sourdine/
 ├── VERSION  requirements.txt  .gitignore
 ├── LICENSE  NOTICE              # Apache-2.0 (code et harnais) ; titulaire, auteur, double licence
 ├── CITATION.cff  .zenodo.json   # citation GitHub ; métadonnées du DOI Zenodo
-├── DATASHEET.md                 # fiche du banc (datasheet for datasets)
+├── DATASHEET.md  DATASHEET.en.md   # fiche du banc (datasheet for datasets), français et anglais
+├── README.md  README.en.md      # ce document (référence en français, version anglaise)
 ├── engine/                      # moteur (stdlib)
 │   ├── types.py  model.py       # types + sémantique alertes/inhibition/silence/groupement
 │   ├── target_base.py  target_sim.py  target_docker.py

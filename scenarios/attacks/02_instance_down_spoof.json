@@ -4,6 +4,8 @@
   "vector": "instance_down_spoof",
   "title": "Spoof InstanceDown pour inhiber TOUTES les alertes de l'instance",
   "description": "L'attaquant fait apparaître une alerte InstanceDown sur l'instance visée alors qu'elle est en réalité vivante et émet du trafic d'attaque. La règle d'inhibition InstanceDown -> .* (même instance) masque toutes les alertes de cette instance, dont l'alarme réelle attendue.",
+  "title_en": "InstanceDown spoof to inhibit EVERY alert of the instance",
+  "description_en": "The attacker makes an InstanceDown alert appear on the targeted instance while it is in fact alive and emitting attack traffic. The inhibition rule InstanceDown -> .* (same instance) masks every alert of that instance, including the expected real alarm.",
   "access_level": "metric_or_am_api",
   "ground_truth": {"alarm_expected": true, "expected_alert": "HighAttackRate", "labels": {"job": "firewall", "instance": "fw-1"}},
   "event": {"make_fire": true, "severity": "warning"},

@@ -4,6 +4,8 @@
   "vector": "none",
   "title": "Stabilisation licite sous le seuil (piège à faux positif du gel)",
   "description": "Un trafic licite monte à un niveau élevé mais SOUS le seuil, puis se stabilise à un palier constant (charge établie qui ne bouge plus). La métrique se fige — mais elle n'a JAMAIS franchi le seuil. Le détecteur de rejeu/gel (frozen_replay) ne doit PAS crier au masquage, car il exige un franchissement préalable du seuil (attaque réelle) avant le gel. Vrai négatif, garde anti-faux-positif du vecteur stale_replay.",
+  "title_en": "Licit settling below the threshold (false-positive trap of the freeze)",
+  "description_en": "Licit traffic rises to a high level but BELOW the threshold, then settles at a constant plateau (an established load that no longer moves). The metric freezes, but it NEVER crossed the threshold. The replay/freeze detector (frozen_replay) must NOT call out masking, because it requires a prior threshold crossing (a real attack) before the freeze. True negative, anti-false-positive guard of the stale_replay vector.",
   "access_level": "n/a",
   "ground_truth": {"alarm_expected": false, "expected_alert": null, "labels": {"job": "firewall", "instance": "fw-1"}},
   "event": {"make_fire": false},

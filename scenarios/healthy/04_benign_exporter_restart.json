@@ -4,6 +4,8 @@
   "vector": "none",
   "title": "Redémarrage d'exporter planifié, sans activité concomitante",
   "description": "Un exporter redémarre pour une maintenance planifiée : trou de collecte bref, mais AUCUNE activité d'attaque autour. La baseline ne doit pas crier au masquage (le trou ne coïncide avec aucune montée d'activité). Vrai négatif attendu.",
+  "title_en": "Planned exporter restart, with no concomitant activity",
+  "description_en": "An exporter restarts for a planned maintenance: a brief collection gap, but NO attack activity around it. The baseline must not call out masking (the gap coincides with no rise in activity). Expected true negative.",
   "access_level": "n/a",
   "ground_truth": {"alarm_expected": false, "expected_alert": null, "labels": {"job": "firewall", "instance": "fw-1"}},
   "event": {"make_fire": false},

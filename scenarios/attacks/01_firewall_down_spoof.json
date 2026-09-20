@@ -4,6 +4,8 @@
   "vector": "firewall_down_spoof",
   "title": "Spoof FirewallDown pour inhiber les alertes d'attaque",
   "description": "L'attaquant fait apparaître une alerte FirewallDown (injection de métrique ou création via l'API Alertmanager) alors que le firewall est en réalité up et sous attaque. La règle d'inhibition FirewallDown -> {HighAttackRate, CriticalAttacksDetected, JailbreakSurge} masque alors l'alarme réelle pour le même job.",
+  "title_en": "FirewallDown spoof to inhibit the attack alerts",
+  "description_en": "The attacker makes a FirewallDown alert appear (metric injection or creation through the Alertmanager API) while the firewall is in fact up and under attack. The inhibition rule FirewallDown -> {HighAttackRate, CriticalAttacksDetected, JailbreakSurge} then masks the real alarm for the same job.",
   "access_level": "metric_or_am_api",
   "ground_truth": {"alarm_expected": true, "expected_alert": "HighAttackRate", "labels": {"job": "firewall", "instance": "fw-1"}},
   "event": {"make_fire": true, "severity": "warning"},

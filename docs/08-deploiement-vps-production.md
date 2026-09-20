@@ -1,4 +1,4 @@
-# 08 — Déploiement VPS production (pour les utilisateurs de l'internet)
+# 08. Déploiement VPS production (pour les utilisateurs de l'internet)
 
 ## 1. Ce qu'on expose, et ce qu'on n'expose pas
 
@@ -59,7 +59,7 @@ sudo ufw enable
 ```
 
 SSH : désactiver l'authentification par mot de passe et le login root
-(`/etc/ssh/sshd_config` → `PasswordAuthentication no`, `PermitRootLogin no`).
+(dans `/etc/ssh/sshd_config` : `PasswordAuthentication no`, `PermitRootLogin no`).
 
 ## 4. Déploiement du banc
 
@@ -88,17 +88,17 @@ a = rep["aggregate"]
 def pct(x): return "n/a" if x is None else f"{x*100:.1f}%"
 rows = "".join(
     f"<tr><td>{html.escape(s['id'])}</td><td>{html.escape(s['vector'])}</td>"
-    f"<td>{'oui' if s['raw_result']['masked'] else '—'}</td>"
+    f"<td>{'oui' if s['raw_result']['masked'] else 'non'}</td>"
     f"<td>{'oui' if s['detector_verdict']['masking_suspected'] else 'non'}</td></tr>"
     for s in rep["scenarios"])
 page = f"""<!doctype html><html lang=fr><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1">
-<title>Sourdine — résultats</title>
+<title>Sourdine : résultats</title>
 <style>body{{font:16px system-ui;margin:0;background:#0f1115;color:#e6e6e6}}
 main{{max-width:900px;margin:auto;padding:24px}}table{{border-collapse:collapse;width:100%}}
 td,th{{border:1px solid #333;padding:6px 10px;text-align:left}}a{{color:#6cf}}
 .big{{font-size:1.6em;font-weight:700}}</style><main>
-<h1>Sourdine — banc de masquage d'alarme</h1>
+<h1>Sourdine, banc de masquage d'alarme</h1>
 <p>Format v{html.escape(rep['sourdine_report_version'])} · banc v{html.escape(rep['bench_version'])}
 · cible <b>{html.escape(rep['target_backend'])}</b> · détecteur {html.escape(rep['detector'])}
 · généré {html.escape(rep['generated_at'])}</p>
@@ -126,7 +126,7 @@ print("site rendu dans", WWW)
 
 ```ini
 [Unit]
-Description=Sourdine — campagne + rendu du site
+Description=Sourdine : campagne + rendu du site
 After=network-online.target
 
 [Service]
@@ -166,12 +166,22 @@ sudo systemctl start sourdine-bench.service   # premier rendu immédiat
 
 ## 6. nginx + TLS
 
-`/etc/nginx/sites-available/sourdine` :
+`/etc/nginx/sites-available/sourdine` : un seul nom sert le contenu, les alias (www,
+sourdine-bench.fr) redirigent en 301 vers l'adresse canonique, chemin conservé, pour ne pas
+éparpiller citations et référencement.
 
 ```nginx
+# alias : renvoi vers l'adresse canonique
 server {
     listen 80;
-    server_name sourdine.org www.sourdine.org sourdine-bench.fr;
+    server_name www.sourdine.org sourdine-bench.fr www.sourdine-bench.fr;
+    location ^~ /.well-known/acme-challenge/ { root /var/www/sourdine; }
+    location / { return 301 https://sourdine.org$request_uri; }
+}
+# site canonique
+server {
+    listen 80;
+    server_name sourdine.org;
     root /var/www/sourdine;
     location / { try_files $uri $uri/ =404; }
     # autoindex pour parcourir docs/ et les rapports
@@ -182,7 +192,7 @@ server {
 ```bash
 sudo ln -s /etc/nginx/sites-available/sourdine /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d sourdine.org -d www.sourdine.org -d sourdine-bench.fr
+sudo certbot --nginx -d sourdine.org -d www.sourdine.org -d sourdine-bench.fr -d www.sourdine-bench.fr
 ```
 
 certbot bascule le vhost en HTTPS (443) et installe le renouvellement automatique.

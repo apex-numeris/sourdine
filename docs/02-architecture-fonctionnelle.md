@@ -1,4 +1,4 @@
-# 02 — Architecture fonctionnelle
+# 02. Architecture fonctionnelle
 
 ## 1. Vue d'ensemble
 
@@ -28,8 +28,8 @@ Un environnement de supervision que le banc **monte et détruit lui-même**, cha
 d'un jeu de règles d'alerte et d'**inhibition représentatif mais recréé** (jamais
 copié de la production). Deux implémentations interchangeables :
 
-- **sim** — modèle en process, déterministe, hermétique (aucun conteneur) ;
-- **docker** — vrais Prometheus + Alertmanager en conteneurs isolés, un exporter
+- **sim** : modèle en process, déterministe, hermétique (aucun conteneur) ;
+- **docker** : vrais Prometheus + Alertmanager en conteneurs isolés, un exporter
   synthétique pilotable et un *sink* webhook qui observe les notifications
   réellement délivrées.
 
@@ -63,10 +63,10 @@ un résumé lisible.
 flowchart TD
     A[Vérité terrain :<br/>alarme attendue ?] --> B[Injecter l'événement]
     B --> C[Appliquer le vecteur de masquage]
-    C --> D{Passe 1 — SANS détecteur<br/>l'alarme attendue est-elle notifiée ?}
+    C --> D{Passe 1, SANS détecteur<br/>l'alarme attendue est-elle notifiée ?}
     D -->|non| M[masquage réussi]
     D -->|oui| NM[non masquée]
-    C --> E[Passe 2 — fournir état + trace au détecteur]
+    C --> E[Passe 2, fournir état + trace au détecteur]
     E --> V{Verdict : masquage suspecté ?}
     M --> AGG[Agrégation]
     NM --> AGG
@@ -98,10 +98,10 @@ pièges à faux positif).
 
 ## 6. Frontières et responsabilités
 
-- Le **détecteur** ne voit que de la supervision observable → il reste substituable
+- Le **détecteur** ne voit que de la supervision observable : il reste substituable
   et évaluable à l'identique, quel que soit le backend.
-- La **cible** encapsule toute la sémantique Prometheus/Alertmanager → changer de
+- La **cible** encapsule toute la sémantique Prometheus/Alertmanager : changer de
   backend ne change ni le runner, ni le détecteur, ni les métriques.
-- Le **runner** ne connaît pas les vecteurs un par un → ajouter un vecteur se fait
+- Le **runner** ne connaît pas les vecteurs un par un : ajouter un vecteur se fait
   dans la cible (+ éventuellement une heuristique dans le détecteur), sans toucher
   l'orchestration.

@@ -4,8 +4,8 @@ Documentation complète du **banc d'attaques de masquage d'alarme** (projet Sour
 Version du banc : **0.14.0**. Langue : français. Support : Markdown versionné (diagrammes mermaid).
 
 Sourdine mesure la résistance d'une chaîne d'alerte (Prometheus / Alertmanager) au
-**masquage d'alarme** : des attaques qui visent *l'observateur* — supprimer ou
-étouffer un signal qui aurait dû lever une alarme — et non un agent applicatif.
+**masquage d'alarme** : des attaques qui visent *l'observateur* (supprimer ou
+étouffer un signal qui aurait dû lever une alarme) et non un agent applicatif.
 
 ## Jeu documentaire
 
@@ -37,12 +37,12 @@ Sourdine mesure la résistance d'une chaîne d'alerte (Prometheus / Alertmanager
   (26 attaques / 21 sains).
   - Référence **sim** (déterministe) : suppression 100 % / rattrapage 84,6 % / faux
     positifs 9,5 % / résiduel 15,4 % / cohérence 100 %.
-  - **docker** (vrais conteneurs) : 88,5 / 82,6 / 9,5 / 15,4 / 100 % — divergences de
+  - **docker** (vrais conteneurs) : 88,5 / 82,6 / 9,5 / 15,4 / 100 %, avec des divergences de
     fidélité sur la noyade par groupement, le blackout sélectif, le faux all-clear et
     le rejeu/gel (cf. doc 04 §7). Masquages préventifs (inhibition/silence) durcis (cf.
     doc 04 §5.4). Le **full statistical concealment** (`statistical_replay`) reste résiduel
     (limite assumée) ; le **constrained replay** (sous-ensemble masqué) est rattrapé par la
-    **consistance spatiale** (`spatial_incoherence`) — contraste ACSAC 2022. Le **route
+    **consistance spatiale** (`spatial_incoherence`), le contraste ACSAC 2022. Le **route
     black-hole** (`route_blackhole`, MITRE T1562.006 Indicator Blocking) masque de façon
     déterministe dans les deux backends et est rattrapé par `notification_blackhole` ; le
     **watchdog suppression** (`watchdog_suppression`, MITRE T1562, dead man's switch) est
@@ -55,18 +55,19 @@ Sourdine mesure la résistance d'une chaîne d'alerte (Prometheus / Alertmanager
     config vs baseline) là où l'heuristique d'inhibition, bornée aux sources sanctionnées, ne la voit
     pas ; la **panne induite du garde** (`guard_outage_cover`, MITRE T1562.001) coupe **réellement** le
     firewall AVANT d'attaquer, de sorte que l'inhibition **sanctionnée** `FirewallDown → classe sécurité`
-    étouffe l'alerte en fonctionnant exactement comme prévu — la corroboration ne peut rien contre elle
+    étouffe l'alerte en fonctionnant exactement comme prévu : la corroboration ne peut rien contre elle
     (la panne est vraie), et seule `guard_down_under_threat` la rattrape, sur la **concomitance** de la
     panne du garde et d'une menace réelle et soutenue ; enfin le **périmètre d'inhibition élargi**
     (`inhibition_scope_creep`, MITRE T1562.001) retire les labels `equal` d'une règle sanctionnée, de
     sorte qu'une panne **réelle** sur une instance anodine étouffe la classe sécurité d'une **autre**
-    instance — comportement que la documentation d'Alertmanager décrit elle-même — et seule
+    instance (comportement que la documentation d'Alertmanager décrit elle-même), et seule
     `inhibition_scope_creep` la rattrape, sur le **franchissement d'une frontière de labels**.
 
-## Historique (branche `feature/masquage-alarmes`)
+## Historique
 
-- `3bf6467d` — banc Sourdine v0.1.0 (moteur, scénarios, cible, détecteur baseline).
-- `59c26c61` — backend docker fonctionnel + constats de fidélité.
+- `7430cc8` : banc Sourdine v0.1.0 (moteur, scénarios, cible, détecteur baseline).
+- `df65430` : backend docker fonctionnel + constats de fidélité.
+- puis un commit par version, de v0.2.0 à v0.14.0 (voir `git log`).
 
-> Le code source est sous `sourdine/` ; le `README.md` racine du projet est le
+> Le code source est à la racine du dépôt ; le `README.md` racine est le
 > point d'entrée rapide, cette documentation en est la version détaillée.

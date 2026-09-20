@@ -1,4 +1,4 @@
-# 03 — Diagrammes de séquence
+# 03. Diagrammes de séquence
 
 ## 1. Campagne complète (tous backends)
 
@@ -31,7 +31,7 @@ sequenceDiagram
 
 ## 2. Exécution d'un scénario de spoof (backend docker, bout-en-bout)
 
-Exemple : `ATT-FW-DOWN-SPOOF-01` — l'attaquant injecte une alerte `FirewallDown`
+Exemple avec `ATT-FW-DOWN-SPOOF-01` : l'attaquant injecte une alerte `FirewallDown`
 pour inhiber `HighAttackRate`.
 
 ```mermaid
@@ -60,12 +60,12 @@ sequenceDiagram
     R->>AM: POST /api/v2/alerts [FirewallDown{job=firewall}]
     AM->>AM: inhibit_rules : FirewallDown masque HighAttackRate (même job)
 
-    Note over R: passe 1 — observation (après décantation)
+    Note over R: passe 1, observation (après décantation)
     AM--xSK: HighAttackRate NON notifiée (inhibée)
     R->>SK: GET /received
     SK-->>R: (HighAttackRate absente) ⇒ alarm_raised = false ⇒ MASQUÉE
 
-    Note over R: passe 2 — état + trace au détecteur
+    Note over R: passe 2, état + trace au détecteur
     R->>AM: GET /api/v2/alerts (statut + inhibitedBy), GET /api/v2/silences
     R->>PR: GET /api/v1/query_range (attack_rate, fw_up, …) depuis t0
     R->>D: detect(state, trace)
@@ -89,10 +89,10 @@ sequenceDiagram
     R->>CT: sonde /-/ready (prom, am) et /healthz (exporter, sink)
     CT-->>R: prêts
     Note over R,CT: … exécution de tous les scénarios …
-    R->>C: down -v -t 3 (même en cas d'erreur — bloc finally)
+    R->>C: down -v -t 3 (même en cas d'erreur, bloc finally)
     C->>CT: stoppe + supprime les conteneurs
     C->>NET: supprime le réseau + volumes
-    Note over R: aucun résidu — vérifié par docker ps / network ls
+    Note over R: aucun résidu, vérifié par docker ps / network ls
 ```
 
 ## 4. Vecteur de coupure d'exporter (low-and-slow du signal)

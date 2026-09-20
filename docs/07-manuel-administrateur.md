@@ -1,4 +1,4 @@
-# 07 — Manuel administrateur
+# 07. Manuel administrateur
 
 Public : ops / intégrateur qui gère la cible, branche le vrai détecteur, intègre le
 banc en CI, ou le déploie.
@@ -52,7 +52,7 @@ L'exemple citable est sous `samples/` (versionné), à ne pas écraser.
 ## 4. Brancher le vrai détecteur SentinelleIA
 
 Le banc **n'importe pas** le produit. Pour l'évaluer au même protocole, implémenter
-l'interface dans un module à vous (hors de ce worktree) :
+l'interface dans un module à vous (hors de ce dépôt) :
 
 ```python
 from engine.detector import MaskingDetector
@@ -82,7 +82,7 @@ du rapport deviennent alors ceux du vrai détecteur (le champ `detector` le refl
 
 Le garde-fou de non-régression est **câblé** : `tests/test_sim_regression.py`
 (stdlib `unittest`, aucune dépendance) rejoue le run sim et le compare à
-l'échantillon gelé `samples/example-0.1.0.json` — agrégat **et** chaque scénario,
+l'échantillon gelé `samples/example-0.14.0.json` (celui de la version courante) : agrégat **et** chaque scénario,
 horodatages ignorés. Une seule commande :
 
 ```bash
@@ -116,18 +116,18 @@ PY
   déterministe, il ne fait pas d'égalité stricte mais vérifie des **invariants
   durs** (cohérence à 100 %, masqueurs déterministes toujours masqués + rattrapés,
   contrôles de cohérence jamais signalés) et des **garde-fous directionnels à
-  tolérance** autour de `samples/example-0.1.0-docker.json`. Il monte une vraie
+  tolérance** autour de `samples/example-0.14.0-docker.json`. Il monte une vraie
   cible éphémère (~6-8 min) : CI **nocturne**, pas à chaque commit. La logique de
   ces contrôles (avec preuve par mutation) tourne, sans docker, dans `make test`.
 
 ## 7. Versionnement
 
-- Version du banc : fichier `VERSION` (`0.1.0`).
-- Version du format de rapport : `sourdine_report_version` (`1.0`) — à incrémenter
+- Version du banc : fichier `VERSION` (`0.14.0`).
+- Version du format de rapport : `sourdine_report_version` (`1.0`), à incrémenter
   si le schéma JSON change, pour garder la comparabilité entre runs.
 - Jeu de scénarios : artefact ouvert versionné avec le dépôt.
 
-## 8. Sécurité — garde-fous non négociables
+## 8. Sécurité : garde-fous non négociables
 
 - La cible est **toujours** montée par le banc et liée à `127.0.0.1` ; **jamais**
   l'Alertmanager/Prometheus de production. Ne pas republier les ports sur `0.0.0.0`.
@@ -135,5 +135,5 @@ PY
   silences, inhibitions, coupures n'ont lieu que sur la cible jetable.
 - Tout est synthétique : métriques fabriquées, aucune donnée réelle.
 - Pas de secret dans le dépôt (un hook `pre-commit` gitleaks le vérifie).
-- Le déploiement internet n'expose **que des résultats en lecture seule** — voir
+- Le déploiement internet n'expose **que des résultats en lecture seule**, voir
   [doc 08](08-deploiement-vps-production.md).

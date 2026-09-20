@@ -1,4 +1,4 @@
-# 01 — Expression des besoins
+# 01. Expression des besoins
 
 ## 1. Contexte
 
@@ -8,8 +8,8 @@ SentinelleIA protège des appels LLM via une chaîne d'agents, et sa **supervisi
 adversaire averti n'a pas besoin de vaincre les détecteurs : il lui suffit
 d'empêcher l'alarme de **sortir**. C'est le **masquage d'alarme**.
 
-Contrairement à une injection de prompt ou une exfiltration — où l'on attaque un
-agent et mesure si l'attaque aboutit — le masquage vise **l'observateur**. Le
+Contrairement à une injection de prompt ou une exfiltration (où l'on attaque un
+agent et mesure si l'attaque aboutit), le masquage vise **l'observateur**. Le
 signal de détection peut être correct ; c'est son *acheminement en alarme* qui est
 supprimé ou étouffé.
 
@@ -36,40 +36,40 @@ masquage. Sans cet instrument :
 
 ## 4. Besoins fonctionnels
 
-- **BF1 — Modéliser deux objets par scénario** : l'événement qui devait lever une
+- **BF1. Modéliser deux objets par scénario** : l'événement qui devait lever une
   alarme, et la manœuvre qui fait disparaître ce signalement.
-- **BF2 — Mesure en deux passes** : observer l'alarme **sans** détecteur (passe 1),
+- **BF2. Mesure en deux passes** : observer l'alarme **sans** détecteur (passe 1),
   puis soumettre l'état + la trace à un **détecteur** (passe 2).
-- **BF3 — Catalogue de vecteurs** : au moins les six vecteurs retenus (spoof
+- **BF3. Catalogue de vecteurs** : au moins les six vecteurs retenus (spoof
   `FirewallDown` / `InstanceDown` / `PostgreSQLDown`, low-and-slow, abus de
   silence / groupement, coupure d'exporter), chacun portant son **hypothèse
   d'accès attaquant**.
-- **BF4 — Scénarios sains** : cas graves sans attaque (contrôle de cohérence) et
+- **BF4. Scénarios sains** : cas graves sans attaque (contrôle de cohérence) et
   activités légitimes ressemblant à un vecteur (pièges à faux positif).
-- **BF5 — Quatre taux + cohérence** : suppression réussie, rattrapage, faux
+- **BF5. Quatre taux + cohérence** : suppression réussie, rattrapage, faux
   positifs, suppression résiduelle ; plus un contrôle de cohérence ; le tout
   **ventilé par niveau d'accès attaquant**.
-- **BF6 — Détecteur derrière une interface stable** : une baseline fournie, et un
+- **BF6. Détecteur derrière une interface stable** : une baseline fournie, et un
   point de branchement pour le vrai détecteur SentinelleIA (hors banc).
-- **BF7 — Cible éphémère autonome** : le banc monte et détruit sa propre cible
+- **BF7. Cible éphémère autonome** : le banc monte et détruit sa propre cible
   (Prometheus + Alertmanager), jamais la supervision réelle.
-- **BF8 — Sortie machine versionnée** : rapport JSON à schéma versionné + résumé
+- **BF8. Sortie machine versionnée** : rapport JSON à schéma versionné + résumé
   lisible ; jeu de scénarios ouvert et citable, séparé du code.
 
 ## 5. Besoins non fonctionnels
 
-- **BNF1 — Isolement / innocuité** : tout synthétique, en laboratoire ; aucune
+- **BNF1. Isolement / innocuité** : tout synthétique, en laboratoire ; aucune
   config de production modifiée ; cible liée à `127.0.0.1`.
-- **BNF2 — Reproductibilité** : un backend déterministe (sim) donnant des taux
+- **BNF2. Reproductibilité** : un backend déterministe (sim) donnant des taux
   stables, indépendants de la machine.
-- **BNF3 — Fidélité** : un backend sur de **vrais** Prometheus + Alertmanager pour
+- **BNF3. Fidélité** : un backend sur de **vrais** Prometheus + Alertmanager pour
   valider le comportement réel.
-- **BNF4 — Zéro dépendance tierce** : bibliothèque standard Python uniquement (la
+- **BNF4. Zéro dépendance tierce** : bibliothèque standard Python uniquement (la
   campagne doit tourner à blanc sans installation réseau).
-- **BNF5 — Honnêteté de la baseline** : heuristiques volontairement imparfaites —
+- **BNF5. Honnêteté de la baseline** : heuristiques volontairement imparfaites :
   faux positifs et suppression résiduelle **non nuls** et crédibles.
-- **BNF6 — Citabilité** : versionnement du format de sortie et du jeu de scénarios.
-- **BNF7 — Extensibilité** : ajouter un vecteur ou un scénario sans refondre le moteur.
+- **BNF6. Citabilité** : versionnement du format de sortie et du jeu de scénarios.
+- **BNF7. Extensibilité** : ajouter un vecteur ou un scénario sans refondre le moteur.
 
 ## 6. Règle de cotation (normative)
 

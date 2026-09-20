@@ -316,7 +316,7 @@ comparaison entre exécutions :
 
 Le jeu de scénarios (`scenarios/`) est un artefact ouvert, séparé du runner.
 
-## Brancher le vrai détecteur (hors de ce worktree)
+## Brancher le vrai détecteur (hors de ce dépôt)
 
 Implémenter `engine/detector.py::MaskingDetector` :
 

@@ -47,53 +47,53 @@ les cibles (sim / docker) l'instancient.
 
 ## `masking.type` et `params`
 
-- `spoof_inhibitor` — injecte une alerte source inhibitrice. `params` : {}.
-- `low_and_slow` — `params.rate` (< seuil instantané).
-- `threshold_flapping` — `params.high`/`low` ; `cycles` (rattrapable) ou `spikes` (furtif).
-- `silence_abuse` — `params.broad` (bool), `params.at` (tick).
-- `silence_shared_label` — `params.label` (ex. `job`), `params.value`, `params.at`.
-- `silence_regex_alertname` — `params.at` (silence à matcher `alertname=~".+"` sur l'instance).
-- `grouping_repeat_abuse` — `params.count` (taille du flot).
-- `exporter_cutoff` — `params.pre_ticks` (activité avant la coupure ; l'instance tombe).
-- `selective_metric_drop` — `params.pre_ticks` (activité avant le trou ; l'instance reste UP).
-- `false_resolved` — `params.at` (tick du faux `resolved` posté à l'API Alertmanager) ; le signal à taux reste soutenu au-dessus du seuil. Masque en sim (état figé) ; en docker, la règle Prometheus ré-affirme l'alerte au cycle suivant — écart de fidélité assumé (T1562.011).
-- `stale_replay` — `params.pre_ticks` (franchissement bref du seuil), `spike` (valeur du pic), `frozen` (palier figé, zone grise sous le seuil). Rejeu/gel : la métrique franchit le seuil puis est figée à un palier constant (ACSAC 2022, consistance temporelle).
-- `statistical_replay` — `params.mean` (moyenne sous le seuil). Concealment distribution-preserving : signal bruité tiré de la distribution normale, cumul normal — **résiduel** (indétectable par la baseline marginale ; ACSAC 2022, consistance statistique).
-- `constrained_replay` — `params.attack` (rejeu bas de attack_rate), `blocked` (blocked_rate élevé, non masqué). Rejeu sur un sous-ensemble : casse la corrélation attack_rate ↔ blocked_rate → **détectable** par la consistance SPATIALE (ACSAC 2022).
-- `route_blackhole` — `params.rate` (taux d'attaque soutenu au-dessus du seuil). L'alerte de sécurité fire mais est reroutée vers un récepteur trou-noir (label de routage `route_target=blackhole`) : notification avalée, sans silence ni inhibiteur (MITRE T1562.006 Indicator Blocking). **Déterministe** dans les deux backends, rattrapé par `notification_blackhole` (corrélation métrique ↔ livraison, discriminant : classe de l'alerte).
-- `watchdog_suppression` — `params.silent_from` (tick à partir duquel le heartbeat s'éteint). La chaîne d'alerte est désactivée et le signal d'attaque aveuglé : rien n'est observable, seul le heartbeat `watchdog` (toujours à 1 sinon) tombe à 0 de façon soutenue (dead man's switch, MITRE T1562 Impair Defenses). **Déterministe** dans les deux backends, rattrapé par `watchdog_gap` (silence soutenu du heartbeat).
-- `cardinality_flood` — `params.samples` (nombre d'échantillons du scrape floodé), `pre_ticks` (début du flood). Une bombe de cardinalité fait dépasser `sample_limit` : le scrape est rejeté (`up`=0, fausse panne) et le vrai signal n'est jamais ingéré ; seul le pic de `scrape_samples` la distingue d'une vraie coupure (MITRE Impair Defenses / T1499 épuisement de ressources). **Déterministe** dans les deux backends, rattrapé par `cardinality_flood` (magnitude de `scrape_samples`).
-- `rogue_inhibitor` — `params` : {} (l'alerte fire via `event.make_fire`). L'attaquant ajoute une règle d'inhibition dont la source (`RogueMuter`) n'est pas sanctionnée et étouffe la classe sécurité. `inhibitor_isolation` ne regarde que les sources sanctionnées → ne l'examine pas ; seul `rogue_inhibitor` (source non sanctionnée inhibant une alerte de SÉCURITÉ) la rattrape (MITRE T1562.001, dérive de config). **Déterministe** (préventif : règle baked + source postée avant le fire, confirmation+retry).
-- `guard_outage_cover` — `params.outage_at` (tick où le garde tombe), `attack_from` (tick où l'attaque démarre, **après** la panne), `rate` (taux soutenu au-dessus du seuil). L'attaquant ne falsifie rien : il met **réellement** le firewall hors service (`fw_up`=0, donc corroboré), puis attaque. L'inhibition **sanctionnée** `FirewallDown → classe sécurité` fonctionne comme prévu et étouffe l'alerte — la règle de réduction de bruit devient l'outil du masquage (MITRE T1562.001, motif des *EDR killers* : désactiver le contrôle, puis opérer dans l'angle mort). `inhibitor_isolation` s'abstient (panne corroborée), `rogue_inhibitor` aussi (source sanctionnée), et l'**ordre** de la manœuvre neutralise `exporter_cutoff` (qui exige de l'activité *avant* le trou). **Déterministe** dans les deux backends (préventif : panne établie et confirmée avant le fire), rattrapé par `guard_down_under_threat` — discriminant : **concomitance** d'une menace réelle et soutenue, pas la panne elle-même.
-- `inhibition_scope_creep` — `params.decoy_instance`/`decoy_job` (l'instance anodine qu'on fait tomber), `outage_at`, `attack_from` (**après** la panne), `rate`. L'attaquant n'ajoute aucune règle et ne falsifie aucune source : il **retire les labels `equal`** d'une règle sanctionnée. La doc Alertmanager prévient que la règle s'applique alors quels que soient les labels — une seule source étouffe toute la classe cible, partout (tickets upstream #507 et #1727). Il fait ensuite tomber pour de bon une instance de recette (`stg-9`) : l'`InstanceDown` est **réelle, corroborée et sanctionnée**, et pourtant elle inhibe `HighAttackRate` sur `fw-1`. **Déterministe** dans les deux backends (préventif : règle baked sans `equal`, inerte sans la panne du leurre), rattrapé par `inhibition_scope_creep` — discriminant : le **franchissement d'une frontière de labels**, jamais l'inhibition elle-même.
-- `preloaded_silence` — `params.at` (tick de pose, **au calme**), `attack_from` (tick de l'attaque, **bien après**), `rate`. L'attaquant pose un silence **étroit, à `alertname` littéral, au périmètre irréprochable** — indiscernable d'une maintenance planifiée au moment de sa création — puis attend et attaque dans la fenêtre ainsi ouverte. `silence_abuse` juge la **forme** et l'activité **au moment de la pose** : les deux sont parfaites ici. `phantom_clear` s'abstient dès qu'un silence existe. Tout tient au **décalage temporel** entre pose et usage. **Déterministe** dans les deux backends (préventif : silence posté et confirmé actif avant le fire), rattrapé par `silenced_under_threat` — discriminant : une alerte de **sécurité** étouffée pendant que sa menace est réelle et soutenue.
-- `none` (sains) — `type` bénin : `benign_silence` (`broad`, `alertname`, `at`, `minor_activity`),
+- `spoof_inhibitor` : injecte une alerte source inhibitrice. `params` : {}.
+- `low_and_slow` : `params.rate` (< seuil instantané).
+- `threshold_flapping` : `params.high`/`low` ; `cycles` (rattrapable) ou `spikes` (furtif).
+- `silence_abuse` : `params.broad` (bool), `params.at` (tick).
+- `silence_shared_label` : `params.label` (ex. `job`), `params.value`, `params.at`.
+- `silence_regex_alertname` : `params.at` (silence à matcher `alertname=~".+"` sur l'instance).
+- `grouping_repeat_abuse` : `params.count` (taille du flot).
+- `exporter_cutoff` : `params.pre_ticks` (activité avant la coupure ; l'instance tombe).
+- `selective_metric_drop` : `params.pre_ticks` (activité avant le trou ; l'instance reste UP).
+- `false_resolved` : `params.at` (tick du faux `resolved` posté à l'API Alertmanager) ; le signal à taux reste soutenu au-dessus du seuil. Masque en sim (état figé) ; en docker, la règle Prometheus ré-affirme l'alerte au cycle suivant, écart de fidélité assumé (T1562.011).
+- `stale_replay` : `params.pre_ticks` (franchissement bref du seuil), `spike` (valeur du pic), `frozen` (palier figé, zone grise sous le seuil). Rejeu/gel : la métrique franchit le seuil puis est figée à un palier constant (ACSAC 2022, consistance temporelle).
+- `statistical_replay` : `params.mean` (moyenne sous le seuil). Concealment distribution-preserving : signal bruité tiré de la distribution normale, cumul normal, **résiduel** (indétectable par la baseline marginale ; ACSAC 2022, consistance statistique).
+- `constrained_replay` : `params.attack` (rejeu bas de attack_rate), `blocked` (blocked_rate élevé, non masqué). Rejeu sur un sous-ensemble : casse la corrélation entre attack_rate et blocked_rate, **détectable** par la consistance SPATIALE (ACSAC 2022).
+- `route_blackhole` : `params.rate` (taux d'attaque soutenu au-dessus du seuil). L'alerte de sécurité fire mais est reroutée vers un récepteur trou-noir (label de routage `route_target=blackhole`) : notification avalée, sans silence ni inhibiteur (MITRE T1562.006 Indicator Blocking). **Déterministe** dans les deux backends, rattrapé par `notification_blackhole` (corrélation entre métrique et livraison, discriminant : classe de l'alerte).
+- `watchdog_suppression` : `params.silent_from` (tick à partir duquel le heartbeat s'éteint). La chaîne d'alerte est désactivée et le signal d'attaque aveuglé : rien n'est observable, seul le heartbeat `watchdog` (toujours à 1 sinon) tombe à 0 de façon soutenue (dead man's switch, MITRE T1562 Impair Defenses). **Déterministe** dans les deux backends, rattrapé par `watchdog_gap` (silence soutenu du heartbeat).
+- `cardinality_flood` : `params.samples` (nombre d'échantillons du scrape floodé), `pre_ticks` (début du flood). Une bombe de cardinalité fait dépasser `sample_limit` : le scrape est rejeté (`up`=0, fausse panne) et le vrai signal n'est jamais ingéré ; seul le pic de `scrape_samples` la distingue d'une vraie coupure (MITRE Impair Defenses / T1499 épuisement de ressources). **Déterministe** dans les deux backends, rattrapé par `cardinality_flood` (magnitude de `scrape_samples`).
+- `rogue_inhibitor` : `params` vide, `{}` (l'alerte fire via `event.make_fire`). L'attaquant ajoute une règle d'inhibition dont la source (`RogueMuter`) n'est pas sanctionnée et étouffe la classe sécurité. `inhibitor_isolation` ne regarde que les sources sanctionnées et ne l'examine pas ; seul `rogue_inhibitor` (source non sanctionnée inhibant une alerte de SÉCURITÉ) la rattrape (MITRE T1562.001, dérive de config). **Déterministe** (préventif : règle baked + source postée avant le fire, confirmation+retry).
+- `guard_outage_cover` : `params.outage_at` (tick où le garde tombe), `attack_from` (tick où l'attaque démarre, **après** la panne), `rate` (taux soutenu au-dessus du seuil). L'attaquant ne falsifie rien : il met **réellement** le firewall hors service (`fw_up`=0, donc corroboré), puis attaque. L'inhibition **sanctionnée** `FirewallDown → classe sécurité` fonctionne comme prévu et étouffe l'alerte : la règle de réduction de bruit devient l'outil du masquage (MITRE T1562.001, motif des *EDR killers* : désactiver le contrôle, puis opérer dans l'angle mort). `inhibitor_isolation` s'abstient (panne corroborée), `rogue_inhibitor` aussi (source sanctionnée), et l'**ordre** de la manœuvre neutralise `exporter_cutoff` (qui exige de l'activité *avant* le trou). **Déterministe** dans les deux backends (préventif : panne établie et confirmée avant le fire), rattrapé par `guard_down_under_threat` ; discriminant : **concomitance** d'une menace réelle et soutenue, pas la panne elle-même.
+- `inhibition_scope_creep` : `params.decoy_instance`/`decoy_job` (l'instance anodine qu'on fait tomber), `outage_at`, `attack_from` (**après** la panne), `rate`. L'attaquant n'ajoute aucune règle et ne falsifie aucune source : il **retire les labels `equal`** d'une règle sanctionnée. La doc Alertmanager prévient que la règle s'applique alors quels que soient les labels : une seule source étouffe toute la classe cible, partout (tickets upstream #507 et #1727). Il fait ensuite tomber pour de bon une instance de recette (`stg-9`) : l'`InstanceDown` est **réelle, corroborée et sanctionnée**, et pourtant elle inhibe `HighAttackRate` sur `fw-1`. **Déterministe** dans les deux backends (préventif : règle baked sans `equal`, inerte sans la panne du leurre), rattrapé par `inhibition_scope_creep` ; discriminant : le **franchissement d'une frontière de labels**, jamais l'inhibition elle-même.
+- `preloaded_silence` : `params.at` (tick de pose, **au calme**), `attack_from` (tick de l'attaque, **bien après**), `rate`. L'attaquant pose un silence **étroit, à `alertname` littéral, au périmètre irréprochable**, indiscernable d'une maintenance planifiée au moment de sa création, puis attend et attaque dans la fenêtre ainsi ouverte. `silence_abuse` juge la **forme** et l'activité **au moment de la pose** : les deux sont parfaites ici. `phantom_clear` s'abstient dès qu'un silence existe. Tout tient au **décalage temporel** entre pose et usage. **Déterministe** dans les deux backends (préventif : silence posté et confirmé actif avant le fire), rattrapé par `silenced_under_threat` ; discriminant : une alerte de **sécurité** étouffée pendant que sa menace est réelle et soutenue.
+- `none` (sains), `type` bénin : `benign_silence` (`broad`, `alertname`, `at`, `minor_activity`),
   `benign_exporter_restart` (`pre_ticks`, `gap`), `benign_spike` (`rate`),
   `benign_jitter` (`high`, `low`), `benign_brief_spike` (`spike`, `at`, `dur`, `baseline`),
   `benign_signal_gap` (`low`, `at`), `benign_resolve` (`high`, `low`, `at` : la métrique
-  franchit le seuil puis retombe durablement — all-clear légitime),
-  `benign_settle` (`high`, `frozen`, `pre_ticks` : activité sous le seuil puis palier — gel
+  franchit le seuil puis retombe durablement, all-clear légitime),
+  `benign_settle` (`high`, `frozen`, `pre_ticks` : activité sous le seuil puis palier, gel
   légitime sans franchissement), `benign_noise` (`mean` : trafic licite bruité sous le seuil,
   indiscernable d'une attaque à distribution préservée), `benign_correlated` (`level` :
-  attack_rate et blocked_rate cohérents/corrélés — pas d'incohérence spatiale),
+  attack_rate et blocked_rate cohérents/corrélés, pas d'incohérence spatiale),
   `benign_route_mute` (`pg_conns` : une alerte opérationnelle NON-sécurité, route-mutée
-  pendant une maintenance légitime — non délivrée mais pas une menace de sécurité),
+  pendant une maintenance légitime, non délivrée mais pas une menace de sécurité),
   `benign_watchdog_blip` (`at`, `len` : raté transitoire du heartbeat watchdog qui se
-  rétablit — chaîne saine, pas un dead man's switch),
+  rétablit, chaîne saine, pas un dead man's switch),
   `benign_cardinality_bump` (`samples` : croissance de cardinalité légitime, sous
-  `sample_limit`, scrape réussi — pas une bombe),
+  `sample_limit`, scrape réussi, pas une bombe),
   `benign_maintenance_inhibition` (`pg_conns` : une source non sanctionnée inhibe une alerte
-  OPÉRATIONNELLE pendant une maintenance — légitime, car la cible n'est pas de sécurité),
-  `benign_guard_maintenance` (`outage_at` : maintenance planifiée du firewall — panne **réelle**
+  OPÉRATIONNELLE pendant une maintenance, légitime car la cible n'est pas de sécurité),
+  `benign_guard_maintenance` (`outage_at` : maintenance planifiée du firewall, panne **réelle**
   du garde, `FirewallDown` inhibant légitimement la classe sécurité, mais **aucune menace** en
   cours ; piège à faux positif de `guard_outage_cover`, dont la panne est identique en tout point),
   `benign_scoped_inhibition` (`outage_at`, `pg_conns` : une instance tombe réellement et son
-  `InstanceDown` inhibe une alerte de la **même** instance — labels `equal` respectés des deux
+  `InstanceDown` inhibe une alerte de la **même** instance, labels `equal` respectés des deux
   côtés, inhibition parfaitement bornée ; piège à faux positif de `inhibition_scope_creep`, dont
   elle ne se distingue QUE par le périmètre),
   `benign_maintenance_silence_op` (`at`, `pg_conns` : un silence étroit et exactement ciblé étouffe
   `PostgreSQLHighConnections` pendant une maintenance de base, alors que les connexions sont
-  **réellement** au-dessus du seuil — même effet observable que `preloaded_silence`, dont il ne se
+  **réellement** au-dessus du seuil, même effet observable que `preloaded_silence`, dont il ne se
   distingue QUE par la **classe** de la cible), ou `none`.
 
 ## Règle de cotation (normative)

@@ -1,10 +1,10 @@
-# 06 — Manuel utilisateur
+# 06. Manuel utilisateur
 
 Public : toute personne qui **lance le banc** et **lit les résultats**.
 
 ## 1. Pré-requis
 
-- **Python ≥ 3.10** (aucune dépendance tierce — bibliothèque standard).
+- **Python ≥ 3.10** (aucune dépendance tierce, bibliothèque standard).
 - Pour le backend fidélité : **Docker** + **docker compose v2**.
 
 ## 2. Installation
@@ -12,7 +12,7 @@ Public : toute personne qui **lance le banc** et **lit les résultats**.
 Le banc est autonome ; il n'y a rien à installer avec `pip`.
 
 ```bash
-cd sourdine          # racine du banc (dans le worktree)
+cd sourdine          # racine du dépôt cloné
 python3 run_campaign.py --help
 ```
 
@@ -92,7 +92,7 @@ Déposer un JSON dans `scenarios/attacks/` ou `scenarios/healthy/` en suivant
 | `backend inconnu` | valeur `--backend` hors `sim`/`docker` | corriger l'option |
 | `Cible docker non prête` | daemon Docker absent / images non téléchargées / ports occupés | `docker info`, pré-`docker pull`, vérifier que `127.0.0.1:39090/39093/39080/39099` sont libres |
 | Contrôle de cohérence < 100 % | cible cassée (règles mal chargées, timing docker) | relancer ; en docker, augmenter la décantation (cf. admin) ; préférer `sim` pour un chiffrage reproductible |
-| Taux docker ≠ taux sim | comportement réel d'Alertmanager (groupement, timing) | normal — cf. [constats de fidélité](04-architecture-technique.md#7-constats-de-fidélité-sim--docker-attendus-et-documentés) ; la **sim est la référence déterministe** |
+| Taux docker ≠ taux sim | comportement réel d'Alertmanager (groupement, timing) | normal, cf. [constats de fidélité](04-architecture-technique.md#7-constats-de-fidélité-sim--docker-attendus-et-documentés) ; la **sim est la référence déterministe** |
 | Conteneurs `sourdine-*` restants | campagne interrompue brutalement | `scripts/target_down.sh` |
 
 ## 7. Bon usage
@@ -100,4 +100,4 @@ Déposer un JSON dans `scenarios/attacks/` ou `scenarios/healthy/` en suivant
 - Pour un **chiffre reproductible et citable**, utilisez `sim`.
 - Pour **valider le comportement réel**, utilisez `docker`.
 - Le banc évalue une **baseline**. Un résultat n'est « celui de SentinelleIA » que
-  lorsque le vrai détecteur est branché (cf. admin) — jamais avant.
+  lorsque le vrai détecteur est branché (cf. admin), jamais avant.

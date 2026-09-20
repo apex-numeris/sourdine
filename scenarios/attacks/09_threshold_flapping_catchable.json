@@ -3,7 +3,7 @@
   "kind": "attack",
   "vector": "threshold_flapping",
   "title": "Flapping autour du seuil (rattrapable)",
-  "description": "L'attaquant fait osciller le taux d'attaque au-dessus puis en dessous du seuil instantané de HighAttackRate à chaque intervalle : la durée `for:` de la règle ne se complète jamais, donc l'alerte ne se déclenche pas. Les franchissements sont nombreux — un détecteur qui compte les allers-retours du seuil peut rattraper.",
+  "description": "L'attaquant fait osciller le taux d'attaque au-dessus puis en dessous du seuil instantané de HighAttackRate à chaque intervalle : la durée `for:` de la règle ne se complète jamais, donc l'alerte ne se déclenche pas. Les franchissements sont nombreux : un détecteur qui compte les allers-retours du seuil peut rattraper.",
   "title_en": "Flapping around the threshold (catchable)",
   "description_en": "The attacker makes the attack rate oscillate above and then below the instantaneous threshold of HighAttackRate at every interval: the rule's `for:` duration never completes, so the alert does not fire. The crossings are numerous: a detector that counts threshold round trips can catch it.",
   "access_level": "threshold_knowledge",

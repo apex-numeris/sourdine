@@ -3,7 +3,7 @@
   "kind": "healthy",
   "vector": "none",
   "title": "Signaux corrélés cohérents (vrai négatif de la consistance spatiale)",
-  "description": "Un trafic où attack_rate et blocked_rate restent COHÉRENTS (corrélés, tous deux à un niveau bas de repos) : le firewall bloque à peu près ce qu'il rapporte comme attaque, sans divergence. Le détecteur de consistance spatiale (spatial_incoherence) ne doit PAS crier au masquage — sinon toute charge où les deux signaux bougent ensemble deviendrait un faux positif. Vrai négatif, garde anti-faux-positif du vecteur constrained_replay.",
+  "description": "Un trafic où attack_rate et blocked_rate restent COHÉRENTS (corrélés, tous deux à un niveau bas de repos) : le firewall bloque à peu près ce qu'il rapporte comme attaque, sans divergence. Le détecteur de consistance spatiale (spatial_incoherence) ne doit PAS crier au masquage : sinon toute charge où les deux signaux bougent ensemble deviendrait un faux positif. Vrai négatif, garde anti-faux-positif du vecteur constrained_replay.",
   "title_en": "Coherent correlated signals (true negative of spatial consistency)",
   "description_en": "Traffic where attack_rate and blocked_rate stay COHERENT (correlated, both at a low resting level): the firewall blocks roughly what it reports as attacks, with no divergence. The spatial consistency detector (spatial_incoherence) must NOT call out masking, otherwise any load where both signals move together would become a false positive. True negative, anti-false-positive guard of the constrained_replay vector.",
   "access_level": "n/a",

@@ -2,7 +2,7 @@
   "id": "HLT-COHERENCE-RATE-02",
   "kind": "healthy",
   "vector": "none",
-  "title": "Contrôle de cohérence — pic d'attaque franc, aucune manœuvre",
+  "title": "Contrôle de cohérence : pic d'attaque franc, aucune manœuvre",
   "description": "Un pic de trafic d'attaque franchit nettement le seuil de HighAttackRate, sans aucun masquage. L'alarme à taux DOIT être levée et notifiée. Second contrôle de cohérence.",
   "title_en": "Coherence control: clear attack spike, no manoeuvre",
   "description_en": "An attack traffic spike clearly crosses the HighAttackRate threshold, with no masking at all. The rate alarm MUST be raised and notified. Second coherence control.",

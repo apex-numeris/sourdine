@@ -2,7 +2,7 @@
   "id": "HLT-COHERENCE-CRITICAL-01",
   "kind": "healthy",
   "vector": "none",
-  "title": "Contrôle de cohérence — événement critique, aucune attaque",
+  "title": "Contrôle de cohérence : événement critique, aucune attaque",
   "description": "Un événement grave survient et AUCUN masquage n'est appliqué : l'alarme critique DOIT sortir. Sert de contrôle de cohérence (l'environnement cible n'est pas cassé) et de dénominateur au taux de faux positifs.",
   "title_en": "Coherence control: critical event, no attack",
   "description_en": "A serious event occurs and NO masking is applied: the critical alarm MUST come out. Serves as a coherence control (the target environment is not broken) and as a denominator for the false-positive rate.",

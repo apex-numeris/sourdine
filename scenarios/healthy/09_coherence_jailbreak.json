@@ -2,7 +2,7 @@
   "id": "HLT-COHERENCE-JAILBREAK-09",
   "kind": "healthy",
   "vector": "none",
-  "title": "Contrôle de cohérence — pic de jailbreak franc, aucune manœuvre",
+  "title": "Contrôle de cohérence : pic de jailbreak franc, aucune manœuvre",
   "description": "Un pic de jailbreak franchit nettement le seuil de JailbreakSurge, sans aucun masquage. L'alarme DOIT être levée et notifiée. Contrôle de cohérence pour le signal jailbreak_rate (pendant du contrôle de cohérence sur attack_rate).",
   "title_en": "Coherence control: clear jailbreak spike, no manoeuvre",
   "description_en": "A jailbreak spike clearly crosses the JailbreakSurge threshold, with no masking at all. The alarm MUST be raised and notified. Coherence control for the jailbreak_rate signal (counterpart of the coherence control on attack_rate).",

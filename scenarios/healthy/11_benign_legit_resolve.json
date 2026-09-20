@@ -2,7 +2,7 @@
   "id": "HLT-LEGIT-RESOLVE-11",
   "kind": "healthy",
   "vector": "none",
-  "title": "All-clear légitime — la menace retombe réellement (piège à faux positif)",
+  "title": "All-clear légitime : la menace retombe réellement (piège à faux positif)",
   "description": "Un pic d'attaque franchit le seuil (l'alerte HighAttackRate se déclenche et est notifiée), PUIS le taux retombe réellement et durablement sous le seuil : l'alerte se résout légitimement. En fin de fenêtre, plus aucune alerte active et le signal est bas. Le détecteur de faux all-clear (phantom_clear) ne doit PAS crier au masquage : son dernier point observé est sous le seuil. Le pic reste modéré pour que sa somme intégrée ne déclenche pas non plus le détecteur low-and-slow, y compris sur la fenêtre courte d'un run docker. Vrai négatif dans les deux backends, garde anti-faux-positif du vecteur false_resolved.",
   "title_en": "Legitimate all-clear: the threat really subsides (false-positive trap)",
   "description_en": "An attack spike crosses the threshold (the HighAttackRate alert fires and is notified), THEN the rate really and durably falls back below the threshold: the alert resolves legitimately. At the end of the window, no alert is active and the signal is low. The false all-clear detector (phantom_clear) must NOT call out masking: its last observed point is below the threshold. The spike stays moderate so that its integrated sum does not trigger the low-and-slow detector either, including over the short window of a docker run. True negative in both backends, anti-false-positive guard of the false_resolved vector.",

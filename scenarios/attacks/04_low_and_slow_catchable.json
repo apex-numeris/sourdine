@@ -3,7 +3,7 @@
   "kind": "attack",
   "vector": "low_and_slow",
   "title": "Low-and-slow sous le seuil instantané (rattrapable)",
-  "description": "L'attaquant maintient son taux d'attaque juste sous le seuil instantané de HighAttackRate : la règle à taux ne se déclenche jamais. Ici l'intensité cumulée sur la fenêtre longue dépasse le seuil intégré — un détecteur qui intègre dans le temps peut rattraper.",
+  "description": "L'attaquant maintient son taux d'attaque juste sous le seuil instantané de HighAttackRate : la règle à taux ne se déclenche jamais. Ici l'intensité cumulée sur la fenêtre longue dépasse le seuil intégré : un détecteur qui intègre dans le temps peut rattraper.",
   "title_en": "Low-and-slow below the instantaneous threshold (catchable)",
   "description_en": "The attacker keeps the attack rate just below the instantaneous threshold of HighAttackRate: the rate rule never fires. Here the cumulative intensity over the long window exceeds the integrated threshold: a detector that integrates over time can catch it.",
   "access_level": "threshold_knowledge",

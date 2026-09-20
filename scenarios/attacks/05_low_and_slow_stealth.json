@@ -3,7 +3,7 @@
   "kind": "attack",
   "vector": "low_and_slow",
   "title": "Low-and-slow encore plus lent (sous le seuil intégré)",
-  "description": "Variante furtive : l'attaquant reste non seulement sous le seuil instantané, mais aussi sous le seuil intégré de la baseline. L'attaque est réelle et le masquage réussit ; la baseline ne la rattrape pas — c'est de la suppression résiduelle attendue, et le vrai détecteur devra faire mieux.",
+  "description": "Variante furtive : l'attaquant reste non seulement sous le seuil instantané, mais aussi sous le seuil intégré de la baseline. L'attaque est réelle et le masquage réussit ; la baseline ne la rattrape pas : c'est de la suppression résiduelle attendue, et le vrai détecteur devra faire mieux.",
   "title_en": "Low-and-slow, slower still (below the integrated threshold)",
   "description_en": "Stealth variant: the attacker stays not only below the instantaneous threshold but also below the baseline's integrated threshold. The attack is real and the masking succeeds; the baseline does not catch it. This is expected residual suppression, and the real detector will have to do better.",
   "access_level": "threshold_knowledge",

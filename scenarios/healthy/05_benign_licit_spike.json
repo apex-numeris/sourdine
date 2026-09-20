@@ -3,7 +3,7 @@
   "kind": "healthy",
   "vector": "none",
   "title": "Pic de trafic licite sous le seuil (piège à faux positif)",
-  "description": "Une campagne marketing génère un trafic licite soutenu mais sous le seuil instantané : aucune alerte ne doit se déclencher. Sa somme intégrée ressemble à du low-and-slow ; la baseline, qui ne regarde pas le contenu, va probablement faux-positiver — coût opérationnel honnête.",
+  "description": "Une campagne marketing génère un trafic licite soutenu mais sous le seuil instantané : aucune alerte ne doit se déclencher. Sa somme intégrée ressemble à du low-and-slow ; la baseline, qui ne regarde pas le contenu, va probablement faux-positiver : coût opérationnel honnête.",
   "title_en": "Licit traffic spike below the threshold (false-positive trap)",
   "description_en": "A marketing campaign generates sustained licit traffic that stays below the instantaneous threshold: no alert must fire. Its integrated sum looks like low-and-slow; the baseline, which does not look at content, will probably produce a false positive: an honest operational cost.",
   "access_level": "n/a",

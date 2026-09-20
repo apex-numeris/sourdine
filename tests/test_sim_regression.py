@@ -1,7 +1,7 @@
 """Non-régression du run sim.
 
 Garde-fou : le backend sim (déterministe, hermétique) doit reproduire l'échantillon
-gelé `samples/example-0.1.0.json`. Tant que ce test est vert, les taux publiés du
+gelé de la version courante (`samples/example-<VERSION>.json`). Tant que ce test est vert, les taux publiés du
 run de référence n'ont pas bougé sous l'effet d'une modification du moteur, du
 modèle sémantique, du détecteur baseline ou du jeu de scénarios.
 
@@ -12,7 +12,8 @@ Ce que le test compare (le comportement) :
 Ce qu'il ignore : les horodatages (`generated_at`, `timestamp`), volatils par nature.
 
 Si un changement de comportement est VOULU, re-geler l'échantillon d'un geste
-délibéré : `make regen-sample` (puis relire le diff). Aucune dépendance tierce :
+délibéré : `python3 run_campaign.py --backend sim --out samples/example-<VERSION>.json --quiet`
+(puis relire le diff). Aucune dépendance tierce :
 stdlib `unittest` uniquement.
 """
 from __future__ import annotations
@@ -101,11 +102,11 @@ class SimRegression(unittest.TestCase):
         # un bump de VERSION ou de format sans re-geler l'échantillon = échantillon périmé.
         self.assertEqual(
             self.sample["sourdine_report_version"], REPORT_FORMAT_VERSION,
-            "format de rapport changé : re-geler `samples/example-0.1.0.json` (make regen-sample).",
+            "format de rapport changé : re-geler l'échantillon de la version courante (samples/example-<VERSION>.json).",
         )
         self.assertEqual(
             self.sample["bench_version"], _version_file(),
-            "VERSION du banc changée : re-geler `samples/example-0.1.0.json` (make regen-sample).",
+            "VERSION du banc changée : re-geler l'échantillon de la version courante (samples/example-<VERSION>.json).",
         )
 
 

@@ -29,5 +29,4 @@ license: Apache-2.0
 repository-code: "https://github.com/apex-numeris/sourdine"
 url: "https://sourdine.org"
 version: 1.0.0
-# Date du tag v1.0.0 : à régler le jour de la publication, juste avant de taguer.
-date-released: "2026-09-17"
+date-released: "2026-09-22"

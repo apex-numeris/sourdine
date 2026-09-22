@@ -2,6 +2,8 @@
 
 *Version de référence. English version: [`README.en.md`](README.en.md).*
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22900756.svg)](https://doi.org/10.5281/zenodo.22900756)
+
 Sourdine mesure la résistance d'une chaîne d'alerte au **masquage d'alarme** :
 des attaques qui ne visent pas un agent, mais **l'observateur** : elles
 suppriment ou étouffent un signal qui aurait dû lever une alarme.
@@ -389,7 +391,7 @@ Titulaire des droits : Apex Numeris SAS. Détail dans `NOTICE`.
 
 Auteur : Quoc-Nam Nguyen (Apex Numeris SAS, Lyon). Titulaire des droits : Apex Numeris SAS.
 Le bouton « Cite this repository » de GitHub lit `CITATION.cff` ; chaque release reçoit un DOI
-Zenodo, et le DOI de concept, commun à toutes les versions, est celui à citer. La fiche
+Zenodo, et le DOI de concept, commun à toutes les versions, est celui à citer : https://doi.org/10.5281/zenodo.22900756. La fiche
 `DATASHEET.md` (en anglais : `DATASHEET.en.md`) décrit le banc sur le modèle des
 datasheets for datasets.
 

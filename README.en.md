@@ -2,6 +2,8 @@
 
 *English version. The French file `README.md` is the reference version; in case of discrepancy, the French text prevails.*
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22900756.svg)](https://doi.org/10.5281/zenodo.22900756)
+
 Sourdine measures how well an alerting chain resists **alarm masking**: attacks that
 do not target an agent but **the observer**, by suppressing or muffling a signal that
 should have raised an alarm.
@@ -384,7 +386,7 @@ Rights holder: Apex Numeris SAS. Details in `NOTICE`.
 
 Author: Quoc-Nam Nguyen (Apex Numeris SAS, Lyon, France). Rights holder: Apex Numeris SAS.
 GitHub's "Cite this repository" button reads `CITATION.cff`; every release receives a
-Zenodo DOI, and the concept DOI, shared by all versions, is the one to cite. The
+Zenodo DOI, and the concept DOI, shared by all versions, is the one to cite: https://doi.org/10.5281/zenodo.22900756. The
 `DATASHEET.en.md` file describes the benchmark in the datasheets-for-datasets format.
 
 ## Layout

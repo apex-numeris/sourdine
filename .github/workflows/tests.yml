@@ -1,0 +1,48 @@
+# Sourdine : non-régression du run sim à chaque push et à chaque pull request.
+# Le run sim est déterministe et hermétique (stdlib pure, aucun conteneur) :
+# `make test` rejoue la campagne et la compare à l'échantillon gelé de la version
+# courante, agrégat et scénario par scénario, puis vérifie le déterminisme.
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sim:
+    name: non-régression sim, Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Scénarios JSON valides, sans clé dupliquée
+        run: |
+          python - <<'PY'
+          import collections, glob, io, json
+          def nodup(pairs):
+              dups = [k for k, c in collections.Counter(k for k, _ in pairs).items() if c > 1]
+              assert not dups, dups
+              return dict(pairs)
+          files = sorted(glob.glob("scenarios/*/*.json"))
+          for f in files:
+              json.load(io.open(f, encoding="utf-8"), object_pairs_hook=nodup)
+          print(len(files), "scénarios valides")
+          PY
+      - name: make test
+        run: make test

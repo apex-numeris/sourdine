@@ -2,7 +2,7 @@
 
 *English version. The French file `README.md` is the reference version; in case of discrepancy, the French text prevails.*
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22900756.svg)](https://doi.org/10.5281/zenodo.22900756)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22900756.svg)](https://doi.org/10.5281/zenodo.22900756) [![tests](https://github.com/apex-numeris/sourdine/actions/workflows/tests.yml/badge.svg)](https://github.com/apex-numeris/sourdine/actions/workflows/tests.yml) [![docker-weekly](https://github.com/apex-numeris/sourdine/actions/workflows/docker-weekly.yml/badge.svg)](https://github.com/apex-numeris/sourdine/actions/workflows/docker-weekly.yml)
 
 Sourdine measures how well an alerting chain resists **alarm masking**: attacks that
 do not target an agent but **the observer**, by suppressing or muffling a signal that
@@ -298,6 +298,9 @@ git diff samples/
 
 (`make regen-sample` remains available but only re-freezes the historical example sample
 `example-0.1.0.json`.)
+
+Continuous integration (the repository's Actions tab) replays the sim run on every push,
+on Python 3.10, 3.12 and 3.13, and runs the docker campaign every Monday morning.
 
 ## Output format
 

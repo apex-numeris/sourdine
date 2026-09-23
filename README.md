@@ -2,7 +2,7 @@
 
 *Version de référence. English version: [`README.en.md`](README.en.md).*
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22900756.svg)](https://doi.org/10.5281/zenodo.22900756)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22900756.svg)](https://doi.org/10.5281/zenodo.22900756) [![tests](https://github.com/apex-numeris/sourdine/actions/workflows/tests.yml/badge.svg)](https://github.com/apex-numeris/sourdine/actions/workflows/tests.yml) [![docker-weekly](https://github.com/apex-numeris/sourdine/actions/workflows/docker-weekly.yml/badge.svg)](https://github.com/apex-numeris/sourdine/actions/workflows/docker-weekly.yml)
 
 Sourdine mesure la résistance d'une chaîne d'alerte au **masquage d'alarme** :
 des attaques qui ne visent pas un agent, mais **l'observateur** : elles
@@ -304,6 +304,9 @@ git diff samples/
 
 (`make regen-sample` reste disponible mais ne regèle que l'échantillon d'exemple
 historique `example-0.1.0.json`.)
+
+L'intégration continue (onglet Actions du dépôt) rejoue le run sim à chaque push, sur
+Python 3.10, 3.12 et 3.13, et lance la campagne docker chaque lundi matin.
 
 ## Format de sortie
 

@@ -1,0 +1,35 @@
+# Sourdine : campagne hebdomadaire sur la vraie cible éphémère (Prometheus,
+# Alertmanager, exporter et sink en conteneurs). Le backend docker dépend du temps
+# réel, donc `make test-docker` ne compare pas à l'identique : il vérifie les
+# invariants (cohérence à 100 %, masqueurs déterministes toujours masqués et
+# rattrapés, contrôles de cohérence jamais signalés) et des garde-fous avec
+# tolérance autour de l'échantillon docker gelé de la version courante.
+name: docker-weekly
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"   # lundi 06:00 UTC, 08:00 à Paris
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docker:
+    name: campagne docker, cible éphémère réelle
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Versions de docker et de compose
+        run: |
+          docker version
+          docker compose version
+      - name: make test-docker
+        run: make test-docker
+      - name: Purge de la cible (filet de sécurité)
+        if: always()
+        run: scripts/target_down.sh || true

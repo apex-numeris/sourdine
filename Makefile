@@ -9,7 +9,7 @@ help:
 	@echo "Cibles Sourdine :"
 	@echo "  make test          - non-regression du run sim + determinisme (stdlib unittest)"
 	@echo "  make test-regression - le seul module de non-regression sim, en mode verbeux"
-	@echo "  make test-docker   - non-regression LIVE du backend docker (~6-8 min, opt-in)"
+	@echo "  make test-docker   - non-regression LIVE du backend docker (~25 min, opt-in)"
 	@echo "  make run           - lance une campagne sim (defaut)"
 	@echo "  make run-docker    - lance une campagne sur vraie cible docker ephemere"
 	@echo "  make regen-sample  - RE-GELE samples/example-0.1.0.json (geste delibere)"
@@ -22,7 +22,7 @@ test-regression:
 	$(PY) -m unittest -v tests.test_sim_regression
 
 # Non-régression LIVE du backend docker : lance une vraie cible éphémère
-# (Prometheus + Alertmanager, ~6-8 min). Opt-in via la variable d'env.
+# (Prometheus + Alertmanager, ~25 min). Opt-in via la variable d'env.
 test-docker:
 	SOURDINE_DOCKER_TEST=1 $(PY) -m unittest -v tests.test_docker_regression
 

@@ -283,7 +283,7 @@ Le backend **docker** est non déterministe (temps réel) : `tests/test_docker_r
 ne fait donc **pas** d'égalité stricte mais vérifie des **invariants** (cohérence à
 100 %, masqueurs déterministes toujours masqués + rattrapés, contrôles de cohérence
 jamais signalés) et des garde-fous **directionnels à tolérance** autour de
-`samples/example-0.14.0-docker.json`. Il monte une vraie cible éphémère (~6-18 min) et
+`samples/example-0.14.0-docker.json`. Il monte une vraie cible éphémère (~25 min) et
 n'est donc **pas** dans `make test` :
 
 ```bash
@@ -298,7 +298,7 @@ l'appui ; pour la version courante, les deux échantillons :
 
 ```bash
 python3 run_campaign.py --backend sim    --out samples/example-0.14.0.json --quiet
-python3 run_campaign.py --backend docker --out samples/example-0.14.0-docker.json --quiet   # ~6-18 min
+python3 run_campaign.py --backend docker --out samples/example-0.14.0-docker.json --quiet   # ~25 min
 git diff samples/
 ```
 

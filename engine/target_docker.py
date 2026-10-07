@@ -59,7 +59,21 @@ EXP = "http://127.0.0.1:39080"
 SINK = "http://127.0.0.1:39099"
 
 STEP = 2                  # pas de scrape/éval (s) : doit matcher prometheus.yml
-SETTLE = 12               # décantation par défaut (s)
+# Décantation par défaut = fenêtre d'observation du sink. Elle doit couvrir la latence
+# MAXIMALE de la chaîne pour une alerte qui fire normalement ; sinon une alarme bien
+# levée est lue « non notifiée » : faux masquage côté attaques, contrôle de cohérence
+# en échec côté sains. Budget tiré de la config de la cible : attente du prochain scrape
+# (STEP) + attente de la prochaine évaluation des règles (STEP) + `for:` le plus long
+# d'alerts.yml + délai de regroupement d'Alertmanager (group_wait pour un groupe neuf,
+# group_interval pour un groupe déjà notifié : on prend le plus long) + 1 s de marge.
+# Constat du 06/10/2026 : l'ancienne valeur fixe de 12 s n'avait aucune marge quand la
+# phase entre scrape et évaluation est défavorable. Le décalage de scrape de Prometheus
+# dérive du hostname du conteneur, donc il est retiré à chaque campagne. Reproduit avec
+# une phase de 1,79 s : HighAttackRate notifiée après la lecture du sink, contrôle
+# HLT-COHERENCE-RATE-02 en échec à chaque essai (6 sur 6), et 6 sur 6 réussis à 14 s.
+_FOR_MAX = 6              # `for:` le plus long d'alerts.yml (s)
+_AM_GROUP_DELAY = 5       # max(group_wait 3 s, group_interval 5 s) d'alertmanager.yml
+SETTLE = STEP + STEP + _FOR_MAX + _AM_GROUP_DELAY + 1   # 16 s
 SETTLE_LONG = 44          # décantation pour low-and-slow (accumulation)
 # map nom de métrique exporter -> nom de signal attendu par le détecteur
 _SIGNAL_REMAP = {"inst_up": "up"}
@@ -123,7 +137,6 @@ class DockerTarget(Target):
     # -- primitives de contrôle ----------------------------------------------
     def _reset(self) -> None:
         _http(f"{EXP}/reset", "POST", {})
-        _http(f"{SINK}/reset", "POST", {})
         # résoudre les alertes injectées au scénario précédent (endsAt dans le passé)
         past = time.time()
         for name, labels in self._injected:
@@ -143,6 +156,27 @@ class DockerTarget(Target):
                     pass
         # laisser les alertes (règles + injectées résolues) se vider côté AM
         time.sleep(STEP * 4)
+        self._await_am_quiescent()
+        # ISOLATION DES SCÉNARIOS : le sink ne se vide qu'une fois la chaîne au repos.
+        # Lever l'inhibiteur ou le silence du scénario précédent démasque son alerte cible,
+        # encore firing tant que Prometheus ne l'a pas résolue (un scrape plus une
+        # évaluation) : un flush d'Alertmanager tombé dans cette fenêtre la notifie. Avec
+        # l'ancien ordre (sink vidé en tête de reset), cette notification comptait pour le
+        # scénario SUIVANT : échec docker-weekly du 05/10/2026, la HighAttackRate de
+        # ATT-ROGUE-INHIBITOR-23 lue comme alarme de ATT-ROUTE-BLACKHOLE-20.
+        _http(f"{SINK}/reset", "POST", {})
+
+    def _await_am_quiescent(self, timeout: float = 20.0) -> bool:
+        """Attend qu'Alertmanager ne porte plus aucune alerte non résolue (borné)."""
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            try:
+                if not (_http(f"{AM}/api/v2/alerts") or []):
+                    return True
+            except Exception:
+                pass
+            time.sleep(0.5)
+        return False
 
     def _set_metric(self, metric: str, labels: dict, value: float) -> None:
         _http(f"{EXP}/set", "POST", {"metric": metric, "labels": labels, "value": value})

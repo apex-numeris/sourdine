@@ -292,7 +292,7 @@ for the current version, the two samples:
 
 ```bash
 python3 run_campaign.py --backend sim    --out samples/example-0.14.0.json --quiet
-python3 run_campaign.py --backend docker --out samples/example-0.14.0-docker.json --quiet   # ~6-18 min
+python3 run_campaign.py --backend docker --out samples/example-0.14.0-docker.json --quiet   # ~25 min
 git diff samples/
 ```
 

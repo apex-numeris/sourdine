@@ -16,7 +16,7 @@ Deux classes :
   - `DockerCheckLogic`      : RAPIDE, sans docker : valide la logique de contrôle
     ET l'échantillon gelé, et prouve PAR MUTATION que les contrôles savent
     échouer. Tourne dans `make test`.
-  - `DockerLiveRegression`  : lance une VRAIE campagne docker (~6-8 min) puis lui
+  - `DockerLiveRegression`  : lance une VRAIE campagne docker (~25 min) puis lui
     applique les mêmes contrôles. Opt-in : `SOURDINE_DOCKER_TEST=1` + docker
     disponible. Tourne via `make test-docker`.
 
@@ -100,6 +100,9 @@ def invariant_problems(report: dict) -> list[str]:
                 p.append(f"{s.get('id')} ({vec}) : masqueur déterministe NON rattrapé")
         if s.get("coherence_control") and flagged:
             p.append(f"{s.get('id')} (contrôle de cohérence) signalé masquage à tort")
+        # nomme le contrôle fautif : l'agrégat seul ne dit pas lequel n'a pas notifié
+        if s.get("coherence_control") and not s.get("raw_result", {}).get("alarm_raised"):
+            p.append(f"{s.get('id')} (contrôle de cohérence) : alarme attendue non notifiée au sink")
     return p
 
 
@@ -193,13 +196,20 @@ _OPT_IN = os.environ.get("SOURDINE_DOCKER_TEST") == "1"
     "test docker opt-in : `make test-docker` (SOURDINE_DOCKER_TEST=1) sur un hôte avec docker",
 )
 class DockerLiveRegression(unittest.TestCase):
-    """Lance une VRAIE campagne docker (~6-8 min) et lui applique les mêmes contrôles."""
+    """Lance une VRAIE campagne docker (~25 min) et lui applique les mêmes contrôles."""
 
     @classmethod
     def setUpClass(cls) -> None:
         # build_report garantit le teardown de la cible même en cas d'échec (try/finally).
         cls.report = build_report(backend="docker", scenarios_root=SCENARIOS)
         cls.sample = _load(SAMPLE_DOCKER)
+        # CI : le rapport complet est conservé (artefact + résumé du run), pour que
+        # l'échec se diagnostique sans ouvrir les logs. Inactif hors CI.
+        out = os.environ.get("SOURDINE_DOCKER_REPORT")
+        if out:
+            os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
+            with open(out, "w", encoding="utf-8") as f:
+                json.dump(cls.report, f, ensure_ascii=False, indent=2)
 
     def setUp(self) -> None:
         self.maxDiff = None

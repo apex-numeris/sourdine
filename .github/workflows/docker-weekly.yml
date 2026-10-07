@@ -4,11 +4,13 @@
 # invariants (cohérence à 100 %, masqueurs déterministes toujours masqués et
 # rattrapés, contrôles de cohérence jamais signalés) et des garde-fous avec
 # tolérance autour de l'échantillon docker gelé de la version courante.
+# Le rapport complet sort en artefact ; les contrôles en échec s'affichent dans le
+# résumé du run et en annotations, lisibles sans ouvrir les logs.
 name: docker-weekly
 
 on:
   schedule:
-    - cron: "0 6 * * 1"   # lundi 06:00 UTC, 08:00 à Paris
+    - cron: "0 6 * * 1"   # lundi 06:00 UTC, 08:00 à Paris (GitHub peut le lancer avec plusieurs heures de retard)
   workflow_dispatch:
 
 permissions:
@@ -17,11 +19,14 @@ permissions:
 jobs:
   docker:
     name: campagne docker, cible éphémère réelle
-    runs-on: ubuntu-latest
+    # runner épinglé : le libellé ubuntu-latest bascule sur Ubuntu 26 à partir du 19/10/2026
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
+    env:
+      SOURDINE_DOCKER_REPORT: reports/docker-ci.json
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Versions de docker et de compose
@@ -30,6 +35,16 @@ jobs:
           docker compose version
       - name: make test-docker
         run: make test-docker
+      - name: Résumé des contrôles
+        if: always()
+        run: python3 scripts/ci_summary.py "$SOURDINE_DOCKER_REPORT"
+      - name: Rapport de campagne en artefact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: sourdine-docker-${{ github.run_number }}
+          path: ${{ env.SOURDINE_DOCKER_REPORT }}
+          if-no-files-found: warn
       - name: Purge de la cible (filet de sécurité)
         if: always()
         run: scripts/target_down.sh || true

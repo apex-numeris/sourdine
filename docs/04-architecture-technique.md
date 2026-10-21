@@ -6,7 +6,7 @@
 |---|---|---|
 | Langage | Python ≥ 3.10, **bibliothèque standard uniquement** | campagne à blanc sans install réseau ; artefact citable |
 | HTTP (backend docker) | `urllib.request` (stdlib) | zéro dépendance |
-| Cible docker | `prom/prometheus:v3.13.3`, `prom/alertmanager:v0.34.1` | versions épinglées pour la reproductibilité, Prometheus sur sa ligne LTS (maintenue jusqu'au 31/07/2027) |
+| Cible docker | `prom/prometheus:v3.13.4`, `prom/alertmanager:v0.34.1` | versions épinglées pour la reproductibilité, Prometheus sur sa ligne LTS (maintenue jusqu'au 31/07/2027) |
 | Exporter / sink | image `python:3.12-slim` + script bind-monté | aucun build d'image |
 | Orchestration | `docker compose` v2 (projet `sourdine`) | montée/destruction jetable |
 | Diagrammes | mermaid dans Markdown | versionnable, rendu GitHub |
@@ -81,7 +81,7 @@ temps réel : les taux sont reproductibles.
 flowchart TB
     subgraph HOST["Hôte : démon Docker utilisateur"]
       subgraph NET["réseau sourdine-net (isolé)"]
-        PR["sourdine-prometheus<br/>v3.13.3"]
+        PR["sourdine-prometheus<br/>v3.13.4"]
         AM["sourdine-alertmanager<br/>v0.34.1"]
         EX["sourdine-exporter<br/>(python stdlib)"]
         SK["sourdine-sink<br/>(python stdlib)"]

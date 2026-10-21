@@ -10,8 +10,9 @@ les chiffres publiés ne bougent pas. Chaque version publiée regèle les deux �
 
 ### Modifié
 
-- Cible docker : images épinglées montées en `prom/prometheus:v3.13.3` (ligne LTS,
-  maintenue jusqu'au 31 juillet 2027) et `prom/alertmanager:v0.34.1`, à la place de
+- Cible docker : images épinglées montées en `prom/prometheus:v3.13.4` (ligne LTS,
+  maintenue jusqu'au 31 juillet 2027, correctif de sécurité du 2 octobre 2026 pris par la
+  pull request Dependabot #1, campagne rejouée sur cette version avec le même résultat) et `prom/alertmanager:v0.34.1`, à la place de
   `v2.48.0` (ligne 2.x hors support depuis juillet 2025, quatre avis de sécurité publiés
   en avril 2026 : CVE-2026-42154, CVE-2026-42151, CVE-2026-40179 et CVE-2026-44903, aucun
   atteignable dans l'usage du banc) et de `v0.26.0` (août 2023). Configurations de la cible

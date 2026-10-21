@@ -13,12 +13,12 @@ scripts/target_down.sh    # détruit tout (conteneurs + volumes + réseau)
 - Projet compose : `sourdine` ; réseau : `sourdine-net` ; conteneurs : `sourdine-*`.
 - Interfaces (toutes sur `127.0.0.1`) : Prometheus `:39090`, Alertmanager `:39093`,
   exporter `:39080`, sink `:39099`.
-- Images **épinglées** : `prom/prometheus:v2.48.0`, `prom/alertmanager:v0.26.0`,
+- Images **épinglées** : `prom/prometheus:v3.13.3`, `prom/alertmanager:v0.34.1`,
   `python:3.12-slim`. Les pré-télécharger avant un run hors-ligne :
 
 ```bash
-docker pull prom/prometheus:v2.48.0
-docker pull prom/alertmanager:v0.26.0
+docker pull prom/prometheus:v3.13.3
+docker pull prom/alertmanager:v0.34.1
 docker pull python:3.12-slim
 ```
 

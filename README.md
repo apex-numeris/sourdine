@@ -306,7 +306,8 @@ git diff samples/
 historique `example-0.1.0.json`.)
 
 L'intégration continue (onglet Actions du dépôt) rejoue le run sim à chaque push, sur
-Python 3.10, 3.12 et 3.13, et lance la campagne docker chaque lundi matin.
+Python 3.10, 3.12 et 3.13, et lance la campagne docker chaque lundi matin. Les versions
+sont consignées dans `CHANGELOG.md`. Le signalement d'une vulnérabilité suit `SECURITY.md`.
 
 ## Format de sortie
 

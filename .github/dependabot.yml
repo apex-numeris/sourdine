@@ -1,0 +1,27 @@
+# Sourdine : surveillance des dépendances. Le banc n'a aucune dépendance Python
+# tierce ; seules comptent les actions GitHub des workflows et les images épinglées
+# de la cible éphémère. Un passage par mois.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      time: "07:00"
+      timezone: "Europe/Paris"
+    commit-message:
+      prefix: "ci"
+
+  - package-ecosystem: "docker-compose"
+    directory: "/target"
+    schedule:
+      interval: "monthly"
+      time: "07:00"
+      timezone: "Europe/Paris"
+    commit-message:
+      prefix: "target"
+    ignore:
+      # Prometheus reste sur sa ligne LTS : correctifs seulement. Un changement de
+      # ligne est un geste délibéré, rejoué sur la vraie cible avant d'être commité.
+      - dependency-name: "prom/prometheus"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]

@@ -33,7 +33,7 @@ services:
     networks: [sourdine-net]
 
   sourdine-exporter:
-    image: python:3.12-slim
+    image: python:3.15-slim
     container_name: sourdine-exporter
     working_dir: /app
     command: ["python", "/app/exporter.py"]
@@ -44,7 +44,7 @@ services:
     networks: [sourdine-net]
 
   sourdine-sink:
-    image: python:3.12-slim
+    image: python:3.15-slim
     container_name: sourdine-sink
     working_dir: /app
     command: ["python", "/app/sink.py"]

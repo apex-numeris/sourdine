@@ -10,15 +10,21 @@ les chiffres publiés ne bougent pas. Chaque version publiée regèle les deux �
 
 ### Modifié
 
-- Cible docker : images épinglées montées en `prom/prometheus:v3.13.4` (ligne LTS,
-  maintenue jusqu'au 31 juillet 2027, correctif de sécurité du 2 octobre 2026 pris par la
-  pull request Dependabot #1, campagne rejouée sur cette version avec le même résultat) et `prom/alertmanager:v0.34.1`, à la place de
+- Cible docker : images épinglées montées en `prom/prometheus:v3.13.5` (ligne LTS,
+  maintenue jusqu'au 31 juillet 2027) et `prom/alertmanager:v0.34.2`, à la place de
   `v2.48.0` (ligne 2.x hors support depuis juillet 2025, quatre avis de sécurité publiés
   en avril 2026 : CVE-2026-42154, CVE-2026-42151, CVE-2026-40179 et CVE-2026-44903, aucun
-  atteignable dans l'usage du banc) et de `v0.26.0` (août 2023). Configurations de la cible
-  inchangées. Campagne docker complète rejouée sur les nouvelles images : les cinq taux
-  publiés sont identiques à l'échantillon gelé `samples/example-0.14.0-docker.json` et
-  aucun scénario ne change de résultat.
+  atteignable dans l'usage du banc) et de `v0.26.0` (août 2023). Trois étapes : `v3.13.3`
+  et `v0.34.1` le 21 octobre 2026, `v3.13.4` le même jour (pull request Dependabot #1),
+  `v3.13.5` et `v0.34.2` le 12 novembre 2026 (pull request Dependabot #2). Alertmanager
+  0.34.2 corrige l'avis GHSA-w5g2-x24w-p3fq du 29 octobre 2026 : jusqu'à la version 0.34.1,
+  l'API v2 acceptait les requêtes de toute origine, si bien qu'une page web ouverte dans un
+  navigateur capable d'atteindre un Alertmanager sans authentification pouvait créer des
+  alertes et des silences. Le banc pilote la cible sans navigateur, la correction ne change
+  donc rien pour lui. Configurations de la cible inchangées. À chaque étape, campagne docker
+  complète rejouée sur les nouvelles images : les cinq taux publiés sont identiques à
+  l'échantillon gelé `samples/example-0.14.0-docker.json` et aucun scénario ne change de
+  résultat.
 - Backend docker (7 octobre 2026, commit 5b62ee5) : isolation des scénarios (le sink se
   vide en fin de remise à zéro, une fois Alertmanager sans alerte active) et fenêtre
   d'observation calculée depuis la configuration de la cible (portée de 12 à 16 s).

@@ -22,7 +22,7 @@ services:
     networks: [sourdine-net]
 
   sourdine-alertmanager:
-    image: prom/alertmanager:v0.34.1
+    image: prom/alertmanager:v0.34.2
     container_name: sourdine-alertmanager
     command:
       - --config.file=/etc/alertmanager/alertmanager.yml

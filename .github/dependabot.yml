@@ -1,6 +1,9 @@
 # Sourdine : surveillance des dépendances. Le banc n'a aucune dépendance Python
 # tierce ; seules comptent les actions GitHub des workflows et les images épinglées
-# de la cible éphémère. Un passage par mois.
+# de la cible éphémère. Actions : un passage par mois. Images : un passage par semaine,
+# parce que Dependabot attend trois jours après la sortie d'une version avant de la
+# proposer (délai de carence par défaut) : avec un passage mensuel, un correctif de
+# sécurité pouvait attendre cinq semaines.
 version: 2
 updates:
   - package-ecosystem: "github-actions"
@@ -15,7 +18,8 @@ updates:
   - package-ecosystem: "docker-compose"
     directory: "/target"
     schedule:
-      interval: "monthly"
+      interval: "weekly"
+      day: "monday"
       time: "07:00"
       timezone: "Europe/Paris"
     commit-message:
@@ -24,4 +28,8 @@ updates:
       # Prometheus reste sur sa ligne LTS : correctifs seulement. Un changement de
       # ligne est un geste délibéré, rejoué sur la vraie cible avant d'être commité.
       - dependency-name: "prom/prometheus"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # Exporter et sink restent sur la ligne Python 3.12, maintenue jusqu'au
+      # 31 octobre 2028. L'étiquette 3.12-slim suit d'elle-même ses correctifs.
+      - dependency-name: "python"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]

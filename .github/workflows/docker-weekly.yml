@@ -1,5 +1,6 @@
-# Sourdine : campagne hebdomadaire sur la vraie cible éphémère (Prometheus,
-# Alertmanager, exporter et sink en conteneurs). Le backend docker dépend du temps
+# Sourdine : campagne sur la vraie cible éphémère (Prometheus, Alertmanager, exporter
+# et sink en conteneurs), chaque lundi et à chaque pull request qui touche la cible ou
+# le backend docker, une montée de version d'image par exemple. Ce backend dépend du temps
 # réel, donc `make test-docker` ne compare pas à l'identique : il vérifie les
 # invariants (cohérence à 100 %, masqueurs déterministes toujours masqués et
 # rattrapés, contrôles de cohérence jamais signalés) et des garde-fous avec
@@ -11,10 +12,21 @@ name: docker-weekly
 on:
   schedule:
     - cron: "0 6 * * 1"   # lundi 06:00 UTC, 08:00 à Paris (GitHub peut le lancer avec plusieurs heures de retard)
+  pull_request:
+    paths:
+      - "target/**"
+      - "engine/target_docker.py"
+      - "tests/test_docker_regression.py"
+      - ".github/workflows/docker-weekly.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
+
+# Une pull request mise à jour annule sa campagne en cours ; celle du lundi n'est jamais annulée.
+concurrency:
+  group: docker-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   docker:
@@ -40,6 +52,7 @@ jobs:
         run: python3 scripts/ci_summary.py "$SOURDINE_DOCKER_REPORT"
       - name: Rapport de campagne en artefact
         if: always()
+        continue-on-error: true   # un dépôt d'artefact refusé ne doit pas fausser le verdict
         uses: actions/upload-artifact@v7
         with:
           name: sourdine-docker-${{ github.run_number }}

@@ -117,7 +117,8 @@ PY
   durs** (cohérence à 100 %, masqueurs déterministes toujours masqués + rattrapés,
   contrôles de cohérence jamais signalés) et des **garde-fous directionnels à
   tolérance** autour de `samples/example-0.14.0-docker.json`. Il monte une vraie
-  cible éphémère (~25 min) : CI **hebdomadaire** (`docker-weekly`), pas à chaque commit. La logique de
+  cible éphémère (~25 min) : CI **hebdomadaire** (`docker-weekly`) et à chaque pull request qui
+  touche la cible, pas à chaque commit. La logique de
   ces contrôles (avec preuve par mutation) tourne, sans docker, dans `make test`.
 
 ## 7. Versionnement

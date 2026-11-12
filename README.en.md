@@ -300,7 +300,8 @@ git diff samples/
 `example-0.1.0.json`.)
 
 Continuous integration (the repository's Actions tab) replays the sim run on every push,
-on Python 3.10, 3.12 and 3.13, and runs the docker campaign every Monday morning. Releases
+on Python 3.10, 3.12, 3.13, 3.14 and 3.15, and runs the docker campaign every Monday and on
+every pull request that touches the target. Releases
 are recorded in `CHANGELOG.md`. Vulnerability reports follow `SECURITY.md`.
 
 ## Output format

@@ -32,13 +32,18 @@ les chiffres publiés ne bougent pas. Chaque version publiée regèle les deux �
   lu non masqué par fuite de l'alerte du scénario précédent). Chiffres publiés inchangés.
 - Intégration continue : rapport de campagne en artefact, résumé et annotations lisibles
   sans ouvrir les journaux, runner épinglé `ubuntu-24.04`, actions `checkout` et
-  `setup-python` en v7.
+  `setup-python` en v7. Depuis le 12 novembre 2026, la campagne docker tourne aussi sur
+  chaque pull request qui touche la cible ou le backend docker, et le run sim est rejoué
+  sur Python 3.10, 3.12, 3.13, 3.14 et 3.15.
 
 ### Ajouté
 
 - `SECURITY.md` : périmètre, voies de signalement, engagements de délai.
-- `.github/dependabot.yml` : surveillance mensuelle des actions GitHub et des images de la
-  cible (correctifs seulement sur la ligne LTS de Prometheus).
+- `.github/dependabot.yml` : surveillance des actions GitHub (mensuelle) et des images de la
+  cible (hebdomadaire depuis le 12 novembre 2026 : ajouté au délai de carence de trois jours
+  que Dependabot applique par défaut, le passage mensuel avait laissé passer Alertmanager
+  0.34.2). Correctifs seulement sur la ligne LTS de Prometheus. Exporter et sink restent
+  sur la ligne Python 3.12, maintenue jusqu'au 31 octobre 2028.
 - Ce journal.
 
 ## 1.0.0 (22 septembre 2026)

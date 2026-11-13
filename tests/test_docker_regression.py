@@ -41,7 +41,7 @@ from engine.detector import BaselineDetector  # noqa: E402
 from engine.scenarios import load_scenarios    # noqa: E402
 from run_campaign import build_report          # noqa: E402
 
-SAMPLE_DOCKER = os.path.join(_ROOT, "samples", "example-0.14.0-docker.json")
+SAMPLE_DOCKER = os.path.join(_ROOT, "samples", "example-1.1.0-docker.json")
 SCENARIOS = os.path.join(_ROOT, "scenarios")
 
 BASELINE_NAME = BaselineDetector.name
@@ -83,9 +83,9 @@ def invariant_problems(report: dict) -> list[str]:
         p.append(f"target_backend = {report.get('target_backend')!r}, attendu 'docker'")
     if report.get("detector") != BASELINE_NAME:
         p.append(f"detector = {report.get('detector')!r}, attendu {BASELINE_NAME!r}")
-    if (agg.get("n_scenarios"), agg.get("n_attaques"), agg.get("n_sains")) != (47, 26, 21):
+    if (agg.get("n_scenarios"), agg.get("n_attaques"), agg.get("n_sains")) != (48, 27, 21):
         p.append(f"comptes = {agg.get('n_scenarios')}/{agg.get('n_attaques')}/{agg.get('n_sains')}, "
-                 f"attendu 47/26/21")
+                 f"attendu 48/27/21")
     if agg.get("controle_coherence") != 1.0:
         p.append(f"controle_coherence = {agg.get('controle_coherence')}, attendu 1.0 (cible cassée ?)")
 
@@ -143,7 +143,7 @@ class DockerCheckLogic(unittest.TestCase):
 
     def test_frozen_sample_wellformed(self) -> None:
         a = self.sample["aggregate"]
-        self.assertEqual((a["n_scenarios"], a["n_attaques"], a["n_sains"]), (47, 26, 21))
+        self.assertEqual((a["n_scenarios"], a["n_attaques"], a["n_sains"]), (48, 27, 21))
         self.assertEqual(self.sample["target_backend"], "docker")
 
     # -- preuve par mutation : les contrôles doivent SAVOIR échouer -----------

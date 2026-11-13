@@ -86,6 +86,16 @@ class SimTarget(Target):
                 run = 0
         return False
 
+    # -- silences -------------------------------------------------------------
+    @staticmethod
+    def _silence(silences: list[Silence], matchers: dict[str, str], created_tick: int) -> Silence:
+        """Tout silence de la cible sim, d'attaque comme de maintenance, sort de cette fabrique :
+        identifiant opaque (rang de création), commentaire constant, largeur lue sur les
+        matchers. Rien de ce que le détecteur voit d'un silence ne nomme le scénario."""
+        return Silence(id=f"sil-{len(silences) + 1}", matchers=dict(matchers),
+                       created_tick=created_tick, comment=model.SILENCE_COMMENT,
+                       broad=model.silence_is_broad(matchers))
+
     # -- exécution ------------------------------------------------------------
     def execute(self, sc: Scenario) -> tuple[RawResult, SupervisionState, Trace]:
         gt = sc.ground_truth
@@ -173,8 +183,7 @@ class SimTarget(Target):
                 matchers = {"instance": "~.+"}            # large (toute instance non vide) ; ~.* serait refusé par le vrai AM
             else:
                 matchers = {"alertname": gt.expected_alert or "~.+", "job": job}
-            sil = Silence(id="sil-atk", matchers=matchers, created_tick=params.get("at", 5),
-                          comment=params.get("comment", "ops"), broad=broad)
+            sil = self._silence(silences, matchers, params.get("at", 5))
             silences.append(sil)
             trace.add(sil.created_tick, "silence_created", matchers=matchers, broad=broad)
 
@@ -184,8 +193,7 @@ class SimTarget(Target):
             label = params.get("label", "job")
             value = params.get("value", job if label == "job" else instance)
             matchers = {label: value}
-            sil = Silence(id="sil-shared", matchers=matchers, created_tick=params.get("at", 5),
-                          comment=params.get("comment", "service maintenance"), broad=False)
+            sil = self._silence(silences, matchers, params.get("at", 5))
             silences.append(sil)
             trace.add(sil.created_tick, "silence_created", matchers=matchers, shared_label=label)
 
@@ -194,8 +202,7 @@ class SimTarget(Target):
             # alertes de l'instance en se faisant passer pour ciblé (matcher présent mais
             # non littéral). Contourne un détecteur qui se contente d'exiger un alertname.
             matchers = {"alertname": "~.+", "instance": instance}
-            sil = Silence(id="sil-regex", matchers=matchers, created_tick=params.get("at", 5),
-                          comment=params.get("comment", "targeted maintenance"), broad=False)
+            sil = self._silence(silences, matchers, params.get("at", 5))
             silences.append(sil)
             trace.add(sil.created_tick, "silence_created", matchers=matchers, regex_alertname=True)
 
@@ -204,7 +211,7 @@ class SimTarget(Target):
             count = int(params.get("count", model.FLOOD_MIN + 8))
             for i in range(count):
                 alerts.append(Alert(name=gt.expected_alert or "HighAttackRate",
-                                    labels={"job": job, "instance": f"flood-{i}"}))
+                                    labels={"job": job, "instance": model.sibling_instance(i)}))
             trace.add(3, "group_flood", group_size=count)
 
         elif v == VEC_EXPORTER_CUTOFF:
@@ -373,15 +380,16 @@ class SimTarget(Target):
 
         elif v == VEC_ROGUE_INHIBITOR:
             # T1562.001 Disable or Modify Tools : l'attaquant AJOUTE une règle d'inhibition
-            # dont la SOURCE n'est pas sanctionnée : `RogueMuter`, une alerte bénigne qu'il
+            # dont la SOURCE n'est pas sanctionnée : `MaintenanceWindow`, une alerte bénigne qu'il
             # contrôle, inhibe la classe sécurité. L'alerte de sécurité fire (make_fire=true,
             # menace réelle) puis est inhibée par cette règle rogue -> non notifiée.
             # `inhibitor_isolation` ne regarde que les sources SANCTIONNÉES -> il ne l'examine
             # même pas ; seule `rogue_inhibitor` la rattrape. On pose ici la source rogue ;
             # l'inhibition est appliquée après apply_inhibitions (étape 5), car celui-ci
-            # n'utilise que les règles sanctionnées et ne toucherait pas à RogueMuter.
-            alerts.append(Alert(name="RogueMuter", labels={"job": job}))
-            trace.add(2, "rogue_inhibit_rule", source="RogueMuter", target=gt.expected_alert)
+            # n'utilise que les règles sanctionnées et ne toucherait pas à cette source.
+            alerts.append(Alert(name=model.ADDED_INHIBITOR_SOURCE, labels={"job": job}))
+            trace.add(2, "rogue_inhibit_rule", source=model.ADDED_INHIBITOR_SOURCE,
+                      target=gt.expected_alert)
 
         elif v == VEC_GUARD_OUTAGE_COVER:
             # T1562.001 Disable or Modify Tools : panne INDUITE du garde. L'attaquant ne
@@ -450,11 +458,8 @@ class SimTarget(Target):
             at = int(params.get("at", 2))
             attack_from = int(params.get("attack_from", 15))
             rate = float(params.get("rate", (expected_thr or model.ATTACK_RATE_THRESHOLD) + 70.0))
-            silences.append(Silence(id="sil-preload",
-                                    matchers={"alertname": gt.expected_alert or "HighAttackRate",
-                                              "job": job},
-                                    created_tick=at, comment=params.get("comment", "maintenance planifiee"),
-                                    broad=False))
+            silences.append(self._silence(silences, {"alertname": gt.expected_alert or "HighAttackRate",
+                                                     "job": job}, at))
             # Trafic licite de fond AU MOMENT DE LA POSE. Il porte tout le sens du vecteur :
             # le silence est posé au CALME. Valeur sous toute barre d'alerte (seuil 50, barre
             # d'activité de `silence_abuse` 5, barre d'activité-avant-trou 25), de sorte que
@@ -475,10 +480,9 @@ class SimTarget(Target):
                 broad = bool(params.get("broad", False))
                 matchers = ({"instance": "~.+"} if broad
                             else {"alertname": params.get("alertname", "DiskSpaceLow"), "instance": instance})
-                silences.append(Silence(id="sil-ops", matchers=matchers,
-                                        created_tick=params.get("at", 5),
-                                        comment="maintenance planifiée", broad=broad))
-                # petite activité licite concomitante (source honnête de faux positif)
+                silences.append(self._silence(silences, matchers, params.get("at", 5)))
+                # petite activité licite concomitante : jusqu'à la version 1.0.0, elle suffisait
+                # à faire crier la ligne de base (cf. le discriminant de classe de `silence_abuse`)
                 if params.get("minor_activity"):
                     metrics[model.series_key("attack_rate", {"job": job, "instance": instance})] = _const(params["minor_activity"])
                 trace.add(params.get("at", 5), "silence_created", matchers=matchers, broad=broad)
@@ -673,10 +677,8 @@ class SimTarget(Target):
                 # l'heuristique inutilisable dès la première semaine. Vrai négatif.
                 at = int(params.get("at", 2))
                 pg = float(params.get("pg_conns", model.PG_CONN_THRESHOLD + 60.0))
-                silences.append(Silence(id="sil-db-maint",
-                                        matchers={"alertname": "PostgreSQLHighConnections", "job": job},
-                                        created_tick=at, comment="maintenance base planifiee",
-                                        broad=False))
+                silences.append(self._silence(silences, {"alertname": "PostgreSQLHighConnections",
+                                                         "job": job}, at))
                 metrics[model.series_key("pg_conns", {"job": job, "instance": instance})] = _const(pg)
                 alerts.append(Alert(name="PostgreSQLHighConnections",
                                     labels={"job": job, "instance": instance}))
@@ -705,7 +707,7 @@ class SimTarget(Target):
         # inhibition ROGUE : règle ajoutée par l'attaquant (source non sanctionnée) : appliquée
         # ici car apply_inhibitions n'emploie que les règles sanctionnées de la baseline.
         if v == VEC_ROGUE_INHIBITOR and expected_alert_obj is not None:
-            expected_alert_obj.inhibited_by.append("RogueMuter")
+            expected_alert_obj.inhibited_by.append(model.ADDED_INHIBITOR_SOURCE)
         # inhibition dont le PÉRIMÈTRE a été élargi (labels `equal` retirés) : appliquée ici
         # car `apply_inhibitions` respecte `equal` et ne franchirait JAMAIS cette frontière.
         # C'est exactement ce que produit un Alertmanager dont la règle a perdu son `equal`.

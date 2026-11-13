@@ -110,8 +110,8 @@ class Silence:
     id: str
     matchers: dict[str, str]       # label -> valeur (préfixe "~" = regex)
     created_tick: int
-    comment: str = ""              # champ fourni par le créateur : NON fiable (peut être attaquant)
-    broad: bool = False            # périmètre anormalement large (pas de matcher d'instance/alertname précis)
+    comment: str = ""              # champ fourni par le créateur : NON fiable, constant dans le banc
+    broad: bool = False            # périmètre large : matcher `instance` en regex, lu sur les matchers
 
 
 @dataclass
@@ -126,7 +126,9 @@ class SupervisionState:
 
 @dataclass
 class Trace:
-    """Journal observable des événements de supervision (ordonné)."""
+    """Journal ordonné d'événements. Deux usages, à ne pas confondre :
+    - le RÉCIT que la cible tient de sa manœuvre (diagnostic, jamais remis au détecteur)
+    - la trace OBSERVABLE remise au détecteur, dérivée de l'état (engine/runner.py)."""
     events: list[dict[str, Any]] = field(default_factory=list)
 
     def add(self, tick: int, kind: str, **detail: Any) -> None:

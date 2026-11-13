@@ -3,12 +3,12 @@
   "kind": "healthy",
   "vector": "none",
   "title": "Pic de trafic licite sous le seuil (piège à faux positif)",
-  "description": "Une campagne marketing génère un trafic licite soutenu mais sous le seuil instantané : aucune alerte ne doit se déclencher. Sa somme intégrée ressemble à du low-and-slow ; la baseline, qui ne regarde pas le contenu, va probablement faux-positiver : coût opérationnel honnête.",
+  "description": "Une campagne marketing génère un trafic licite soutenu mais sous le seuil instantané : aucune alerte ne doit se déclencher. L'état observable est strictement identique à celui de l'attaque ATT-LOW-SLOW-CATCHABLE-04 (même série, mêmes alertes, aucun silence) : un détecteur qui ne voit que la chaîne d'alerte ne peut pas rattraper l'une sans signaler l'autre. La baseline, qui intègre dans le temps, signale les deux : faux positif assumé, irréductible sans contexte extérieur à la chaîne (calendrier de la campagne, contenu des requêtes).",
   "title_en": "Licit traffic spike below the threshold (false-positive trap)",
-  "description_en": "A marketing campaign generates sustained licit traffic that stays below the instantaneous threshold: no alert must fire. Its integrated sum looks like low-and-slow; the baseline, which does not look at content, will probably produce a false positive: an honest operational cost.",
+  "description_en": "A marketing campaign generates sustained licit traffic that stays below the instantaneous threshold: no alert must fire. The observable state is strictly identical to that of the attack ATT-LOW-SLOW-CATCHABLE-04 (same series, same alerts, no silence): a detector that sees only the alerting chain cannot catch one without flagging the other. The baseline, which integrates over time, flags both: an acknowledged false positive, irreducible without context from outside the chain (campaign calendar, request content).",
   "access_level": "n/a",
   "ground_truth": {"alarm_expected": false, "expected_alert": null, "labels": {"job": "firewall", "instance": "fw-1"}},
   "event": {"make_fire": false},
   "masking": {"type": "benign_spike", "params": {"rate": 30.0}},
-  "tags": ["sain", "faux-positif", "trafic-licite"]
+  "tags": ["sain", "faux-positif", "trafic-licite", "paire-indiscernable"]
 }

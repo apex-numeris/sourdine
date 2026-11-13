@@ -9,7 +9,9 @@ qui n'aboie pas : l'absence anormale de signal est elle-même le signal.
 implémenter la même interface, hors de ce worktree, et se mesurera au même
 protocole : le banc n'importe pas le produit.
 
-Le détecteur est AVEUGLE au scénario : il ne reçoit que SupervisionState + Trace.
+Le détecteur est AVEUGLE au scénario : il ne reçoit que SupervisionState et une trace
+OBSERVABLE dérivée de cet état (`engine/runner.py`), jamais le récit que la cible tient
+de sa manœuvre. `tests/test_interface_leak.py` garde cette frontière.
 """
 from __future__ import annotations
 
@@ -105,7 +107,7 @@ class BaselineDetector(MaskingDetector):
                              else f"job={src.labels.get('job')}")
                     return Verdict(True, scope=scope, heuristic="inhibitor_isolation",
                                    reason=(f"Alerte source {src.name} active et non corroborée "
-                                           f"(sa cible vivante {tgt.name} reste élevée) — inhibition suspecte."))
+                                           f"(sa cible vivante {tgt.name} reste élevée) : inhibition suspecte."))
         return None
 
     def _h_rogue_inhibitor(self, state) -> Optional[Verdict]:
@@ -157,14 +159,21 @@ class BaselineDetector(MaskingDetector):
             # maintenance légitime, elle, nomme un `alertname` littéral précis.
             exact_alertname = ("alertname" in sil.matchers
                                and not sil.matchers["alertname"].startswith("~"))
-            over_scoped = sil.broad or not exact_alertname
+            over_scoped = model.silence_is_broad(sil.matchers) or not exact_alertname
             if over_scoped:
                 return Verdict(True, scope=f"silence={sil.id}", heuristic="silence_abuse",
                                reason="Silence sur-périmétré (pas de matcher alertname, ou "
                                       "instance large) : met en sourdine toute une classe d'alertes.")
-            # silence étroit (ciblé par alertname) : suspect seulement s'il est
-            # posé pendant une montée d'activité (une maintenance légitime, elle,
-            # est posée au calme).
+            # silence étroit (ciblé par un `alertname` littéral) : suspect seulement s'il fait
+            # taire une alerte de SÉCURITÉ et s'il est posé pendant une montée d'activité.
+            # Discriminant de classe, le même que `notification_blackhole`, `rogue_inhibitor`
+            # et `silenced_under_threat` : silencer une alerte OPÉRATIONNELLE (disque, base)
+            # pendant que le trafic vit est le geste d'exploitation le plus banal qui soit.
+            # Jusqu'à la v1.0.0 cette branche n'avait pas ce discriminant : elle coûtait un
+            # faux positif (HLT-BENIGN-SILENCE-03) sans rattraper aucune attaque du catalogue.
+            # Son pendant d'attaque est ATT-SILENCE-NARROW-27.
+            if sil.matchers["alertname"] not in model.SECURITY_RATE_ALERTS:
+                continue
             near = False
             for signal in ("attack_rate", "jailbreak_rate"):
                 for _lbls, series in self._series(state, signal):
@@ -173,7 +182,8 @@ class BaselineDetector(MaskingDetector):
                         near = True
             if near:
                 return Verdict(True, scope=f"silence={sil.id}", heuristic="silence_abuse",
-                               reason="Silence étroit posé pendant une montée d'activité.")
+                               reason="Silence étroit posé sur une alerte de sécurité pendant "
+                                      "une montée d'activité.")
         return None
 
     def _h_exporter_cutoff(self, state) -> Optional[Verdict]:
@@ -362,7 +372,7 @@ class BaselineDetector(MaskingDetector):
         if blocked > thr and attack < thr * 0.6:
             return Verdict(True, scope="attack_rate<->blocked_rate", heuristic="spatial_incoherence",
                            reason=(f"blocked_rate élevé ({blocked:.0f}) mais attack_rate bas "
-                                   f"({attack:.0f}) : incohérence spatiale — deux signaux corrélés "
+                                   f"({attack:.0f}) : incohérence spatiale, deux signaux corrélés "
                                    f"divergent, le compteur d'attaques a été masqué (constrained replay)."))
         return None
 
@@ -417,7 +427,7 @@ class BaselineDetector(MaskingDetector):
             if len(tail) >= n and all(v in (None, 0.0) for v in tail):
                 return Verdict(True, scope="watchdog", heuristic="watchdog_gap",
                                reason=(f"Heartbeat watchdog éteint depuis >= {n} ticks : dead man's "
-                                       f"switch déclenché, chaîne d'alerte compromise — l'absence "
+                                       f"switch déclenché, chaîne d'alerte compromise. L'absence "
                                        f"d'alertes n'est plus fiable (T1562 Impair Defenses)."))
         return None
 
@@ -436,7 +446,7 @@ class BaselineDetector(MaskingDetector):
             return Verdict(True, scope=model.CARDINALITY_SIGNAL, heuristic="cardinality_flood",
                            reason=(f"scrape_samples={flood:.0f} > {model.CARDINALITY_FLOOD_THRESHOLD:.0f} : "
                                    f"explosion de cardinalité (bombe de séries) faisant échouer le scrape "
-                                   f"(sample_limit -> up=0) et masquant le vrai signal — DoS d'ingestion."))
+                                   f"(sample_limit -> up=0) et masquant le vrai signal (DoS d'ingestion)."))
         return None
 
     def _h_guard_down_under_threat(self, state) -> Optional[Verdict]:
@@ -484,7 +494,7 @@ class BaselineDetector(MaskingDetector):
                                        reason=(f"{src.name} corroborée ({corr}=0) inhibe légitimement "
                                                f"{tgt.name}, mais la menace est RÉELLE et soutenue "
                                                f"(> {thr:.0f}) pendant la panne : le garde a été mis "
-                                               f"hors service puis l'attaque a suivi — l'inhibition "
+                                               f"hors service puis l'attaque a suivi, et l'inhibition "
                                                f"sanctionnée sert de couverture (T1562.001)."))
         return None
 
@@ -580,7 +590,7 @@ class BaselineDetector(MaskingDetector):
                                    reason=(f"Alerte de sécurité {a.name} étouffée par un silence "
                                            f"alors que la menace est RÉELLE et soutenue (> {thr:.0f}) : "
                                            f"le silence a beau être étroit et posé au calme, il couvre "
-                                           f"une attaque en cours — suppression à re-vérifier PENDANT "
+                                           f"une attaque en cours. Suppression à re-vérifier PENDANT "
                                            f"sa fenêtre, pas seulement à son ouverture (T1562.001)."))
         return None
 

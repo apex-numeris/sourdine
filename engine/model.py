@@ -90,6 +90,20 @@ ALERT_RULES: dict[str, dict] = {
 # Alertes « source inhibitrice » : leur seule présence masque d'autres alertes.
 INHIBITOR_SOURCES = {"InstanceDown", "FirewallDown", "PostgreSQLDown"}
 
+# Noms que le banc INVENTE et que le détecteur lit dans l'état. Ils doivent rester anodins :
+# un attaquant ne baptise pas sa règle « rogue » ni ses alertes « flood », et un nom qui
+# décrirait la manœuvre donnerait la réponse au détecteur (cf. tests/test_interface_leak.py).
+# Source de la règle d'inhibition que l'attaquant AJOUTE (vecteur `rogue_inhibitor`). Même
+# registre que `DBMaintenance`, son pendant légitime. Doit rester égal au `source_matchers`
+# de la règle correspondante dans target/alertmanager/alertmanager.yml.
+ADDED_INHIBITOR_SOURCE = "MaintenanceWindow"
+
+
+def sibling_instance(i: int) -> str:
+    """Instance de la i-ème alerte sœur du vecteur `grouping_repeat_abuse` : d'autres pare-feu
+    du même job (`fw-2`, `fw-3`, etc.), `fw-1` étant celui de la vraie alerte."""
+    return f"fw-{i + 2}"
+
 # Signal qui CORROBORE la panne annoncée par une source d'inhibition sanctionnée.
 # SOURCE UNIQUE, partagée par deux heuristiques qui l'interrogent en sens opposés :
 # `inhibitor_isolation` cherche la NON-corroboration (signature du spoof : la source
@@ -147,6 +161,19 @@ def _label_match(matcher_value: str, actual: Optional[str]) -> bool:
     return matcher_value == actual
 
 
+# Commentaire porté par TOUS les silences que le banc pose, attaque ou maintenance. Ce champ
+# est fourni par le créateur du silence : il ne doit rien dire du scénario, sinon un détecteur
+# pourrait lire la réponse au lieu d'observer la chaîne (cf. tests/test_interface_leak.py).
+SILENCE_COMMENT = "maintenance"
+
+
+def silence_is_broad(matchers: dict[str, str]) -> bool:
+    """Périmètre large : le silence porte un matcher `instance` en expression régulière.
+    Propriété OBSERVABLE, lue sur les matchers eux-mêmes (c'est aussi ce que la cible docker
+    déduit de l'API d'Alertmanager), jamais déclarée par le scénario."""
+    return matchers.get("instance", "").startswith("~")
+
+
 def silence_matches(sil: Silence, alert: Alert) -> bool:
     """Un silence matche si tous ses matchers matchent les labels de l'alerte
     (alertname inclus comme label)."""
@@ -171,7 +198,9 @@ def apply_inhibitions(alerts: list[Alert]) -> None:
                 if source is target or source.name != rule["source"]:
                     continue
                 if all(source.labels.get(l) == target.labels.get(l) for l in rule["equal"]):
-                    tag = source.name + (f"[{series_key('', source.labels)[2:]}" if source.labels else "")
+                    # « Source[label=valeur,...] » : jusqu'à la v1.0.0 un décalage d'un caractère
+                    # rendait « FirewallDown[ob=firewall} » (sans effet : seul le préfixe est lu).
+                    tag = source.name + (f"[{series_key('', source.labels)[1:-1]}]" if source.labels else "")
                     if tag not in target.inhibited_by:
                         target.inhibited_by.append(tag)
 

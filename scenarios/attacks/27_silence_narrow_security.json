@@ -1,0 +1,14 @@
+{
+  "id": "ATT-SILENCE-NARROW-27",
+  "kind": "attack",
+  "vector": "silence_abuse",
+  "title": "Silence étroit et littéral sur une alerte de sécurité, posé pendant la montée",
+  "description": "L'attaquant pose, via l'API des silences, un silence à la forme irréprochable : matcher `alertname` littéral (HighAttackRate), périmètre limité au job. Rien dans sa forme ne le distingue d'une maintenance. Deux choses le trahissent : il est posé pendant la montée de l'attaque, et il fait taire une alerte de sécurité. C'est le pendant d'attaque de HLT-BENIGN-SILENCE-03 (même forme de silence, étroit et à `alertname` littéral, même concomitance d'activité, mais cible opérationnelle) : la baseline doit laisser passer l'un et rattraper l'autre, son discriminant étant la CLASSE de l'alerte visée.",
+  "title_en": "Narrow, literal silence on a security alert, placed during the rise",
+  "description_en": "The attacker places, through the silences API, a silence of irreproachable form: a literal `alertname` matcher (HighAttackRate), a scope limited to the job. Nothing in its form sets it apart from a maintenance. Two things give it away: it is placed during the rise of the attack, and it silences a security alert. It is the attack counterpart of HLT-BENIGN-SILENCE-03 (same form of silence, narrow with a literal `alertname`, same concomitant activity, but an operational target): the baseline must let one pass and catch the other, its discriminant being the CLASS of the targeted alert.",
+  "access_level": "silence_or_routing_api",
+  "ground_truth": {"alarm_expected": true, "expected_alert": "HighAttackRate", "labels": {"job": "firewall", "instance": "fw-1"}},
+  "event": {"make_fire": true, "severity": "warning"},
+  "masking": {"type": "silence_abuse", "params": {"broad": false, "at": 5}},
+  "tags": ["silence", "etroit", "cible-securite", "sourdine"]
+}

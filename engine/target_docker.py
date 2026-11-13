@@ -100,6 +100,20 @@ def _iso(ts: float) -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(ts)) + "Z"
 
 
+def silence_payload(matchers: dict, now: float) -> dict:
+    """Corps de la requête de création d'un silence. Fonction pure, testée sans docker :
+    auteur et commentaire sont CONSTANTS, quel que soit le scénario. Le détecteur lit ce
+    commentaire dans l'état ; il ne doit rien y apprendre (cf. tests/test_interface_leak.py)."""
+    ms = []
+    for k, v in matchers.items():
+        is_re = v.startswith("~")
+        ms.append({"name": k, "value": v[1:] if is_re else v, "isRegex": is_re, "isEqual": True})
+    # startsAt dans le passé : le silence est actif dès sa création (pas de fenêtre
+    # d'ambiguïté d'activation), ce qui fiabilise son application aux alertes à venir.
+    return {"matchers": ms, "startsAt": _iso(now - 60), "endsAt": _iso(now + 600),
+            "createdBy": "sourdine-bench", "comment": model.SILENCE_COMMENT}
+
+
 class DockerTarget(Target):
     name = "docker"
 
@@ -191,18 +205,8 @@ class DockerTarget(Target):
         _http(f"{AM}/api/v2/alerts", "POST", body)
         self._injected.append((name, labels))
 
-    def _post_silence(self, matchers: dict, broad: bool) -> None:
-        now = time.time()
-        ms = []
-        for k, v in matchers.items():
-            is_re = v.startswith("~")
-            ms.append({"name": k, "value": v[1:] if is_re else v, "isRegex": is_re, "isEqual": True})
-        # startsAt dans le passé : le silence est actif dès sa création (pas de fenêtre
-        # d'ambiguïté d'activation), ce qui fiabilise son application aux alertes à venir.
-        _http(f"{AM}/api/v2/silences", "POST", {
-            "matchers": ms, "startsAt": _iso(now - 60), "endsAt": _iso(now + 600),
-            "createdBy": "sourdine-bench", "comment": "broad" if broad else "narrow",
-        })
+    def _post_silence(self, matchers: dict) -> None:
+        _http(f"{AM}/api/v2/silences", "POST", silence_payload(matchers, time.time()))
 
     # -- confirmation d'activation d'un masquage préventif --------------------
     # Robustesse : un masquage préventif (inhibition/silence) doit être ACTIF dans
@@ -304,28 +308,28 @@ class DockerTarget(Target):
             # AM refuse un matcher qui matche la chaîne vide (garde-fou « tout silencer ») ;
             # ~.+ reste abusivement large (toute instance non vide) mais est accepté.
             matchers = {"instance": "~.+"} if broad else {"alertname": gt.expected_alert or "~.+", "job": job}
-            self._post_silence(matchers, broad)
+            self._post_silence(matchers)
             self._await_silence_active()
         elif v == VEC_SILENCE_SHARED_LABEL:
             # silence par label PARTAGÉ (job) sans matcher alertname : balaie toute la
             # classe d'alertes du job sous couvert de maintenance de service.
             label = params.get("label", "job")
             value = params.get("value", job if label == "job" else instance)
-            self._post_silence({label: value}, broad=False)
+            self._post_silence({label: value})
             self._await_silence_active()
         elif v == VEC_SILENCE_REGEX_ALERTNAME:
             # silence dont le matcher alertname est un regex (~.+) : matcher présent
             # mais non littéral, il balaie toutes les alertes de l'instance.
-            self._post_silence({"alertname": "~.+", "instance": instance}, broad=False)
+            self._post_silence({"alertname": "~.+", "instance": instance})
             self._await_silence_active()
         elif v == VEC_ROGUE_INHIBITOR:
             # T1562.001 : regle d'inhibition ROGUE (source non sanctionnee). On poste la source
-            # RogueMuter (job=firewall) ; la regle baked dans alertmanager.yml (RogueMuter ->
+            # MaintenanceWindow (job=firewall) ; la regle baked dans alertmanager.yml (cette source ->
             # classe securite, equal job) inhibe alors HighAttackRate quand elle fire. Preventif :
             # la source doit etre active AVANT que l'alerte cible fire.
-            self._post_alert("RogueMuter", {"job": job})
-            self._await_alert_active("RogueMuter")
-            trace.add(2, "rogue_inhibit_rule", source="RogueMuter")
+            self._post_alert(model.ADDED_INHIBITOR_SOURCE, {"job": job})
+            self._await_alert_active(model.ADDED_INHIBITOR_SOURCE)
+            trace.add(2, "rogue_inhibit_rule", source=model.ADDED_INHIBITOR_SOURCE)
         elif v == VEC_GUARD_OUTAGE_COVER:
             # T1562.001 : panne RÉELLE du garde, établie AVANT l'attaque. On coupe fw_up :
             # le firewall est hors service pour de bon : et la règle FirewallDown
@@ -357,8 +361,7 @@ class DockerTarget(Target):
             # entre la pose et l'usage qui fait le masquage : l'attaque ne vient qu'ensuite,
             # dans la fenetre ainsi ouverte. Preventif par nature (le silence doit etre actif
             # avant que l'alerte cible fire), comme les autres suppressions preventives.
-            self._post_silence({"alertname": gt.expected_alert or "HighAttackRate", "job": job},
-                               broad=False)
+            self._post_silence({"alertname": gt.expected_alert or "HighAttackRate", "job": job})
             self._await_silence_active()
             # FIDELITE (constat du smoke round 13) : sans cette ligne, docker rattrapait le
             # vecteur par `silence_abuse` au lieu de `silenced_under_threat`. Motif : `_snapshot`
@@ -410,7 +413,8 @@ class DockerTarget(Target):
             trace.add(1, "threshold_flapping", high=high, low=low, spikes=n_spikes)
         elif v == VEC_GROUPING_REPEAT_ABUSE:
             for i in range(int(params.get("count", 20))):
-                self._post_alert(gt.expected_alert or "HighAttackRate", {"job": job, "instance": f"flood-{i}"})
+                self._post_alert(gt.expected_alert or "HighAttackRate",
+                                 {"job": job, "instance": model.sibling_instance(i)})
         elif v == VEC_EXPORTER_CUTOFF:
             self._set_metric(expected_signal or "attack_rate",
                              labels or {"job": job, "instance": instance}, expected_thr + 80.0)
@@ -536,7 +540,7 @@ class DockerTarget(Target):
             if bk == "benign_silence":
                 broad = bool(params.get("broad", False))
                 matchers = {"instance": "~.+"} if broad else {"alertname": params.get("alertname", "DiskSpaceLow"), "instance": instance}
-                self._post_silence(matchers, broad)
+                self._post_silence(matchers)
                 if params.get("minor_activity"):
                     self._set_metric("attack_rate", {"job": job, "instance": instance}, params["minor_activity"])
             elif bk == "benign_exporter_restart":
@@ -670,7 +674,7 @@ class DockerTarget(Target):
                 # ne differant QUE par la classe de la cible -> silenced_under_threat doit
                 # rester muet. Vrai negatif : sans le garde de classe, toute maintenance serait
                 # criee comme masquage.
-                self._post_silence({"alertname": "PostgreSQLHighConnections", "job": job}, broad=False)
+                self._post_silence({"alertname": "PostgreSQLHighConnections", "job": job})
                 self._await_silence_active()
                 self._set_metric("pg_conns", {"job": job, "instance": instance},
                                  float(params.get("pg_conns", model.PG_CONN_THRESHOLD + 60.0)))
@@ -728,9 +732,9 @@ class DockerTarget(Target):
             if s.get("status", {}).get("state") != "active":
                 continue
             matchers = {m["name"]: ("~" + m["value"] if m.get("isRegex") else m["value"]) for m in s.get("matchers", [])}
-            broad = any(m.get("isRegex") and m["name"] == "instance" for m in s.get("matchers", []))
             silences.append(Silence(id=s.get("id", ""), matchers=matchers, created_tick=0,
-                                    comment=s.get("comment", ""), broad=broad))
+                                    comment=s.get("comment", ""),
+                                    broad=model.silence_is_broad(matchers)))
         # historique métrique (query_range -> ticks)
         metric_history = self._metric_history(start)
         return SupervisionState(alerts=alerts, silences=silences,

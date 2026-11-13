@@ -6,8 +6,10 @@ détruit lui-même. Deux implémentations :
   - DockerTarget   : vrais conteneurs Prometheus + Alertmanager éphémères.
 
 La cible exécute UN scénario et renvoie, pour la passe 1 (sans détecteur), le
-résultat brut observé, plus l'état de supervision et la trace observables que la
-passe 2 soumettra au détecteur. La cible ne connaît jamais le verdict attendu.
+résultat brut observé, plus l'état de supervision observable, que la passe 2 soumettra
+au détecteur, et le récit de sa propre manœuvre. Ce récit sert au diagnostic : il nomme
+ce que le scénario a fait, donc le moteur ne le remet JAMAIS au détecteur
+(`engine/runner.py`). La cible ne connaît jamais le verdict attendu.
 """
 from __future__ import annotations
 
@@ -25,7 +27,7 @@ class Target(ABC):
 
     @abstractmethod
     def execute(self, scenario: Scenario) -> tuple[RawResult, SupervisionState, Trace]:
-        """Joue un scénario sur un état frais et renvoie (brut, état, trace)."""
+        """Joue un scénario sur un état frais et renvoie (brut, état, récit de la manœuvre)."""
 
     @abstractmethod
     def teardown(self) -> None:

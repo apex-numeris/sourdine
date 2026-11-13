@@ -102,6 +102,16 @@ class MaskingDetector(ABC):
 - **Entrées** (observables uniquement) : `SupervisionState` (alertes avec
   `inhibited_by`/`silenced_by`, silences, historique métrique) et `Trace`
   (événements observables). **Jamais** le vecteur ni la vérité terrain.
+- **Étanchéité** (depuis la version 1.1.0) : la `Trace` remise au détecteur est
+  `observable_trace(state)`, une fonction pure de l'état (`engine/runner.py`). Sa liste
+  blanche d'événements est `OBSERVABLE_EVENTS` (aujourd'hui `silence_created` avec ses
+  matchers). Le récit que la cible tient de sa manœuvre n'est jamais transmis. Dans
+  l'état, l'identifiant d'un silence est opaque (`sil-<rang>` en sim, UUID d'Alertmanager
+  en docker), son commentaire est constant et sa largeur se lit sur ses matchers. Aucun nom
+  que le banc invente (alerte, instance) ne décrit la manœuvre : la source de la règle
+  d'inhibition ajoutée s'appelle `MaintenanceWindow`, les alertes sœurs de la noyade par
+  groupement portent les instances `fw-2` à `fw-21`. `tests/test_interface_leak.py` garde
+  ces propriétés et tient fermée la liste des mots de l'état propres aux attaques.
 - **Sortie** : `Verdict{masking_suspected: bool, scope: str|None, reason: str,
   heuristic: str|None}`.
 
@@ -112,7 +122,7 @@ class MaskingDetector(ABC):
 | `inhibitor_isolation` | une source inhibitrice active **non corroborée** (son signal `up`/`fw_up`/`pg_up` n'est pas à 0) alors qu'une cible qu'elle inhibe reste élevée |
 | `low_and_slow` | somme intégrée du signal d'attaque sur la fenêtre > seuil intégré, **sans** alerte à taux active |
 | `threshold_flapping` | ≥ `FLAP_MIN_CROSSINGS` (= 5) franchissements montants du seuil, **sans** alerte à taux active (`for:` réinitialisé en boucle) |
-| `silence_abuse` | silence sur-périmétré (matcher `instance` large, **ou sans matcher `alertname` exact**, absent ou regex), **ou** silence étroit posé pendant une montée d'activité |
+| `silence_abuse` | silence sur-périmétré (matcher `instance` large, **ou sans matcher `alertname` exact**, absent ou regex), **ou** silence étroit posé **sur une alerte de sécurité** pendant une montée d'activité (un silence étroit sur une alerte opérationnelle n'est pas signalé) |
 | `signal_blackout` | un signal d'attaque disparaît (trou) après activité alors que l'instance reste **UP** (distinct de `exporter_cutoff`, où `up` passe à 0) |
 | `exporter_cutoff` | trou de collecte (`up` de 1 à 0, signal absent) coïncidant avec une activité élevée juste avant |
 | `phantom_clear` | un signal à taux reste **soutenu au-dessus du seuil** (encore chaud au dernier point observé) **sans** alerte à taux active, **ni** source inhibitrice **ni** silence : l'alerte a été résolue/étouffée alors que la menace persiste (faux all-clear, T1562.011) |
@@ -149,7 +159,7 @@ résiduelle recalculés sur le sous-ensemble des attaques de chaque `access_leve
 ```jsonc
 {
   "sourdine_report_version": "1.0",   // version du format (citabilité)
-  "bench_version": "0.14.0",
+  "bench_version": "1.1.0",
   "generated_at": "YYYY-MM-DDTHH:MM:SSZ",
   "target_backend": "sim" | "docker",
   "detector": "baseline-heuristic-v1",
@@ -176,7 +186,7 @@ résiduelle recalculés sur le sous-ensemble des attaques de chaque `access_leve
 ```
 
 Un taux vaut `null` si son dénominateur est nul. Exemples committés :
-`samples/example-0.14.0.json` (sim), `samples/example-0.14.0-docker.json` (docker), et les
+`samples/example-1.1.0.json` (sim), `samples/example-1.1.0-docker.json` (docker), et les
 versions antérieures conservées sous `samples/`.
 
 ## 7. Interface en ligne de commande

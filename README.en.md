@@ -80,8 +80,8 @@ Three components plus a report.
    benchmark. An in-process **sim** target offers the same semantics, deterministically
    and hermetically.
 2. **Runner** (`engine/runner.py`): for each scenario, sets up the state, injects the
-   event, applies the vector, observes without detector (pass 1), submits state plus trace
-   to the detector (pass 2), records.
+   event, applies the vector, observes without detector (pass 1), submits the state plus an
+   observable trace to the detector (pass 2), records.
 3. **Detector** (`engine/detector.py`): behind a stable interface (`MaskingDetector`).
    The benchmark ships `BaselineDetector` (heuristic, deliberately imperfect). The real
    detector will be measured against the same protocol.
@@ -94,13 +94,22 @@ ground truth (alarm expected?)
   -> inject the event that must raise the alarm
   -> apply the masking vector
   -> observe the alert state                 (pass 1, WITHOUT detector)  -> raw result
-  -> hand over monitoring state + trace      (pass 2)                    -> verdict
+  -> hand over state + observable trace      (pass 2)                    -> verdict
   -> record (ground truth, raw result, verdict)
 => after all scenarios: compute the 4 rates + coherence + breakdown
 ```
 
 The detector is **blind to the scenario**: it only receives observable monitoring data
 (alerts, silences, metric history, collection gaps), never the vector nor the ground truth.
+
+Since version 1.1.0 this boundary is sealed and guarded by a test
+(`tests/test_interface_leak.py`): the trace the detector receives is computed from the
+state alone, silence identifiers and comments are neutral, no alert or instance name
+invented by the benchmark describes the manoeuvre, and the narrative the target keeps of its
+own manoeuvre never reaches it. Up to version 1.0.0 that narrative was handed over as is and
+two names in the state described the manoeuvre: a detector could read the answer instead of
+observing the chain. The baseline read none of this, so its published rates did not depend
+on it.
 
 ---
 
@@ -139,6 +148,23 @@ and legitimate activities that *look like* a vector from afar (maintenance silen
 planned exporter restart, licit spike below the threshold): the detector must not call
 out masking on them.
 
+### Twin pairs
+
+Three attack / healthy pairs serve as reference points for reading the rates.
+
+| Pair | Nature | What it establishes |
+|---|---|---|
+| `ATT-LOW-SLOW-CATCHABLE-04` / `HLT-BENIGN-SPIKE-05` | indistinguishable: strictly identical observable states | catching the attack costs one false positive, and the baseline makes that choice |
+| `ATT-STATISTICAL-REPLAY-18` / `HLT-BENIGN-NOISE-13` | indistinguishable: strictly identical observable states | staying quiet on the healthy scenario costs one residual suppression, and the baseline makes that choice |
+| `ATT-SILENCE-NARROW-27` / `HLT-BENIGN-SILENCE-03` | discriminating: a narrow silence with a literal `alertname`, placed during activity in both cases, on a security alert in one and on an operational alert in the other | a correct detector separates the two, and the baseline has done so since version 1.1.0 |
+
+An indistinguishable pair costs one error to any detector limited to the alerting chain: a
+false positive or a residual suppression, at its choice. The states are strictly identical
+on the sim target, which is the deterministic reference. A detector that separated them
+would be reading something other than the chain (request content, a campaign calendar),
+and should then say so. `tests/test_twin_pairs.py` checks that these pairs remain what
+they claim to be.
+
 ## Baseline detector: what it looks for
 
 It does not look at the content of the attack: it looks for **suspicious silence** and
@@ -149,7 +175,7 @@ abnormal absence of a signal is itself the signal.* One heuristic per family:
   that appears **uncorroborated** (its target stays alive/high) and masks a real alert.
 - **Low-and-slow**: sum integrated over a long window beyond a threshold, with no rate alert.
 - **Threshold flapping**: repeated threshold crossings with no rate alert active (the `for:` is reset in a loop).
-- **Silence abuse**: an over-scoped silence (broad instance matcher, **or no exact `alertname` matcher** (absent or regex `~.+`), sweeping a whole class of alerts), or a narrow silence placed during an activity rise.
+- **Silence abuse**: an over-scoped silence (broad instance matcher, **or no exact `alertname` matcher** (absent or regex `~.+`), sweeping a whole class of alerts), or a narrow silence placed **on a security alert** during an activity rise. A narrow silence on an operational alert (disk, database) is a routine operations gesture: it is not flagged.
 - **Exporter cutoff**: a collection gap coinciding with high activity just before, the instance going down (`up` at 0).
 - **Selective blackout**: an attack signal disappears after activity while the instance stays **UP** (no InstanceDown to give it away).
 - **False all-clear** (`phantom_clear`): a rate signal stays **sustained above the threshold** (still hot at the last observed point) with no rate alert active, and neither inhibitor nor silence to explain it. Correlation between metric and alert (recommended for MITRE T1562.011): the alert was resolved/muffled *after* it should have fired: the dog silenced after it barked, as opposed to the vectors that prevent it from barking.
@@ -192,8 +218,8 @@ scripts/target_down.sh        # the runner already tears the target down; this f
 
 The JSON report is written under `reports/` (plus `reports/latest.json`, runtime,
 git-ignored) and a readable summary is printed. Example runs are versioned (citable):
-`samples/example-0.14.0.json` (latest) and its predecessors
-(`example-0.{1..13}.0.json`), kept as history.
+`samples/example-1.1.0.json` (latest) and its predecessors
+(`example-0.{1..14}.0.json`, 0.14.0 being the sample of version 1.0.0), kept as history.
 
 > **sim versus docker**: the **sim** target is the **deterministic reference**
 > (reproducible rates). The **docker** target brings the fidelity of real
@@ -201,7 +227,7 @@ git-ignored) and a readable summary is printed. Example runs are versioned (cita
 > long-window vectors (low-and-slow, `repeat_interval`) need settling time and are less
 > deterministic. The **detector is identical** in both cases.
 >
-> **Fidelity findings (docker run v0.14.0)**: surfaced by running the real target:
+> **Fidelity findings (docker run v1.1.0)**: surfaced by running the real target:
 > (1) the real Alertmanager **refuses** a silence with a matcher that matches the empty
 > string (`instance=~.*`, "silence everything" guardrail); the vector therefore uses
 > `~.+`; (2) against a short `group_wait`, the **grouping flood** does not mask within the
@@ -248,9 +274,9 @@ git-ignored) and a readable summary is printed. Example runs are versioned (cita
 > rule will apply!"): this is the **real behaviour of the product**, not a benchmark
 > convention. Preventive masking: **deterministic in both backends**, **caught by
 > `inhibition_scope_creep`**, strong masker (STRONG), no fidelity gap.
-> Docker totals: **88.5 / 82.6 / 9.5 / 15.4 / 100 %** (suppression / catch / FP /
-> residual / coherence) versus sim **100 / 84.6 / 9.5 / 15.4 / 100 %**. Example:
-> `samples/example-0.14.0-docker.json`. **Flapping** (including on `jailbreak_rate`)
+> Docker totals: **88.9 / 83.3 / 4.8 / 14.8 / 100 %** (suppression / catch / FP /
+> residual / coherence) versus sim **100 / 85.2 / 4.8 / 14.8 / 100 %**. Example:
+> `samples/example-1.1.0-docker.json`. **Flapping** (including on `jailbreak_rate`)
 > behaves as in sim.
 >
 > **Robustness of preventive maskings (v0.4.0 hardening).** Inhibition (spoofs) and
@@ -266,7 +292,7 @@ git-ignored) and a readable summary is printed. Example runs are versioned (cita
 
 The **sim** run is deterministic: it serves as a non-regression guardrail.
 `tests/test_sim_regression.py` replays a sim campaign and compares it with the frozen
-sample `samples/example-0.14.0.json` (aggregate **and** every scenario; timestamps are
+sample `samples/example-1.1.0.json` (aggregate **and** every scenario; timestamps are
 ignored). Stdlib `unittest`, no third-party dependency.
 
 ```bash
@@ -276,8 +302,8 @@ make test                       # non-regression of the sim run + determinism
 The **docker** backend is non-deterministic (real time): `tests/test_docker_regression.py`
 therefore does **not** check strict equality but verifies **invariants** (coherence at
 100 %, deterministic maskers always masked and caught, coherence controls never flagged)
-and **directional guardrails with tolerance** around `samples/example-0.14.0-docker.json`.
-It brings up a real ephemeral target (about 6 to 18 minutes) and is therefore **not** part
+and **directional guardrails with tolerance** around `samples/example-1.1.0-docker.json`.
+It brings up a real ephemeral target (about 25 minutes) and is therefore **not** part
 of `make test`:
 
 ```bash
@@ -287,12 +313,21 @@ make test-docker                # LIVE non-regression of the docker backend (opt
 The logic of these checks, and its **proof by mutation**, does run inside `make test`
 without docker.
 
+Two more modules run inside `make test`, without docker. `tests/test_interface_leak.py`
+guards the detector interface: a spy plugged into the production path checks that the trace
+handed over is computed from the state alone, and a "cheater" that reads only authoring
+artefacts (event types, silence identifiers and comments) no longer separates any attack,
+whereas the same cheater, fed with the target's narrative, separates all of them. A
+vocabulary guard checks that no name in the state describes the manoeuvre and keeps the list
+of attack-only words closed. `tests/test_twin_pairs.py` checks the twin pairs of the
+catalogue.
+
 An **intended** behaviour change is re-frozen with a deliberate gesture, diff in hand;
 for the current version, the two samples:
 
 ```bash
-python3 run_campaign.py --backend sim    --out samples/example-0.14.0.json --quiet
-python3 run_campaign.py --backend docker --out samples/example-0.14.0-docker.json --quiet   # ~25 min
+python3 run_campaign.py --backend sim    --out samples/example-1.1.0.json --quiet
+python3 run_campaign.py --backend docker --out samples/example-1.1.0-docker.json --quiet   # ~25 min
 git diff samples/
 ```
 
@@ -326,7 +361,7 @@ class SentinelleDetector(MaskingDetector):
     name = "sentinelleia-<version>"
     def detect(self, state, trace):
         # state: SupervisionState (alerts, silences, metric history)
-        # trace: Trace (observable events)
+        # trace: Trace (chronological view computed from the state, never the target's narrative)
         return Verdict(masking_suspected=..., scope=..., reason=..., heuristic=...)
 ```
 
@@ -354,27 +389,35 @@ balance between attacks and healthy scenarios.
   target.
 - The benchmark evaluates a **baseline**, not SentinelleIA.
 
-## Reference results (v0.14.0, detector `baseline-heuristic-v1`)
+## Reference results (v1.1.0, detector `baseline-heuristic-v1`)
 
 | Backend | Successful suppression | Catch rate | False positives | Residual suppression | Coherence |
 |---|---|---|---|---|---|
-| sim (deterministic) | 100 % (26/26) | 84.6 % (22/26) | 9.5 % (2/21) | 15.4 % (4/26) | 100 % |
-| docker (real containers) | 88.5 % (23/26) | 82.6 % (19/23) | 9.5 % (2/21) | 15.4 % (4/26) | 100 % |
+| sim (deterministic) | 100 % (27/27) | 85.2 % (23/27) | 4.8 % (1/21) | 14.8 % (4/27) | 100 % |
+| docker (real containers) | 88.9 % (24/27) | 83.3 % (20/24) | 4.8 % (1/21) | 14.8 % (4/27) | 100 % |
 
 How to read these figures, without embellishment:
 
-- the 2 false positives (`HLT-BENIGN-SILENCE-03`, `HLT-BENIGN-SPIKE-05`) have been the
-  same since v0.1.0; fifteen healthy scenarios have been added since then without any new
-  false positive, and the drop in the rate comes from the denominator (6 healthy scenarios
-  in v0.1.0, 21 in v0.14.0), not from the detector;
+- one false positive remains, `HLT-BENIGN-SPIKE-05`, in both backends. It is irreducible for
+  a detector limited to the alerting chain: its observable state is strictly identical to
+  that of the attack `ATT-LOW-SLOW-CATCHABLE-04` (see "Twin pairs"). The baseline chooses to
+  catch the attack and pays for it with this false positive.
+- the second false positive of versions 0.1.0 to 1.0.0, `HLT-BENIGN-SILENCE-03`, came from
+  an inconsistency in the baseline, fixed in 1.1.0: its "narrow silence" branch did not look
+  at the class of the targeted alert.
 - the residual set in sim has been closed at 4 attacks since v0.6.0
   (`ATT-FLAP-STEALTH-10`, `ATT-GROUP-FLOOD-07`, `ATT-LOW-SLOW-STEALTH-05`,
   `ATT-STATISTICAL-REPLAY-18`), including full statistical concealment, marginally
-  undetectable (see "Baseline detector");
+  undetectable (see "Baseline detector").
 - in containers, the residual set differs: `ATT-GROUP-FLOOD-07` leaves it (the alarm
-  eventually comes out) and `ATT-SIGNAL-BLACKOUT-12` enters it; three attacks do not mask
+  eventually comes out) and `ATT-SIGNAL-BLACKOUT-12` enters it. Three attacks do not mask
   (`ATT-FALSE-RESOLVED-15`, `ATT-FALSE-RESOLVED-JAILBREAK-16`, `ATT-GROUP-FLOOD-07`).
   These fidelity gaps are named and explained in the "Fidelity findings" paragraph above.
+- compared with version 1.0.0, nothing moves on the 26 original attacks, in either backend.
+  The added attack, `ATT-SILENCE-NARROW-27`, is masked and caught by construction: it alone
+  explains the catch rate going from 84.6 % to 85.2 % in sim and from 82.6 % to
+  83.3 % in containers. The figures of both versions sit side by side in `CHANGELOG.md`
+  (in French).
 
 ## Licences
 
@@ -412,7 +455,7 @@ sourdine/
 │   ├── runner.py  metrics.py  report.py  scenarios.py
 ├── scenarios/                   # open, labelled artifact (CC BY 4.0, LICENSE file in the folder)
 │   ├── SCHEMA.md
-│   ├── attacks/*.json           # 22 vectors (26 attack scenarios)
+│   ├── attacks/*.json           # 22 vectors (27 attack scenarios)
 │   └── healthy/*.json           # coherence + false-positive traps (21 healthy)
 ├── target/                      # containerised ephemeral target
 │   ├── docker-compose.yml
@@ -421,8 +464,8 @@ sourdine/
 │   ├── exporter/exporter.py     # controllable synthetic exporter (stdlib)
 │   └── sink/sink.py             # observation webhook sink (stdlib)
 ├── scripts/{target_up.sh,target_down.sh}
-├── tests/                       # non-regression sim (strict) + docker (invariants/tolerance)
+├── tests/                       # non-regression sim (strict) + docker (invariants/tolerance), interface, twin pairs
 ├── reports/                     # campaign JSON outputs (runtime, git-ignored)
 ├── docs/                        # method documentation (CC BY 4.0, LICENSE file in the folder)
-└── samples/                     # cumulative versioned examples: example-0.{1..14}.0.json (sim) + *-docker.json (CC BY 4.0)
+└── samples/                     # cumulative versioned examples: example-0.{1..14}.0.json then example-1.1.0.json (sim) + *-docker.json (CC BY 4.0)
 ```

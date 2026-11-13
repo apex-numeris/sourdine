@@ -13,12 +13,12 @@ scripts/target_down.sh    # détruit tout (conteneurs + volumes + réseau)
 - Projet compose : `sourdine` ; réseau : `sourdine-net` ; conteneurs : `sourdine-*`.
 - Interfaces (toutes sur `127.0.0.1`) : Prometheus `:39090`, Alertmanager `:39093`,
   exporter `:39080`, sink `:39099`.
-- Images **épinglées** : `prom/prometheus:v3.13.5`, `prom/alertmanager:v0.34.2`,
+- Images **épinglées** : `prom/prometheus:v3.13.5`, `prom/alertmanager:v0.35.0`,
   `python:3.12-slim`. Les pré-télécharger avant un run hors-ligne :
 
 ```bash
 docker pull prom/prometheus:v3.13.5
-docker pull prom/alertmanager:v0.34.2
+docker pull prom/alertmanager:v0.35.0
 docker pull python:3.12-slim
 ```
 
@@ -62,7 +62,7 @@ class SentinelleDetector(MaskingDetector):
     name = "sentinelleia-<version>"
     def detect(self, state, trace) -> Verdict:
         # state : alertes (+ inhibited_by/silenced_by), silences, historique métrique
-        # trace : événements observables
+        # trace : vue chronologique calculée à partir de l'état (jamais le récit de la cible)
         return Verdict(masking_suspected=..., scope=..., reason=..., heuristic=...)
 ```
 
@@ -82,7 +82,7 @@ du rapport deviennent alors ceux du vrai détecteur (le champ `detector` le refl
 
 Le garde-fou de non-régression est **câblé** : `tests/test_sim_regression.py`
 (stdlib `unittest`, aucune dépendance) rejoue le run sim et le compare à
-l'échantillon gelé `samples/example-0.14.0.json` (celui de la version courante) : agrégat **et** chaque scénario,
+l'échantillon gelé `samples/example-1.1.0.json` (celui de la version courante) : agrégat **et** chaque scénario,
 horodatages ignorés. Une seule commande :
 
 ```bash
@@ -116,14 +116,17 @@ PY
   déterministe, il ne fait pas d'égalité stricte mais vérifie des **invariants
   durs** (cohérence à 100 %, masqueurs déterministes toujours masqués + rattrapés,
   contrôles de cohérence jamais signalés) et des **garde-fous directionnels à
-  tolérance** autour de `samples/example-0.14.0-docker.json`. Il monte une vraie
+  tolérance** autour de `samples/example-1.1.0-docker.json`. Il monte une vraie
   cible éphémère (~25 min) : CI **hebdomadaire** (`docker-weekly`) et à chaque pull request qui
   touche la cible, pas à chaque commit. La logique de
-  ces contrôles (avec preuve par mutation) tourne, sans docker, dans `make test`.
+  ces contrôles (avec preuve par mutation) tourne, sans docker, dans `make test`, qui joue
+  aussi `tests/test_interface_leak.py` (étanchéité de l'interface du détecteur) et
+  `tests/test_twin_pairs.py` (paires jumelles du catalogue).
 
 ## 7. Versionnement
 
-- Version du banc : fichier `VERSION` (`0.14.0`).
+- Version du banc : fichier `VERSION` (`1.1.0`). Il porte le numéro de release depuis cette
+  version (il valait `0.14.0` pour la release 1.0.0).
 - Version du format de rapport : `sourdine_report_version` (`1.0`), à incrémenter
   si le schéma JSON change, pour garder la comparabilité entre runs.
 - Jeu de scénarios : artefact ouvert versionné avec le dépôt.

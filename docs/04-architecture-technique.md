@@ -6,7 +6,7 @@
 |---|---|---|
 | Langage | Python ≥ 3.10, **bibliothèque standard uniquement** | campagne à blanc sans install réseau ; artefact citable |
 | HTTP (backend docker) | `urllib.request` (stdlib) | zéro dépendance |
-| Cible docker | `prom/prometheus:v3.13.5`, `prom/alertmanager:v0.34.2` | versions épinglées pour la reproductibilité, Prometheus sur sa ligne LTS (maintenue jusqu'au 31/07/2027) |
+| Cible docker | `prom/prometheus:v3.13.5`, `prom/alertmanager:v0.35.0` | versions épinglées pour la reproductibilité, Prometheus sur sa ligne LTS (maintenue jusqu'au 31/07/2027) |
 | Exporter / sink | image `python:3.12-slim` + script bind-monté | aucun build d'image |
 | Orchestration | `docker compose` v2 (projet `sourdine`) | montée/destruction jetable |
 | Diagrammes | mermaid dans Markdown | versionnable, rendu GitHub |
@@ -16,7 +16,7 @@
 | Module | Responsabilité |
 |---|---|
 | `types.py` | Dataclasses partagées : `Scenario`, `GroundTruth`, `Alert`, `Silence`, `SupervisionState`, `Trace`, `RawResult`, `Verdict`, `ScenarioResult` (+ lectures normatives `masked`/`flagged`) |
-| `model.py` | **Sémantique recréée** : règles d'alerte, seuils, `inhibit_rules`, groupement ; fonctions `apply_inhibitions`, `apply_silences`, `silence_matches`, `group_key` |
+| `model.py` | **Sémantique recréée** : règles d'alerte, seuils, `inhibit_rules`, groupement ; fonctions `apply_inhibitions`, `apply_silences`, `silence_matches`, `silence_is_broad`, `group_key` |
 | `target_base.py` | Interface `Target` (setup / execute / teardown) |
 | `target_sim.py` | Cible **sim** : interprète l'intention du scénario en un état final déterministe |
 | `target_docker.py` | Cible **docker** : pilote de vrais Prometheus/Alertmanager via leurs API |
@@ -55,7 +55,9 @@ classDiagram
 
 Le runner, le détecteur et les métriques ignorent le backend : `SimTarget` et
 `DockerTarget` produisent les **mêmes types** (`RawResult` / `SupervisionState` /
-`Trace`).
+`Trace`). La `Trace` rendue par une cible est le récit de sa manœuvre : elle sert au
+diagnostic et le runner ne la transmet pas au détecteur, qui reçoit
+`observable_trace(state)`, calculée à partir de l'état seul (`engine/runner.py`).
 
 ## 4. Backend sim (référence déterministe)
 
@@ -82,7 +84,7 @@ flowchart TB
     subgraph HOST["Hôte : démon Docker utilisateur"]
       subgraph NET["réseau sourdine-net (isolé)"]
         PR["sourdine-prometheus<br/>v3.13.5"]
-        AM["sourdine-alertmanager<br/>v0.34.2"]
+        AM["sourdine-alertmanager<br/>v0.35.0"]
         EX["sourdine-exporter<br/>(python stdlib)"]
         SK["sourdine-sink<br/>(python stdlib)"]
         PR -->|scrape| EX
@@ -202,7 +204,7 @@ liste complète des alertes en [doc 05](05-specifications.md).
    d'attaque avant le trou). Masqué ET rattrapé (`cardinality_flood`) de façon déterministe dans les
    deux backends, classé STRONG_MASK.
 9. **Règle d'inhibition rogue (`rogue_inhibitor`, MITRE T1562.001), AUCUN écart** : masquage
-   préventif (comme les spoofs) : la règle rogue (source `RogueMuter` non sanctionnée) est baked dans
+   préventif (comme les spoofs) : la règle rogue (source `MaintenanceWindow` non sanctionnée) est baked dans
    `alertmanager.yml`, la source postée et confirmée active AVANT que l'alerte cible fire (retry
    déterministe). L'inhibition étant préventive, elle masque de façon fiable dans les deux backends ;
    `inhibitor_isolation` ne l'examine pas (source non sanctionnée), seul `rogue_inhibitor` la rattrape,

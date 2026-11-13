@@ -39,7 +39,7 @@ masquage. Sans cet instrument :
 - **BF1. Modéliser deux objets par scénario** : l'événement qui devait lever une
   alarme, et la manœuvre qui fait disparaître ce signalement.
 - **BF2. Mesure en deux passes** : observer l'alarme **sans** détecteur (passe 1),
-  puis soumettre l'état + la trace à un **détecteur** (passe 2).
+  puis soumettre l'état et une trace observable à un **détecteur** (passe 2).
 - **BF3. Catalogue de vecteurs** : au moins les six vecteurs retenus (spoof
   `FirewallDown` / `InstanceDown` / `PostgreSQLDown`, low-and-slow, abus de
   silence / groupement, coupure d'exporter), chacun portant son **hypothèse

@@ -7,7 +7,7 @@ PY ?= python3
 
 help:
 	@echo "Cibles Sourdine :"
-	@echo "  make test          - non-regression du run sim + determinisme (stdlib unittest)"
+	@echo "  make test          - tests sans docker : non-regression sim, determinisme, interface, paires jumelles"
 	@echo "  make test-regression - le seul module de non-regression sim, en mode verbeux"
 	@echo "  make test-docker   - non-regression LIVE du backend docker (~25 min, opt-in)"
 	@echo "  make run           - lance une campagne sim (defaut)"

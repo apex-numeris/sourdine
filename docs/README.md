@@ -1,7 +1,7 @@
 # Documentation Sourdine
 
 Documentation complète du **banc d'attaques de masquage d'alarme** (projet Sourdine).
-Version du banc : **0.14.0**. Langue : français. Support : Markdown versionné (diagrammes mermaid).
+Version du banc : **1.1.0**. Langue : français. Support : Markdown versionné (diagrammes mermaid).
 
 Sourdine mesure la résistance d'une chaîne d'alerte (Prometheus / Alertmanager) au
 **masquage d'alarme** : des attaques qui visent *l'observateur* (supprimer ou
@@ -33,11 +33,11 @@ Sourdine mesure la résistance d'une chaîne d'alerte (Prometheus / Alertmanager
 - **Garde-fous** : tout est synthétique et en laboratoire ; la cible n'est jamais
   la supervision de production ; le banc évalue une **baseline** de détection, pas
   le produit SentinelleIA (qui se branchera au même protocole).
-- **État** : v0.14.0, deux backends fonctionnels ; 22 vecteurs / 47 scénarios
-  (26 attaques / 21 sains).
-  - Référence **sim** (déterministe) : suppression 100 % / rattrapage 84,6 % / faux
-    positifs 9,5 % / résiduel 15,4 % / cohérence 100 %.
-  - **docker** (vrais conteneurs) : 88,5 / 82,6 / 9,5 / 15,4 / 100 %, avec des divergences de
+- **État** : v1.1.0, deux backends fonctionnels ; 22 vecteurs / 48 scénarios
+  (27 attaques / 21 sains).
+  - Référence **sim** (déterministe) : suppression 100 % / rattrapage 85,2 % / faux
+    positifs 4,8 % / résiduel 14,8 % / cohérence 100 %.
+  - **docker** (vrais conteneurs) : 88,9 / 83,3 / 4,8 / 14,8 / 100 %, avec des divergences de
     fidélité sur la noyade par groupement, le blackout sélectif, le faux all-clear et
     le rejeu/gel (cf. doc 04 §7). Masquages préventifs (inhibition/silence) durcis (cf.
     doc 04 §5.4). Le **full statistical concealment** (`statistical_replay`) reste résiduel
@@ -68,6 +68,8 @@ Sourdine mesure la résistance d'une chaîne d'alerte (Prometheus / Alertmanager
 - `7430cc8` : banc Sourdine v0.1.0 (moteur, scénarios, cible, détecteur baseline).
 - `df65430` : backend docker fonctionnel + constats de fidélité.
 - puis un commit par version, de v0.2.0 à v0.14.0 (voir `git log`).
+- la version 0.14.0 du banc a été publiée sous le numéro de release 1.0.0, le 22 septembre
+  2026. Depuis la version 1.1.0, le fichier `VERSION` et le numéro de release coïncident.
 
 > Le code source est à la racine du dépôt ; le `README.md` racine est le
 > point d'entrée rapide, cette documentation en est la version détaillée.

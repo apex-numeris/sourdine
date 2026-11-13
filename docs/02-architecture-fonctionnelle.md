@@ -11,8 +11,8 @@ flowchart LR
     SC[Jeu de scénarios<br/>attaques + sains<br/>étiquetés] --> RUN
     subgraph Banc
       RUN[Runner<br/>2 passes] -->|monte / pilote| TGT[Cible éphémère<br/>jetable]
-      TGT -->|état + trace observables| RUN
-      RUN -->|passe 2 : état + trace| DET[Détecteur<br/>interface stable]
+      TGT -->|état observable + récit| RUN
+      RUN -->|passe 2 : état + trace observable| DET[Détecteur<br/>interface stable]
       DET -->|verdict| RUN
       RUN --> MET[Métriques<br/>4 taux + cohérence]
       MET --> REP[Rapport JSON versionné<br/>+ résumé lisible]
@@ -41,14 +41,18 @@ le reste du banc ignore quel backend est utilisé.
 Pour chaque scénario, le runner orchestre la séquence : établir l'état initial,
 injecter l'événement qui doit lever l'alarme, appliquer le vecteur de masquage,
 **observer l'état des alertes sans détecteur** (passe 1), puis **soumettre l'état
-de supervision et la trace au détecteur** (passe 2), et consigner le tout.
+de supervision et une trace observable au détecteur** (passe 2), et consigner le tout.
+La cible rend aussi le récit de sa manœuvre : il sert au diagnostic, et le runner ne le
+transmet jamais au détecteur.
 
 ### 2.3 Détecteur de masquage
 
 Derrière une **interface stable** (`MaskingDetector`). Il est **aveugle au
 scénario** : il ne reçoit que des données de supervision observables (alertes,
 silences, historique métrique, trous de collecte), jamais le vecteur ni la vérité
-terrain. Le banc fournit une **baseline heuristique** (volontairement imparfaite) ;
+terrain. Depuis la version 1.1.0, la trace qu'il reçoit est calculée à partir de l'état
+seul et le récit que la cible tient de sa manœuvre ne lui parvient jamais
+(`tests/test_interface_leak.py`). Le banc fournit une **baseline heuristique** (volontairement imparfaite) ;
 le vrai détecteur SentinelleIA se branche au même protocole, hors du banc.
 
 ### 2.4 Métriques et rapport
@@ -66,7 +70,7 @@ flowchart TD
     C --> D{Passe 1, SANS détecteur<br/>l'alarme attendue est-elle notifiée ?}
     D -->|non| M[masquage réussi]
     D -->|oui| NM[non masquée]
-    C --> E[Passe 2, fournir état + trace au détecteur]
+    C --> E[Passe 2, fournir état + trace observable au détecteur]
     E --> V{Verdict : masquage suspecté ?}
     M --> AGG[Agrégation]
     NM --> AGG

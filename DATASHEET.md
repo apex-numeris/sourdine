@@ -3,7 +3,7 @@
 *Version de référence. English version: [`DATASHEET.en.md`](DATASHEET.en.md).*
 
 Fiche descriptive du banc, sur le modèle « Datasheets for Datasets » (Gebru et al., 2021).
-Version décrite : 0.14.0. Producteur : Apex Numeris SAS (Lyon, France). Auteur : Quoc-Nam Nguyen.
+Version décrite : 1.1.0. Producteur : Apex Numeris SAS (Lyon, France). Auteur : Quoc-Nam Nguyen.
 
 ## 1. Motivation
 
@@ -25,13 +25,14 @@ SentinelleIA ».
 
 ## 2. Composition
 
-| Élément | Valeur en v0.14.0 |
+| Élément | Valeur en v1.1.0 |
 |---|---|
-| Scénarios | 47, chacun décrit par un fichier JSON |
-| Scénarios d'attaque | 26, couvrant 22 vecteurs |
+| Scénarios | 48, chacun décrit par un fichier JSON |
+| Scénarios d'attaque | 27, couvrant 22 vecteurs |
 | Scénarios sains | 21 : contrôles de cohérence et pièges à faux positif |
+| Paires jumelles | deux paires indiscernables (`ATT-LOW-SLOW-CATCHABLE-04` / `HLT-BENIGN-SPIKE-05`, `ATT-STATISTICAL-REPLAY-18` / `HLT-BENIGN-NOISE-13`) et une paire discriminante (`ATT-SILENCE-NARROW-27` / `HLT-BENIGN-SILENCE-03`), décrites dans le README |
 | Niveaux d'accès de l'attaquant | `metric_or_am_api`, `silence_or_routing_api`, `exporter_host_or_network`, `threshold_knowledge` |
-| Échantillons gelés | un rapport JSON par version et par backend sous `samples/` (`example-0.{1..14}.0.json` en simulation, `example-0.{1..14}.0-docker.json` en conteneurs) |
+| Échantillons gelés | un rapport JSON par version et par backend sous `samples/` (`example-0.{1..14}.0.json` puis `example-1.1.0.json` en simulation, les mêmes noms suffixés `-docker` en conteneurs ; l'échantillon 0.14.0 est celui de la version 1.0.0) |
 
 Chaque scénario porte les champs `id`, `kind` (attack ou healthy), `vector`, `title`,
 `description`, `access_level`, `ground_truth` (alarme attendue et labels), `event`
@@ -76,12 +77,12 @@ quatre taux plus un contrôle :
 | Suppression résiduelle | attaques | part des attaques masquées et non rattrapées |
 | Contrôle de cohérence | scénarios sains de contrôle | l'alarme attendue sort bien quand rien ne l'empêche |
 
-Résultats de référence en v0.14.0 (détecteur `baseline-heuristic-v1`) :
+Résultats de référence en v1.1.0 (détecteur `baseline-heuristic-v1`) :
 
 | Backend | Suppression réussie | Rattrapage | Faux positifs | Suppression résiduelle | Cohérence |
 |---|---|---|---|---|---|
-| sim | 100 % (26/26) | 84,6 % (22/26) | 9,5 % (2/21) | 15,4 % (4/26) | 100 % |
-| docker | 88,5 % (23/26) | 82,6 % (19/23) | 9,5 % (2/21) | 15,4 % (4/26) | 100 % |
+| sim | 100 % (27/27) | 85,2 % (23/27) | 4,8 % (1/21) | 14,8 % (4/27) | 100 % |
+| docker | 88,9 % (24/27) | 83,3 % (20/24) | 4,8 % (1/21) | 14,8 % (4/27) | 100 % |
 
 ## 5. Usages
 
@@ -107,17 +108,24 @@ du nombre de scénarios, qui change à chaque version.
 
 ## 7. Limites connues
 
-- Deux faux positifs constants depuis la v0.1.0 (`HLT-BENIGN-SILENCE-03`,
-  `HLT-BENIGN-SPIKE-05`) : quinze scénarios sains ont été ajoutés depuis, sans nouveau
-  faux positif. La baisse du taux de faux positifs au fil des versions vient du
-  dénominateur, pas d'une amélioration du détecteur.
+- Un faux positif, `HLT-BENIGN-SPIKE-05`, dans les deux backends. Il est irréductible pour
+  un détecteur limité à la chaîne d'alerte : son état observable est strictement identique
+  à celui de l'attaque `ATT-LOW-SLOW-CATCHABLE-04`, et la ligne de base choisit de rattraper
+  l'attaque. Le second faux positif des versions 0.1.0 à 1.0.0, `HLT-BENIGN-SILENCE-03`,
+  venait d'une incohérence de la ligne de base, corrigée en 1.1.0 (voir `CHANGELOG.md`).
 - Quatre attaques résiduelles en simulation, constantes depuis la v0.6.0
   (`ATT-FLAP-STEALTH-10`, `ATT-GROUP-FLOOD-07`, `ATT-LOW-SLOW-STEALTH-05`,
   `ATT-STATISTICAL-REPLAY-18`). Le concealment statistique complet (`statistical_replay`),
   qui préserve la distribution du trafic, reste indétectable marginalement : suppression
-  résiduelle assumée, conforme au résultat d'ACSAC 2022 sur le full replay.
+  résiduelle assumée, conforme au résultat d'ACSAC 2022 sur le full replay. Son jumeau
+  sain `HLT-BENIGN-NOISE-13` a un état strictement identique : le rattraper coûterait un
+  faux positif.
 - En conteneurs, l'ensemble résiduel diffère : `ATT-GROUP-FLOOD-07` en sort (l'alarme
   finit par sortir) et `ATT-SIGNAL-BLACKOUT-12` y entre ; trois attaques ne masquent pas
   (`ATT-FALSE-RESOLVED-15`, `ATT-FALSE-RESOLVED-JAILBREAK-16`, `ATT-GROUP-FLOOD-07`).
+- Jusqu'à la version 1.0.0, l'interface remettait au détecteur le récit que la cible tient
+  de sa propre manœuvre. La ligne de base ne le lisait pas. Un résultat obtenu sur ces
+  versions avec un autre détecteur n'est comparable que si celui-ci ne le lisait pas non
+  plus. Depuis la version 1.1.0 l'interface est fermée et testée.
 - Le détecteur évalué est une référence heuristique volontairement simple ; le banc ne
   dit rien de détecteurs plus élaborés tant qu'ils ne sont pas branchés.

@@ -17,8 +17,8 @@ sequenceDiagram
     loop pour chaque scénario
         R->>T: execute(scénario)
         Note over T: reset → injecte l'événement →<br/>applique le vecteur de masquage
-        T-->>R: RawResult (passe 1), SupervisionState, Trace
-        R->>D: detect(state, trace)  (passe 2)
+        T-->>R: RawResult (passe 1), SupervisionState, récit de la manœuvre
+        R->>D: detect(state, trace observable)  (passe 2)
         D-->>R: Verdict {masking_suspected, scope, heuristic}
         R->>R: consigne (vérité terrain, brut, verdict)
     end
@@ -65,7 +65,7 @@ sequenceDiagram
     R->>SK: GET /received
     SK-->>R: (HighAttackRate absente) ⇒ alarm_raised = false ⇒ MASQUÉE
 
-    Note over R: passe 2, état + trace au détecteur
+    Note over R: passe 2, état + trace observable au détecteur
     R->>AM: GET /api/v2/alerts (statut + inhibitedBy), GET /api/v2/silences
     R->>PR: GET /api/v1/query_range (attack_rate, fw_up, …) depuis t0
     R->>D: detect(state, trace)

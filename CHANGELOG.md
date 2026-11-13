@@ -6,7 +6,7 @@ les chiffres publiés ne bougent pas. Chaque version publiée regèle les deux �
 (`samples/`) et reçoit un DOI de version sous le DOI de concept
 [10.5281/zenodo.22900756](https://doi.org/10.5281/zenodo.22900756).
 
-## 1.1.0 (non publiée)
+## 1.1.0 (13 novembre 2026)
 
 Version mineure : un scénario entre, la ligne de base est corrigée, l'interface du détecteur
 est fermée. Le format de rapport et le protocole de mesure (deux passes, quatre taux) ne

@@ -28,6 +28,6 @@ keywords:
 license: Apache-2.0
 repository-code: "https://github.com/apex-numeris/sourdine"
 url: "https://sourdine.org"
-version: 1.0.0
+version: 1.1.0
 doi: 10.5281/zenodo.22900756
-date-released: "2026-09-22"
+date-released: "2026-11-13"

@@ -1,0 +1,3 @@
+# La page servie par sourdine.org est comparée octet pour octet à celle du dépôt
+# (make site-verify) : fins de ligne Unix dans site/, quel que soit le poste de travail.
+site/* text eol=lf

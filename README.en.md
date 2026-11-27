@@ -322,6 +322,12 @@ vocabulary guard checks that no name in the state describes the manoeuvre and ke
 of attack-only words closed. `tests/test_twin_pairs.py` checks the twin pairs of the
 catalogue.
 
+`tests/test_site_page.py` guards the page published at sourdine.org, versioned as
+`site/index.html`: the version number, the scenario counts and the two result rows it
+shows, in French and in English, must be those of the `VERSION` file and of the two frozen
+samples of the current version. A release shipped without updating the page therefore
+fails `make test`.
+
 An **intended** behaviour change is re-frozen with a deliberate gesture, diff in hand;
 for the current version, the two samples:
 
@@ -464,7 +470,8 @@ sourdine/
 │   ├── exporter/exporter.py     # controllable synthetic exporter (stdlib)
 │   └── sink/sink.py             # observation webhook sink (stdlib)
 ├── scripts/{target_up.sh,target_down.sh}
-├── tests/                       # non-regression sim (strict) + docker (invariants/tolerance), interface, twin pairs
+├── tests/                       # non-regression sim (strict) + docker (invariants/tolerance), interface, twin pairs, site page
+├── site/{index.html,robots.txt} # page served at the root of sourdine.org, guarded by tests/test_site_page.py
 ├── reports/                     # campaign JSON outputs (runtime, git-ignored)
 ├── docs/                        # method documentation (CC BY 4.0, LICENSE file in the folder)
 └── samples/                     # cumulative versioned examples: example-0.{1..14}.0.json then example-1.1.0.json (sim) + *-docker.json (CC BY 4.0)

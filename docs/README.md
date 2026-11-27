@@ -18,7 +18,7 @@ Sourdine mesure la résistance d'une chaîne d'alerte (Prometheus / Alertmanager
 | 05 | [Spécifications](05-specifications.md) | Dev | Schéma scénario, interface détecteur, définitions des taux, schéma du rapport JSON, ruleset |
 | 06 | [Manuel utilisateur](06-manuel-utilisateur.md) | Utilisateur du banc | Installer, lancer une campagne, lire le rapport, ajouter un scénario |
 | 07 | [Manuel administrateur](07-manuel-administrateur.md) | Ops | Gérer la cible, logs, nettoyage, brancher le vrai détecteur, CI |
-| 08 | [Déploiement VPS production](08-deploiement-vps-production.md) | Ops/SRE | Publier un site de résultats en lecture seule pour l'internet, cible jamais exposée |
+| 08 | [Déploiement VPS production](08-deploiement-vps-production.md) | Ops/SRE | Publier un site de résultats en lecture seule pour l'internet, cible jamais exposée, page d'accueil versionnée (`site/`) |
 
 ## Résumé exécutif
 

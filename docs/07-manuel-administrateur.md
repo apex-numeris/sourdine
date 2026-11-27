@@ -130,6 +130,19 @@ PY
 - Version du format de rapport : `sourdine_report_version` (`1.0`), à incrémenter
   si le schéma JSON change, pour garder la comparabilité entre runs.
 - Jeu de scénarios : artefact ouvert versionné avec le dépôt.
+- Page du site : `site/index.html` affiche le numéro de version, les comptages et les
+  chiffres des deux échantillons gelés. Elle se met à jour dans le même commit que
+  `VERSION` et les échantillons, faute de quoi `make test` échoue
+  (`tests/test_site_page.py`).
+
+### 7.1 Page du site à chaque version
+
+1. Avant le tag : reporter dans `site/index.html` le numéro de version, les comptages et
+   les deux lignes de résultats, en français et en anglais, puis relire la note de lecture
+   placée sous le tableau, que le test ne garde pas.
+2. `make site-check` : la page est comparée à `VERSION` et aux échantillons gelés.
+3. Après la publication de la version : `make site-deploy SOURDINE_WEB=utilisateur@hote`.
+4. `make site-verify` : l'empreinte de la page servie par sourdine.org est celle du dépôt.
 
 ## 8. Sécurité : garde-fous non négociables
 

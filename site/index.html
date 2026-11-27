@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sourdine : banc d’attaques de masquage d’alarme</title>
+<meta name="description" content="Sourdine mesure la détection, à l’exécution, du masquage d’alarme dans la supervision d’agents IA : 48 scénarios, deux cibles, quatre taux. Alarm-masking attack benchmark for AI agent monitoring.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231f3a5f'/%3E%3Cpath d='M8 22 L8 12 L14 17 L20 10 L20 22' fill='none' stroke='%23f5f1e8' stroke-width='3' stroke-linejoin='round' stroke-linecap='round'/%3E%3Ccircle cx='24' cy='11' r='3' fill='%23e0a458'/%3E%3C/svg%3E">
+<style>
+:root{--bg:#fbfaf7;--fg:#1d1d1b;--muted:#5d5c58;--line:#d9d6ce;--accent:#1f3a5f;--soft:#f0ede6;--mark:#b8541b}
+@media (prefers-color-scheme:dark){:root{--bg:#161715;--fg:#ece9e1;--muted:#a8a59c;--line:#3a3b37;--accent:#9dbbe0;--soft:#222320;--mark:#e0a458}}
+*{box-sizing:border-box}
+html{font-size:17px}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:Georgia,"Times New Roman",serif;line-height:1.55}
+header,main,footer{max-width:58rem;margin:0 auto;padding:0 1.25rem}
+header{padding-top:2.5rem;display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:1rem}
+.brand{font-family:"Helvetica Neue",Arial,sans-serif;font-weight:700;font-size:2.4rem;letter-spacing:-.02em;color:var(--accent);margin:0}
+.brand small{display:block;font-size:.55em;font-weight:400;letter-spacing:0;color:var(--muted);margin-top:.25rem}
+nav.lang{font-family:"Helvetica Neue",Arial,sans-serif;font-size:.85rem}
+nav.lang button{background:none;border:1px solid var(--line);border-radius:3px;color:var(--fg);padding:.3rem .7rem;cursor:pointer;font:inherit}
+nav.lang button[aria-pressed=true]{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+h2{font-family:"Helvetica Neue",Arial,sans-serif;font-size:1.15rem;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);margin:2.6rem 0 .8rem;padding-top:.8rem;border-top:1px solid var(--line)}
+p{margin:.7rem 0}
+.lede{font-size:1.15rem}
+.tw{overflow-x:auto;margin:1rem 0}
+table{border-collapse:collapse;width:100%;margin:0;font-size:.95rem;font-family:"Helvetica Neue",Arial,sans-serif}
+th,td{border:1px solid var(--line);padding:.5rem .6rem;text-align:left;vertical-align:top}
+th{background:var(--soft);font-weight:600}
+td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.note{color:var(--muted);font-size:.93rem}
+code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;font-size:.9em;background:var(--soft);padding:.05em .3em;border-radius:3px}
+.box{border-left:4px solid var(--mark);background:var(--soft);padding:.8rem 1rem;margin:1.2rem 0}
+ul{padding-left:1.3rem}
+li{margin:.35rem 0}
+footer{margin-top:3rem;padding-top:1rem;padding-bottom:2.5rem;border-top:1px solid var(--line);font-size:.85rem;color:var(--muted);font-family:"Helvetica Neue",Arial,sans-serif}
+footer p{margin:.4rem 0}
+a{color:var(--accent)}
+.hidden{display:none}
+dl{margin:.5rem 0}
+dt{font-weight:600;font-family:"Helvetica Neue",Arial,sans-serif;font-size:.9rem;margin-top:.7rem}
+dd{margin:.15rem 0 0}
+</style>
+</head>
+<body>
+<header>
+  <h1 class="brand">Sourdine<small id="tagline">Banc d’attaques de masquage d’alarme pour la supervision d’agents IA</small></h1>
+  <nav class="lang" aria-label="Langue / Language">
+    <button type="button" id="btn-fr" aria-pressed="true">Français</button>
+    <button type="button" id="btn-en" aria-pressed="false">English</button>
+  </nav>
+</header>
+
+<main id="fr">
+  <p class="lede">Sourdine mesure la résistance d’une chaîne d’alerte au <strong>masquage d’alarme</strong> : des attaques qui ne visent pas l’agent supervisé, mais <strong>l’observateur</strong>, en étouffant ou en supprimant un signal qui aurait dû lever une alarme.</p>
+  <p>Le banc est autonome et jetable : il monte sa propre cible éphémère (Prometheus et Alertmanager en conteneurs isolés, ou un modèle en mémoire), joue un catalogue de scénarios étiquetés et calcule ses métriques. Il ne touche jamais une supervision de production. Tout y est synthétique.</p>
+  <div class="box">Le banc évalue un <strong>détecteur de référence heuristique</strong>, volontairement imparfait. Il n’évalue pas le produit SentinelleIA ; aucun chiffre publié ici n’est « celui de SentinelleIA ».</div>
+
+  <h2>Filiation</h2>
+  <p>Sourdine s’inscrit dans la lignée des attaques par dissimulation formalisées sur les systèmes de contrôle industriel par Erba et Tippenhauer (ACSAC 2020, ACSAC 2022). Ces travaux attaquent le maillon <em>détection</em> en falsifiant des séries de capteurs ; Sourdine attaque le maillon <em>alerte</em> en abusant des primitives d’Alertmanager (inhibition, silence, regroupement, coupure de collecte), dans le domaine de la supervision d’agents IA. Trois axes de démarcation : le maillon attaqué, le domaine, le mécanisme.</p>
+
+  <h2>Ce que contient le banc</h2>
+  <div class="tw"><table>
+    <tr><th>Élément</th><th>Version 1.1.0</th></tr>
+    <tr><td>Scénarios</td><td>48, un fichier JSON par scénario, catalogue ouvert</td></tr>
+    <tr><td>Scénarios d’attaque</td><td>27, couvrant 22 vecteurs</td></tr>
+    <tr><td>Scénarios sains</td><td>21 : contrôles de cohérence et pièges à faux positif</td></tr>
+    <tr><td>Protocole</td><td>deux passes par scénario, sans détecteur puis avec</td></tr>
+    <tr><td>Mesures</td><td>suppression réussie, rattrapage, faux positifs, suppression résiduelle, plus un contrôle de cohérence</td></tr>
+    <tr><td>Cibles</td><td><code>sim</code> (modèle en mémoire, déterministe) et <code>docker</code> (vrais conteneurs Prometheus, Alertmanager, exporter synthétique, récepteur de notifications)</td></tr>
+    <tr><td>Détecteur évalué</td><td><code>baseline-heuristic-v1</code>, derrière une interface où brancher tout autre détecteur</td></tr>
+  </table></div>
+
+  <h2>Résultats de référence (v1.1.0)</h2>
+  <div class="tw"><table>
+    <tr><th>Cible</th><th>Suppression réussie</th><th>Rattrapage</th><th>Faux positifs</th><th>Suppression résiduelle</th><th>Cohérence</th></tr>
+    <tr><td>sim</td><td class="num">100 % (27/27)</td><td class="num">85,2 % (23/27)</td><td class="num">4,8 % (1/21)</td><td class="num">14,8 % (4/27)</td><td class="num">100 %</td></tr>
+    <tr><td>docker</td><td class="num">88,9 % (24/27)</td><td class="num">83,3 % (20/24)</td><td class="num">4,8 % (1/21)</td><td class="num">14,8 % (4/27)</td><td class="num">100 %</td></tr>
+  </table></div>
+  <p class="note">Lecture sans embellissement : il reste un faux positif, <code>HLT-BENIGN-SPIKE-05</code>, dans les deux cibles. Son état observable est strictement identique à celui de l’attaque <code>ATT-LOW-SLOW-CATCHABLE-04</code> : un détecteur limité à la chaîne d’alerte ne peut pas les séparer, et le détecteur de référence choisit de rattraper l’attaque au prix de ce faux positif. Le second faux positif des versions 0.1.0 à 1.0.0 venait d’une incohérence du détecteur de référence, corrigée en 1.1.0. L’ensemble résiduel en simulation est fermé à quatre attaques depuis la version 0.6.0, dont la dissimulation statistique complète, marginalement indétectable par construction. En conteneurs, l’ensemble résiduel diffère et trois attaques ne masquent pas ; ces écarts de fidélité sont nommés et expliqués dans la documentation du banc. Par rapport à la version 1.0.0 (numéro de banc 0.14.0), aucun résultat ne bouge sur les 26 attaques d’origine : l’attaque ajoutée, <code>ATT-SILENCE-NARROW-27</code>, est masquée et rattrapée par construction.</p>
+
+  <h2>Disponibilité</h2>
+  <p>Le code et le harnais (licence Apache 2.0), les scénarios, les échantillons gelés et la documentation de méthode (licence CC BY 4.0) sont publiés sur <a href="https://github.com/apex-numeris/sourdine">github.com/apex-numeris/sourdine</a>. Chaque version reçoit un DOI Zenodo ; le DOI de concept, commun à toutes les versions, est <a href="https://doi.org/10.5281/zenodo.22900756">10.5281/zenodo.22900756</a>.</p>
+
+  <h2>Citer Sourdine</h2>
+  <p>Auteur : Quoc-Nam Nguyen (Apex Numeris SAS, Lyon). Titulaire des droits : Apex Numeris SAS. Titre de l’enregistrement Zenodo : <em>Sourdine : banc d’attaques de masquage d’alarme pour la supervision d’agents IA / Sourdine: alarm-masking attack benchmark for AI agent monitoring</em>. Le dépôt fournit un fichier <code>CITATION.cff</code> ; le DOI de concept, commun à toutes les versions, est celui à citer : <a href="https://doi.org/10.5281/zenodo.22900756">10.5281/zenodo.22900756</a>.</p>
+
+  <h2>Contact</h2>
+  <p>Quoc-Nam Nguyen, <a href="mailto:qnn@apex-numeris.com">qnn@apex-numeris.com</a>.</p>
+
+  <h2 id="mentions">Mentions légales</h2>
+  <dl>
+    <dt>Éditeur</dt><dd>Apex Numeris SAS, société par actions simplifiée, Vénissieux, France. SIREN 990 397 960. Courriel : contact@apex-numeris.com.</dd>
+    <dt>Directeur de la publication</dt><dd>Le représentant légal d’Apex Numeris SAS.</dd>
+    <dt>Hébergement</dt><dd>OVH SAS, 2 rue Kellermann, 59100 Roubaix, France.</dd>
+    <dt>Données personnelles</dt><dd>Ce site ne dépose aucun cookie, n’embarque aucun traceur ni ressource tierce et ne collecte aucune donnée par formulaire. Les journaux techniques du serveur (adresse IP, page demandée, horodatage) servent à la sécurité et à l’exploitation ; ils sont conservés quatorze jours.</dd>
+    <dt>Marque</dt><dd>Sourdine est une marque déposée par Apex Numeris SAS.</dd>
+  </dl>
+</main>
+
+<main id="en" class="hidden" lang="en">
+  <p class="lede">Sourdine measures how well an alerting chain resists <strong>alarm masking</strong>: attacks that do not target the monitored agent but <strong>the observer</strong>, by muffling or suppressing a signal that should have raised an alarm.</p>
+  <p>The benchmark is self-contained and disposable: it brings up its own ephemeral target (Prometheus and Alertmanager in isolated containers, or an in-process model), plays a catalogue of labelled scenarios and computes its metrics. It never touches production monitoring. Everything in it is synthetic.</p>
+  <div class="box">The benchmark evaluates a <strong>heuristic baseline detector</strong>, deliberately imperfect. It does not evaluate the SentinelleIA product; no figure published here is “SentinelleIA’s”.</div>
+
+  <h2>Lineage</h2>
+  <p>Sourdine belongs to the line of concealment attacks formalised on industrial control systems by Erba and Tippenhauer (ACSAC 2020, ACSAC 2022). Those works attack the <em>detection</em> link by forging sensor time series; Sourdine attacks the <em>alerting</em> link by abusing Alertmanager primitives (inhibition, silence, grouping, collection cutoff), in the domain of AI agent monitoring. Three axes set it apart: the link under attack, the domain, the mechanism.</p>
+
+  <h2>What the benchmark contains</h2>
+  <div class="tw"><table>
+    <tr><th>Element</th><th>Version 1.1.0</th></tr>
+    <tr><td>Scenarios</td><td>48, one JSON file each, open catalogue</td></tr>
+    <tr><td>Attack scenarios</td><td>27, covering 22 vectors</td></tr>
+    <tr><td>Healthy scenarios</td><td>21: coherence controls and false-positive traps</td></tr>
+    <tr><td>Protocol</td><td>two passes per scenario, without the detector and then with it</td></tr>
+    <tr><td>Measures</td><td>successful suppression, catch rate, false positives, residual suppression, plus a coherence control</td></tr>
+    <tr><td>Targets</td><td><code>sim</code> (in-process model, deterministic) and <code>docker</code> (real Prometheus, Alertmanager, synthetic exporter and notification receiver containers)</td></tr>
+    <tr><td>Detector under evaluation</td><td><code>baseline-heuristic-v1</code>, behind an interface where any other detector can be plugged in</td></tr>
+  </table></div>
+
+  <h2>Reference results (v1.1.0)</h2>
+  <div class="tw"><table>
+    <tr><th>Target</th><th>Successful suppression</th><th>Catch rate</th><th>False positives</th><th>Residual suppression</th><th>Coherence</th></tr>
+    <tr><td>sim</td><td class="num">100 % (27/27)</td><td class="num">85.2 % (23/27)</td><td class="num">4.8 % (1/21)</td><td class="num">14.8 % (4/27)</td><td class="num">100 %</td></tr>
+    <tr><td>docker</td><td class="num">88.9 % (24/27)</td><td class="num">83.3 % (20/24)</td><td class="num">4.8 % (1/21)</td><td class="num">14.8 % (4/27)</td><td class="num">100 %</td></tr>
+  </table></div>
+  <p class="note">How to read these figures, without embellishment: one false positive remains, <code>HLT-BENIGN-SPIKE-05</code>, on both targets. Its observable state is strictly identical to that of the attack <code>ATT-LOW-SLOW-CATCHABLE-04</code>: a detector limited to the alerting chain cannot tell them apart, and the baseline chooses to catch the attack and pays for it with this false positive. The second false positive of versions 0.1.0 to 1.0.0 came from an inconsistency in the baseline, fixed in 1.1.0. The residual set in simulation has been closed at four attacks since version 0.6.0, including full statistical concealment, marginally undetectable by construction. In containers the residual set differs and three attacks do not mask; these fidelity gaps are named and explained in the benchmark documentation. Compared with version 1.0.0 (bench number 0.14.0), nothing moves on the 26 original attacks: the added attack, <code>ATT-SILENCE-NARROW-27</code>, is masked and caught by construction.</p>
+
+  <h2>Availability</h2>
+  <p>The code and harness (Apache License 2.0), the scenarios, the frozen samples and the method documentation (CC BY 4.0) are published at <a href="https://github.com/apex-numeris/sourdine">github.com/apex-numeris/sourdine</a>. Every version receives a Zenodo DOI; the concept DOI, shared by all versions, is <a href="https://doi.org/10.5281/zenodo.22900756">10.5281/zenodo.22900756</a>.</p>
+
+  <h2>Citing Sourdine</h2>
+  <p>Author: Quoc-Nam Nguyen (Apex Numeris SAS, Lyon, France). Rights holder: Apex Numeris SAS. Zenodo record title: <em>Sourdine : banc d’attaques de masquage d’alarme pour la supervision d’agents IA / Sourdine: alarm-masking attack benchmark for AI agent monitoring</em>. The repository ships a <code>CITATION.cff</code> file; the concept DOI, shared by all versions, is the one to cite: <a href="https://doi.org/10.5281/zenodo.22900756">10.5281/zenodo.22900756</a>.</p>
+
+  <h2>Contact</h2>
+  <p>Quoc-Nam Nguyen, <a href="mailto:qnn@apex-numeris.com">qnn@apex-numeris.com</a>.</p>
+
+  <h2>Legal notice</h2>
+  <dl>
+    <dt>Publisher</dt><dd>Apex Numeris SAS, a French simplified joint-stock company, Vénissieux, France. SIREN 990 397 960. E-mail: contact@apex-numeris.com.</dd>
+    <dt>Publication director</dt><dd>The legal representative of Apex Numeris SAS.</dd>
+    <dt>Hosting</dt><dd>OVH SAS, 2 rue Kellermann, 59100 Roubaix, France.</dd>
+    <dt>Personal data</dt><dd>This site sets no cookie, embeds no tracker or third-party resource and collects no data through forms. The server’s technical logs (IP address, requested page, timestamp) serve security and operations; they are kept for fourteen days.</dd>
+    <dt>Trademark</dt><dd>Sourdine is a trademark filed by Apex Numeris SAS.</dd>
+  </dl>
+</main>
+
+<footer>
+  <p id="foot-fr">© 2026 Apex Numeris SAS. Sourdine est un banc d’essai ouvert d’Apex Numeris SAS. Aucun cookie, aucun traceur. <a href="#mentions">Mentions légales</a>.</p>
+  <p id="foot-en" class="hidden" lang="en">© 2026 Apex Numeris SAS. Sourdine is an open benchmark by Apex Numeris SAS. No cookies, no trackers.</p>
+</footer>
+
+<script>
+(function(){
+  var fr=document.getElementById('fr'),en=document.getElementById('en'),bf=document.getElementById('btn-fr'),be=document.getElementById('btn-en'),ff=document.getElementById('foot-fr'),fe=document.getElementById('foot-en'),tag=document.getElementById('tagline');
+  function show(l){var e=l==='en';fr.classList.toggle('hidden',e);en.classList.toggle('hidden',!e);ff.classList.toggle('hidden',e);fe.classList.toggle('hidden',!e);bf.setAttribute('aria-pressed',String(!e));be.setAttribute('aria-pressed',String(e));document.documentElement.lang=e?'en':'fr';tag.textContent=e?'Alarm-masking attack benchmark for AI agent monitoring':'Banc d’attaques de masquage d’alarme pour la supervision d’agents IA';document.title=e?'Sourdine: alarm-masking attack benchmark':'Sourdine : banc d’attaques de masquage d’alarme';if(history.replaceState){history.replaceState(null,'',e?'#en':'#fr');}}
+  bf.addEventListener('click',function(){show('fr');});
+  be.addEventListener('click',function(){show('en');});
+  if(location.hash==='#en'||(location.hash===''&&/^en\b/i.test(navigator.language||'')&&!/^fr/i.test(navigator.language||''))){show('en');}
+})();
+</script>
+</body>
+</html>

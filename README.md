@@ -329,6 +329,12 @@ du récit de la cible, les sépare toutes. Une garde de vocabulaire vérifie qu'
 l'état ne décrit la manœuvre et tient fermée la liste des mots que seules des attaques
 portent. `tests/test_twin_pairs.py` vérifie les paires jumelles du catalogue.
 
+`tests/test_site_page.py` garde la page publiée sur sourdine.org, versionnée sous
+`site/index.html` : le numéro de version, les comptages de scénarios et les deux lignes de
+résultats qu'elle affiche, en français et en anglais, doivent être ceux du fichier `VERSION`
+et des deux échantillons gelés de la version courante. Une version publiée sans mise à jour
+de la page fait donc échouer `make test`.
+
 Un changement de comportement **voulu** se re-gèle d'un geste délibéré, diff à
 l'appui ; pour la version courante, les deux échantillons :
 
@@ -472,7 +478,8 @@ sourdine/
 │   ├── exporter/exporter.py     # exporter synthétique pilotable (stdlib)
 │   └── sink/sink.py             # sink webhook d'observation (stdlib)
 ├── scripts/{target_up.sh,target_down.sh}
-├── tests/                       # non-régression sim (strict) + docker (invariants/tolérance), interface, paires jumelles
+├── tests/                       # non-régression sim (strict) + docker (invariants/tolérance), interface, paires jumelles, page du site
+├── site/{index.html,robots.txt} # page servie à la racine de sourdine.org, gardée par tests/test_site_page.py
 ├── reports/                     # sorties JSON de campagne (runtime, git-ignoré)
 ├── docs/                        # documentation de méthode (CC BY 4.0, fichier LICENSE du dossier)
 └── samples/                     # exemples versionnés cumulés : example-0.{1..14}.0.json puis example-1.1.0.json (sim) + *-docker.json (CC BY 4.0)

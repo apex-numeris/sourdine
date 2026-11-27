@@ -245,3 +245,24 @@ sudo ufw status                                          # 80/443/SSH seulement
 - [ ] Aucun secret dans `/var/www` ni dans le dépôt déployé.
 - [ ] La page rappelle que le banc évalue une **baseline**, pas le produit.
 - [ ] Publication Zenodo/HAL et licences : traitées **en amont** côté CEO (hors banc).
+
+## 11. Page d'accueil versionnée (`site/`)
+
+La racine de sourdine.org sert une page statique écrite à la main : `site/index.html`,
+accompagnée de `site/robots.txt`. Elle présente le banc, la version courante et ses
+résultats de référence, en français et en anglais. Elle ne dépend pas du générateur du
+§ 4.1 et n'embarque aucune ressource tierce.
+
+La page vit dans le dépôt pour une raison simple : écrite sur le serveur, elle prenait du
+retard à chaque version. `tests/test_site_page.py` la compare désormais au fichier
+`VERSION` et aux deux échantillons gelés, et tourne dans `make test`.
+
+```bash
+make site-check                                   # page au niveau de la version courante ?
+make site-deploy SOURDINE_WEB=utilisateur@hote    # copie index.html et robots.txt dans /var/www/sourdine
+make site-verify                                  # empreinte en ligne = empreinte du dépôt
+```
+
+L'adresse du serveur ne s'écrit pas dans le dépôt : elle passe par la variable
+`SOURDINE_WEB`. Avant un déploiement, garder une copie de la page en place hors de
+`/var/www/sourdine`, pour pouvoir revenir en arrière.

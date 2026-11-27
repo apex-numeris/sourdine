@@ -6,6 +6,21 @@ les chiffres publiés ne bougent pas. Chaque version publiée regèle les deux �
 (`samples/`) et reçoit un DOI de version sous le DOI de concept
 [10.5281/zenodo.22900756](https://doi.org/10.5281/zenodo.22900756).
 
+## Non publié
+
+### Ajouté
+
+- `site/` : la page servie à la racine de sourdine.org (`index.html`, `robots.txt`) entre
+  dans le dépôt, au niveau de la version 1.1.0. Elle était jusqu'ici écrite à la main sur
+  le serveur et était restée sur les chiffres de la version 1.0.0 après la sortie de la
+  1.1.0.
+- `tests/test_site_page.py`, joué par `make test` : le numéro de version, les comptages et
+  les deux lignes de résultats de la page, en français et en anglais, sont comparés au
+  fichier `VERSION` et aux deux échantillons gelés de la version courante, avec preuve par
+  mutation.
+- `make site-check`, `make site-deploy` et `make site-verify`, et la marche à suivre dans
+  `docs/07` (§ 7) et `docs/08` (§ 11).
+
 ## 1.1.0 (13 novembre 2026)
 
 Version mineure : un scénario entre, la ligne de base est corrigée, l'interface du détecteur
